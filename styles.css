@@ -1,0 +1,739 @@
+/* ===== Visual Mermaid Editor (Mermaid Flow) ===== */
+
+.mermaid-flow-modal {
+	width: min(1100px, 94vw);
+	height: min(800px, 90vh);
+}
+
+/* The editor root works inside both a modal and a workspace pane. */
+.mermaid-flow-editor {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	padding-top: 8px;
+}
+
+.mermaid-flow-view {
+	height: 100%;
+	padding: 8px 12px 12px;
+	overflow: hidden;
+}
+
+.mermaid-flow-empty {
+	color: var(--text-muted);
+	padding: 24px;
+	text-align: center;
+}
+
+/* --- toolbar --- */
+.mermaid-flow-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 14px;
+	padding: 8px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.mermaid-flow-tb-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mermaid-flow-tb-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.mermaid-flow-select {
+	height: 28px;
+}
+
+.mermaid-flow-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+}
+
+.mermaid-flow-icon-btn:hover {
+	background: var(--interactive-hover);
+}
+
+.mermaid-flow-icon-btn.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mermaid-flow-icon-btn.is-disabled {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+.mermaid-flow-tb-btn {
+	padding: 6px 14px;
+	font-size: var(--font-ui-small);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+	border: none;
+}
+
+.mermaid-flow-tb-btn:hover {
+	background: var(--interactive-hover);
+}
+
+.mermaid-flow-tb-btn.mod-cta {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mermaid-flow-tb-btn.mod-cta:hover {
+	background: var(--interactive-accent-hover);
+}
+
+/* --- semantic / quick-add chips --- */
+.mermaid-flow-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 6px;
+}
+
+.mermaid-flow-chip {
+	padding: 3px 9px;
+	font-size: var(--font-ui-smaller);
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--interactive-normal);
+	cursor: pointer;
+}
+
+.mermaid-flow-chip:hover {
+	background: var(--interactive-hover);
+}
+
+.mermaid-flow-size-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mermaid-flow-size-row input {
+	width: 64px;
+}
+
+.mermaid-flow-autosave-note {
+	margin-right: auto;
+	align-self: center;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.mermaid-flow-code-modal .mermaid-flow-code {
+	width: 100%;
+	height: 320px;
+}
+
+/* --- shape menu (hover dropdown) --- */
+.mermaid-flow-shape-menu {
+	position: relative;
+}
+
+.mermaid-flow-caret {
+	margin-left: 2px;
+	font-size: 9px;
+	line-height: 1;
+}
+
+.mermaid-flow-shape-popup {
+	display: none;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	z-index: 20;
+	margin-top: 4px;
+	padding: 8px;
+	width: 320px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-s);
+}
+
+.mermaid-flow-shape-menu:hover .mermaid-flow-shape-popup,
+.mermaid-flow-shape-popup:hover {
+	display: block;
+}
+
+.mermaid-flow-palette-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.mermaid-flow-shape-btn {
+	width: 44px;
+	height: 32px;
+	padding: 3px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--interactive-normal);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.mermaid-flow-shape-btn:hover {
+	background: var(--interactive-hover);
+	border-color: var(--interactive-accent);
+}
+
+.mermaid-flow-shape-icon {
+	width: 36px;
+	height: 24px;
+	display: block;
+}
+
+.mermaid-flow-shape-icon .mermaid-flow-shape {
+	stroke-width: 1.2px;
+}
+
+/* --- body: canvas + side panel --- */
+.mermaid-flow-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	gap: 10px;
+	padding-top: 10px;
+}
+
+.mermaid-flow-canvas-host {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+}
+
+.mermaid-flow-canvas-scroll {
+	flex: 1;
+	overflow: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background:
+		linear-gradient(var(--background-modifier-border-hover) 1px, transparent 1px) 0 0 / 24px 24px,
+		linear-gradient(90deg, var(--background-modifier-border-hover) 1px, transparent 1px) 0 0 / 24px 24px,
+		var(--background-primary);
+	background-blend-mode: soft-light;
+}
+
+.mermaid-flow-svg {
+	display: block;
+	min-width: 100%;
+	min-height: 100%;
+	touch-action: none;
+	user-select: none;
+}
+
+.mermaid-flow-panel {
+	width: 240px;
+	flex-shrink: 0;
+	overflow-y: auto;
+	padding: 4px 10px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.mermaid-flow-panel h3 {
+	margin: 8px 0 10px;
+}
+
+.mermaid-flow-field {
+	margin-bottom: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.mermaid-flow-field label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.mermaid-flow-field-inline {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.mermaid-flow-field-inline label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.mermaid-flow-field-inline input[type="color"] {
+	width: 44px;
+	height: 26px;
+	padding: 0;
+	cursor: pointer;
+}
+
+.mermaid-flow-subhead {
+	margin: 14px 0 8px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 10px;
+}
+
+.mermaid-flow-input {
+	width: 100%;
+}
+
+.mermaid-flow-field-readonly {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	margin-bottom: 10px;
+	word-break: break-all;
+}
+
+.mermaid-flow-panel-buttons {
+	margin-top: 10px;
+}
+
+.mermaid-flow-panel-btn {
+	width: 100%;
+	cursor: pointer;
+}
+
+.mermaid-flow-hint {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.mermaid-flow-hint ul {
+	padding-left: 18px;
+	margin: 6px 0;
+}
+
+.mermaid-flow-stats {
+	margin-top: 14px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+/* --- nodes --- */
+.mermaid-flow-node {
+	cursor: grab;
+}
+
+.mermaid-flow-node:active {
+	cursor: grabbing;
+}
+
+.mermaid-flow-shape {
+	fill: var(--background-primary-alt);
+	stroke: var(--text-muted);
+	stroke-width: 1.5px;
+}
+
+.mermaid-flow-node.is-selected .mermaid-flow-shape {
+	stroke: var(--interactive-accent);
+	stroke-width: 2.5px;
+}
+
+.mermaid-flow-node.is-multi .mermaid-flow-shape {
+	stroke: var(--interactive-accent);
+	stroke-width: 2px;
+	stroke-dasharray: 4 3;
+}
+
+.mermaid-flow-resize {
+	fill: var(--interactive-accent);
+	stroke: var(--background-primary);
+	stroke-width: 1.5px;
+	cursor: nwse-resize;
+}
+
+.mermaid-flow-rubber {
+	fill: var(--interactive-accent);
+	fill-opacity: 0.12;
+	stroke: var(--interactive-accent);
+	stroke-width: 1px;
+	stroke-dasharray: 4 3;
+	pointer-events: none;
+}
+
+.mermaid-flow-node.is-connect-source .mermaid-flow-shape {
+	stroke: var(--color-green, #4caf50);
+	stroke-width: 2.5px;
+	stroke-dasharray: 5 4;
+}
+
+.mermaid-flow-node-label {
+	fill: var(--text-normal);
+	font-size: 13px;
+	font-family: var(--font-interface);
+	pointer-events: none;
+}
+
+/* --- connection anchors (shown on node hover) --- */
+.mermaid-flow-anchor {
+	fill: var(--interactive-accent);
+	stroke: var(--background-primary);
+	stroke-width: 1.5px;
+	opacity: 0;
+	pointer-events: none;
+	cursor: crosshair;
+	transition: opacity 100ms ease-in-out;
+}
+
+.mermaid-flow-node:hover .mermaid-flow-anchor {
+	opacity: 0.95;
+	pointer-events: auto;
+}
+
+.mermaid-flow-anchor:hover {
+	r: 7;
+}
+
+/* --- subgraphs (groups) --- */
+.mermaid-flow-group-box {
+	fill: var(--background-modifier-hover);
+	fill-opacity: 0.35;
+	stroke: var(--text-faint);
+	stroke-width: 1.5px;
+	stroke-dasharray: 6 4;
+	pointer-events: none;
+}
+
+.mermaid-flow-group.is-selected .mermaid-flow-group-box {
+	stroke: var(--interactive-accent);
+	stroke-dasharray: none;
+}
+
+.mermaid-flow-group-header {
+	fill: var(--background-modifier-border);
+	opacity: 0.85;
+	cursor: grab;
+}
+
+.mermaid-flow-group.is-selected .mermaid-flow-group-header {
+	fill: var(--interactive-accent);
+}
+
+.mermaid-flow-group-title {
+	fill: var(--text-normal);
+	font-size: 12px;
+	font-weight: 600;
+	font-family: var(--font-interface);
+	pointer-events: none;
+}
+
+.mermaid-flow-group.is-selected .mermaid-flow-group-title {
+	fill: var(--text-on-accent);
+}
+
+/* --- edges --- */
+.mermaid-flow-edge {
+	cursor: pointer;
+}
+
+.mermaid-flow-edge-hit {
+	stroke: transparent;
+	stroke-width: 14px;
+	fill: none;
+}
+
+.mermaid-flow-edge-line {
+	stroke: var(--text-muted);
+	stroke-width: 1.7px;
+	fill: none;
+}
+
+.mermaid-flow-edge-line.is-thick {
+	stroke-width: 3.5px;
+}
+
+.mermaid-flow-edge-line.is-invisible {
+	stroke: var(--text-faint);
+	opacity: 0.55;
+}
+
+.mermaid-flow-edge.is-selected .mermaid-flow-edge-line {
+	stroke: var(--interactive-accent);
+	stroke-width: 2.6px;
+}
+
+.mermaid-flow-arrowhead {
+	fill: var(--text-muted);
+}
+
+.mermaid-flow-edge.is-selected .mermaid-flow-arrowhead {
+	fill: var(--interactive-accent);
+}
+
+.mermaid-flow-edge-label-bg {
+	fill: var(--background-primary);
+	opacity: 0.9;
+	rx: 3;
+}
+
+.mermaid-flow-edge-label {
+	fill: var(--text-normal);
+	font-size: 11px;
+	font-family: var(--font-interface);
+	pointer-events: none;
+}
+
+.mermaid-flow-ghost-line {
+	stroke: var(--interactive-accent);
+	stroke-width: 1.8px;
+	stroke-dasharray: 6 4;
+	pointer-events: none;
+}
+
+/* --- code view --- */
+.mermaid-flow-code-wrap {
+	margin-top: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mermaid-flow-code-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	flex-wrap: wrap;
+}
+
+.mermaid-flow-code-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mermaid-flow-auto-apply-toggle {
+	cursor: pointer;
+	width: 16px;
+	height: 16px;
+}
+
+.mermaid-flow-code {
+	width: 100%;
+	height: 140px;
+	resize: vertical;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	white-space: pre;
+}
+
+/* --- footer --- */
+.mermaid-flow-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 10px;
+}
+
+/* --- spacer for toolbar layout --- */
+.mermaid-flow-spacer {
+	flex: 1;
+}
+
+/* --- code view error display --- */
+.mermaid-flow-code-error {
+	padding: 8px 12px;
+	margin-top: 6px;
+	background: var(--color-red-rgb, rgba(255, 100, 100, 0.15));
+	border: 1px solid var(--color-red, #ff6464);
+	border-radius: var(--radius-s);
+	color: var(--color-red, #ff6464);
+	font-size: var(--font-ui-smaller);
+	font-family: var(--font-monospace);
+}
+
+.mermaid-flow-error-icon {
+	margin-right: 4px;
+	font-weight: bold;
+}
+
+/* --- help modal styling --- */
+.mermaid-flow-help-modal {
+	max-height: 600px;
+	overflow-y: auto;
+}
+
+.mermaid-flow-help-modal h3 {
+	margin-top: 16px;
+	margin-bottom: 10px;
+	color: var(--text-normal);
+}
+
+.mermaid-flow-help-modal h3:first-child {
+	margin-top: 0;
+}
+
+.mermaid-flow-help-modal ul {
+	margin-left: 20px;
+	margin-bottom: 12px;
+}
+
+.mermaid-flow-help-modal li {
+	margin-bottom: 6px;
+	color: var(--text-normal);
+}
+
+.mermaid-flow-shortcuts-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-bottom: 12px;
+	font-size: var(--font-ui-smaller);
+}
+
+.mermaid-flow-shortcuts-table tr {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.mermaid-flow-shortcuts-table tr:last-child {
+	border-bottom: none;
+}
+
+.mermaid-flow-shortcuts-table td {
+	padding: 8px 12px;
+	text-align: left;
+}
+
+.mermaid-flow-shortcuts-table .mermaid-flow-key {
+	font-family: var(--font-monospace);
+	font-weight: 600;
+	color: var(--interactive-accent);
+	width: 35%;
+}
+
+.mermaid-flow-modal-close-btn {
+	margin-top: 16px;
+	width: 100%;
+	padding: 8px;
+	cursor: pointer;
+}
+
+/* --- mobile responsiveness --- */
+@media (max-width: 768px) {
+	.mermaid-flow-modal {
+		width: min(100vw, 95vw) !important;
+		height: min(100vh, 95vh) !important;
+	}
+
+	.mermaid-flow-body {
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.mermaid-flow-canvas-host {
+		flex: 0 1 auto;
+		height: 300px;
+		min-height: 200px;
+	}
+
+	.mermaid-flow-panel {
+		width: 100% !important;
+		height: auto;
+		max-height: 250px;
+		overflow-y: auto;
+	}
+
+	.mermaid-flow-code-wrap {
+		max-height: 200px;
+	}
+
+	.mermaid-flow-toolbar {
+		gap: 8px;
+		padding: 6px 2px;
+	}
+
+	.mermaid-flow-tb-group {
+		gap: 4px;
+	}
+
+	.mermaid-flow-select {
+		font-size: var(--font-ui-smaller);
+	}
+
+	.mermaid-flow-spacer {
+		display: none;
+	}
+}
+
+/* --- accessibility improvements --- */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.mermaid-flow-icon-btn:focus {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* --- reading-mode edit button --- */
+.mermaid-flow-block {
+	position: relative;
+}
+
+.mermaid-flow-overlay {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 5;
+	display: flex;
+	gap: 4px;
+	opacity: 0.6;
+	transition: opacity 120ms ease-in-out;
+}
+
+.mermaid-flow-block:hover .mermaid-flow-overlay {
+	opacity: 1;
+}
+
+.mermaid-flow-overlay-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 3px 8px;
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+	cursor: pointer;
+	box-shadow: var(--shadow-s);
+}

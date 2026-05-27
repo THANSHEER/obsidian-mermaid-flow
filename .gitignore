@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Compilation output
+main.js
+styles.css (if generated)
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Obsidian specific
+.obsidian/
+.trash/
+
+# Development
+dist/
+build/
+*.log
+.env
