@@ -281,7 +281,7 @@ export class DiagramEditorUI {
 		);
 
 		// Spacer to push theme/direction to the right
-		const spacer = bar.createDiv({ cls: "mermaid-flow-spacer" });
+		bar.createDiv({ cls: "mermaid-flow-spacer" });
 
 		// Theme (moved to end)
 		const themeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
@@ -1268,7 +1268,7 @@ export class DiagramEditorUI {
 
 		// Auto-apply toggle
 		const toggleDiv = header.createDiv({ cls: "mermaid-flow-code-controls" });
-		const autoLabel = toggleDiv.createSpan({ text: "Auto-apply: " });
+		toggleDiv.createSpan({ text: "Auto-apply: " });
 		const autoToggle = toggleDiv.createEl("input", {
 			type: "checkbox",
 			cls: "mermaid-flow-auto-apply-toggle",

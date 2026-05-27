@@ -737,3 +737,37 @@ textarea:focus {
 	cursor: pointer;
 	box-shadow: var(--shadow-s);
 }
+
+/* --- Settings Improvements --- */
+.mermaid-flow-prompt-setting {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+.mermaid-flow-prompt-setting .setting-item-info {
+	margin: 0;
+	width: 100%;
+}
+
+.mermaid-flow-prompt-setting .setting-item-control {
+	width: 100%;
+	justify-content: flex-start;
+}
+
+.mermaid-flow-prompt-textarea {
+	width: 100%;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small);
+	padding: 10px;
+	border-radius: var(--radius-m);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	resize: vertical;
+	min-height: 100px;
+}
+
+.mermaid-flow-prompt-textarea:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}

@@ -202,7 +202,7 @@ function parseEdgeStyleProps(propStr: string): EdgeStyle {
 
 /** Parse the JSON body of an `init` directive into model.config (best effort). */
 function applyInitConfig(model: DiagramModel, jsonBody: string): void {
-	let obj: Record<string, unknown> | null = null;
+	let obj: Record<string, unknown>;
 	try {
 		obj = JSON.parse(jsonBody) as Record<string, unknown>;
 	} catch {
