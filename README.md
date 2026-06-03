@@ -1,7 +1,7 @@
 # Mermaid Flow for Obsidian
 
 [![Obsidian Downloads](https://img.shields.io/badge/Obsidian-v1.7.2+-purple.svg)](https://obsidian.md/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 **Mermaid Flow** is a visual WYSIWYG editor for Mermaid flowcharts directly inside Obsidian. Create, edit, and arrange diagrams by dragging nodes and drawing connections—no Mermaid syntax knowledge required.
 
@@ -38,13 +38,17 @@
 - **Default Direction:** Set your preferred flowchart direction (Top-Bottom, Left-Right, etc.).
 - **Remember node positions:** (Recommended) Saves manual layouts within hidden Mermaid comments.
 
+## 🔒 Advanced syntax & safety
+
+The editor focuses on flowchart structure. Advanced or unrecognized Mermaid syntax in an existing diagram (for example `click`, `classDef`, or `linkStyle` directives) is **preserved verbatim** when you edit and re-save, and is rendered by Obsidian's own Mermaid engine — Mermaid Flow never executes diagram code itself.
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contribution Guide](docs/CONTRIBUTING.md) and [Architecture Overview](docs/ARCHITECTURE.md) to get started.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 [Mohammed Thansheer](https://github.com/THANSHEER)
