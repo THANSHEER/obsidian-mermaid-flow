@@ -640,8 +640,8 @@
 /* --- mobile responsiveness --- */
 @media (max-width: 768px) {
 	.mermaid-flow-modal {
-		width: min(100vw, 95vw) !important;
-		height: min(100vh, 95vh) !important;
+		width: min(100vw, 95vw);
+		height: min(100vh, 95vh);
 	}
 
 	.mermaid-flow-body {
@@ -656,7 +656,7 @@
 	}
 
 	.mermaid-flow-panel {
-		width: 100% !important;
+		width: 100%;
 		height: auto;
 		max-height: 250px;
 		overflow-y: auto;
@@ -685,10 +685,12 @@
 }
 
 /* --- accessibility improvements --- */
-button:focus,
-input:focus,
-select:focus,
-textarea:focus {
+.mermaid-flow-editor button:focus-visible,
+.mermaid-flow-editor input:focus-visible,
+.mermaid-flow-editor select:focus-visible,
+.mermaid-flow-editor textarea:focus-visible,
+.mermaid-flow-modal button:focus-visible,
+.mermaid-flow-overlay-btn:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
@@ -700,10 +702,12 @@ textarea:focus {
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-	* {
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 0.01ms !important;
+	.mermaid-flow-editor *,
+	.mermaid-flow-modal *,
+	.mermaid-flow-overlay * {
+		animation-duration: 0.01ms;
+		animation-iteration-count: 1;
+		transition-duration: 0.01ms;
 	}
 }
 

@@ -77,7 +77,8 @@ export default class MermaidFlowPlugin extends Plugin {
 	}
 
 	onunload(): void {
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_MERMAID_FLOW);
+		// Per Obsidian guidelines, don't detach our custom-view leaves here —
+		// Obsidian restores them when the plugin reloads (e.g. on update).
 		for (const obs of this.blockObservers) obs.disconnect();
 		this.blockObservers = [];
 	}
