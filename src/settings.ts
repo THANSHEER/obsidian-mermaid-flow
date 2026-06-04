@@ -17,7 +17,6 @@ export interface MermaidFlowSettings {
 	defaultShape: NodeShape;
 	savePositions: boolean;
 	autoSave: boolean;
-	promptTemplate: string;
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
@@ -26,7 +25,6 @@ export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	defaultShape: "rect",
 	savePositions: true,
 	autoSave: true,
-	promptTemplate: "I need a Mermaid flowchart that shows: {{text}}",
 };
 
 export class MermaidFlowSettingTab extends PluginSettingTab {
@@ -40,6 +38,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+
+		new Setting(containerEl).setName("Editor").setHeading();
 
 		new Setting(containerEl)
 			.setName("Open editor as")
@@ -55,6 +55,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+
+		new Setting(containerEl).setName("Diagram defaults").setHeading();
 
 		new Setting(containerEl)
 			.setName("Default direction")
@@ -84,6 +86,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl).setName("Behavior").setHeading();
+
 		new Setting(containerEl)
 			.setName("Auto-save (embedded pane)")
 			.setDesc(
@@ -108,23 +112,6 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 					this.plugin.settings.savePositions = value;
 					await this.plugin.saveSettings();
 				});
-			});
-
-		containerEl.createEl("h3", { text: "AI & Templates" });
-
-		new Setting(containerEl)
-			.setName("AI Prompt Template")
-			.setDesc("The template used when generating diagrams via AI. Use {{text}} as a placeholder for your instructions.")
-			.setClass("mermaid-flow-prompt-setting")
-			.addTextArea((text) => {
-				text.setPlaceholder("I need a Mermaid flowchart that shows: {{text}}")
-					.setValue(this.plugin.settings.promptTemplate)
-					.onChange(async (value) => {
-						this.plugin.settings.promptTemplate = value;
-						await this.plugin.saveSettings();
-					});
-				text.inputEl.rows = 4;
-				text.inputEl.addClass("mermaid-flow-prompt-textarea");
 			});
 	}
 }
