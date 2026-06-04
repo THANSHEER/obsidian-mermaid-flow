@@ -1506,12 +1506,13 @@ export class DiagramEditorUI {
 		// Canvas Controls
 		content.createEl("h3", { text: "🖱️ Canvas Controls" });
 		const controls = [
-			"Drag to pan the canvas",
-			"Scroll to zoom in/out",
-			"Click nodes to select them",
-			"Drag nodes to move them",
-			"Drag from blue dot on node to connect to another node",
-			"Right-click for context menu with quick actions",
+			"Scroll, or use the scrollbars, to move around the canvas",
+			"Click a node or edge to select it",
+			"Drag a node to move it",
+			"Shift-click nodes, or drag a box on empty canvas, to select several",
+			"Hover a node and drag from a blue edge dot to connect to another node",
+			"Or switch to Connect mode (C), then click two nodes to link them",
+			"Right-click a node or edge for quick actions",
 		];
 		const controlsList = content.createEl("ul");
 		for (const control of controls) {
@@ -1521,10 +1522,10 @@ export class DiagramEditorUI {
 		// Tips
 		content.createEl("h3", { text: "💡 Tips" });
 		const tips = [
-			"Use Code view (toggle with 📝 button) to edit raw Mermaid code",
+			"Use the Code button in the toolbar to view and edit the raw Mermaid",
 			"Enable Auto-apply in code view for real-time diagram updates",
 			"Lock layout to prevent accidental position changes",
-			"Use Quick add buttons to add nodes quickly",
+			"Use the Quick add buttons in a node's panel to extend a flow fast",
 			"Subgraphs help organize complex diagrams",
 		];
 		const tipsList = content.createEl("ul");
