@@ -161,11 +161,17 @@
 .mermaid-flow-size-row {
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
 	gap: 6px;
 }
 
 .mermaid-flow-size-row input {
 	width: 64px;
+}
+
+.mermaid-flow-size-affix {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
 }
 
 .mermaid-flow-autosave-note {

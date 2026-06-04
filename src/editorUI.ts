@@ -865,6 +865,11 @@ export class DiagramEditorUI {
 		this.dangerButton("Ungroup (keep nodes)", () => this.ungroupSelected());
 	}
 
+	/** A labelled section divider in the properties panel. */
+	private sectionHead(text: string): void {
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text });
+	}
+
 	private buildNodePanel(id: string): void {
 		const node = this.model.nodes.find((n) => n.id === id);
 		if (!node) return;
@@ -874,12 +879,14 @@ export class DiagramEditorUI {
 			text: `id: ${node.id}`,
 		});
 
+		this.sectionHead("Content");
 		this.labelField("Label", node.label, (value) => {
 			node.label = value;
 			this.canvas.render();
 			this.commit();
 		});
 
+		this.sectionHead("Shape & size");
 		this.selectField(
 			"Shape",
 			NODE_SHAPES,
@@ -891,12 +898,13 @@ export class DiagramEditorUI {
 				this.commit();
 			},
 		);
-
 		this.buildNodeSizeField(node);
-		this.buildStyleAsRow();
-		this.buildQuickAddRow();
 		this.buildNodeGroupField(node);
+
+		this.buildStyleAsRow();
 		this.buildNodeStyleSection(node);
+
+		this.buildQuickAddRow();
 
 		const dupRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons" });
 		const dup = dupRow.createEl("button", {
@@ -911,18 +919,21 @@ export class DiagramEditorUI {
 	private buildNodeSizeField(node: DiagramNode): void {
 		const size = this.canvas.effectiveSize(node.id);
 		const row = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		row.createEl("label", { text: "Size (W × H)" });
+		row.createEl("label", { text: "Size" });
 		const inputs = row.createDiv({ cls: "mermaid-flow-size-row" });
 
+		inputs.createSpan({ cls: "mermaid-flow-size-affix", text: "W" });
 		const wInput = inputs.createEl("input", {
 			type: "number",
 			cls: "mermaid-flow-input",
+			attr: { "aria-label": "Node width" },
 		});
 		wInput.value = String(node.w ?? size.w);
-		inputs.createSpan({ text: "×" });
+		inputs.createSpan({ cls: "mermaid-flow-size-affix", text: "H" });
 		const hInput = inputs.createEl("input", {
 			type: "number",
 			cls: "mermaid-flow-input",
+			attr: { "aria-label": "Node height" },
 		});
 		hInput.value = String(node.h ?? size.h);
 
