@@ -55,6 +55,7 @@ export class DiagramCanvas {
 	private edgeLayer: SVGGElement;
 	private nodeLayer: SVGGElement;
 	private overlayLayer: SVGGElement;
+	private emptyState!: HTMLElement;
 
 	private mode: EditorMode = "select";
 	private selection: Selection = null;
@@ -113,6 +114,10 @@ export class DiagramCanvas {
 		this.svg.addEventListener("pointerdown", (e) => this.onBackgroundDown(e));
 		this.svg.addEventListener("pointermove", (e) => this.onPointerMove(e));
 		this.svg.addEventListener("pointerup", (e) => this.onPointerUp(e));
+
+		// Overlay shown only when the diagram has no nodes (first-open / cleared).
+		this.emptyState = parent.createDiv({ cls: "mermaid-flow-canvas-empty" });
+		this.buildEmptyState();
 
 		this.render();
 	}
@@ -173,6 +178,22 @@ export class DiagramCanvas {
 
 	destroy(): void {
 		this.scroller.remove();
+		this.emptyState?.remove();
+	}
+
+	private buildEmptyState(): void {
+		const inner = this.emptyState.createDiv({
+			cls: "mermaid-flow-canvas-empty-inner",
+		});
+		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
+		inner.createEl("p", {
+			cls: "mermaid-flow-canvas-empty-title",
+			text: "Start your diagram",
+		});
+		inner.createEl("p", {
+			cls: "mermaid-flow-canvas-empty-hint",
+			text: "Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.",
+		});
 	}
 
 	// --- geometry -----------------------------------------------------------
@@ -249,6 +270,7 @@ export class DiagramCanvas {
 		this.renderGroups();
 		this.renderEdges();
 		this.renderNodes();
+		this.emptyState?.toggleClass("is-visible", this.model.nodes.length === 0);
 	}
 
 	private static readonly GROUP_PAD = 26;

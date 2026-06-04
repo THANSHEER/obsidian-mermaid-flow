@@ -222,6 +222,7 @@
 	flex: 1;
 	min-width: 0;
 	display: flex;
+	position: relative;
 }
 
 .mermaid-flow-canvas-scroll {
@@ -242,6 +243,46 @@
 	min-height: 100%;
 	touch-action: none;
 	user-select: none;
+}
+
+/* --- canvas empty state (shown only when there are zero nodes) --- */
+.mermaid-flow-canvas-empty {
+	display: none;
+	position: absolute;
+	inset: 0;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	pointer-events: none;
+}
+
+.mermaid-flow-canvas-empty.is-visible {
+	display: flex;
+}
+
+.mermaid-flow-canvas-empty-inner {
+	max-width: 320px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.mermaid-flow-canvas-empty-glyph {
+	font-size: 32px;
+	line-height: 1;
+	color: var(--text-faint);
+	margin-bottom: 10px;
+}
+
+.mermaid-flow-canvas-empty-title {
+	margin: 0 0 6px;
+	font-size: var(--font-ui-large);
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.mermaid-flow-canvas-empty-hint {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
 }
 
 .mermaid-flow-panel {

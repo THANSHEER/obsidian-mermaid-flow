@@ -21,7 +21,7 @@ import {
 } from "./editorExtension";
 import { MermaidEditorView, VIEW_TYPE_MERMAID_FLOW } from "./editorView";
 import { layoutMissing } from "./layout";
-import { DiagramModel, emptyModel } from "./model";
+import { DiagramModel, starterModel } from "./model";
 import { mermaidToModel } from "./parser";
 import { modelToFencedBlock, modelToMermaid } from "./serializer";
 import {
@@ -142,7 +142,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	}
 
 	private openInsert(editor: Editor): void {
-		const model = emptyModel(this.settings.defaultDirection);
+		const model = starterModel(this.settings.defaultDirection);
 		this.openEditor(model, (result) => {
 			const block = modelToFencedBlock(result, {
 				includePositions: this.settings.savePositions,

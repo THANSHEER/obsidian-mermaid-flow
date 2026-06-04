@@ -74,6 +74,10 @@ export class DiagramEditorUI {
 	private lockLayout = false;
 	private keyHandler?: (e: KeyboardEvent) => void;
 
+	// properties-panel focus management: only focus the label on selection change
+	private lastSelKey: string | null = null;
+	private focusLabelOnBuild = false;
+
 	// undo/redo
 	private ready = false;
 	private history: DiagramModel[] = [];
@@ -788,17 +792,31 @@ export class DiagramEditorUI {
 
 	private refreshPanel(): void {
 		const sel = this.canvas.getSelection();
+		// Only auto-focus the label input when the selection actually changes, so
+		// committing an edit (e.g. finishing a drag) doesn't steal focus mid-work.
+		const selKey = sel ? `${sel.type}:${sel.id}` : null;
+		this.focusLabelOnBuild = selKey !== this.lastSelKey;
+		this.lastSelKey = selKey;
 		this.panelEl.empty();
 
 		if (!sel) {
-			this.panelEl.createEl("h3", { text: "Properties" });
+			const empty = this.model.nodes.length === 0;
+			this.panelEl.createEl("h3", {
+				text: empty ? "Get started" : "Properties",
+			});
 			const hint = this.panelEl.createDiv({ cls: "mermaid-flow-hint" });
-			hint.createEl("p", { text: "Select a node or edge to edit it." });
+			hint.createEl("p", {
+				text: empty
+					? "Build a flowchart visually — no Mermaid syntax needed."
+					: "Select a node or edge to edit it.",
+			});
 			const list = hint.createEl("ul");
-			list.createEl("li", { text: "Click a shape above to add it." });
-			list.createEl("li", { text: "Drag a node to move it." });
+			list.createEl("li", { text: "Click a shape in the toolbar to add a node." });
 			list.createEl("li", {
-				text: "Hover a node and drag from a blue dot to connect it to another.",
+				text: "Drag a node to move it; drag a blue edge dot to connect.",
+			});
+			list.createEl("li", {
+				text: "Shift-click or drag a box to select several nodes.",
 			});
 			list.createEl("li", {
 				text: "Right-click a node or edge for more actions.",
@@ -1186,10 +1204,13 @@ export class DiagramEditorUI {
 		});
 		input.value = value;
 		input.addEventListener("input", () => onInput(input.value));
-		window.setTimeout(() => {
-			input.focus();
-			input.select();
-		}, 0);
+		if (this.focusLabelOnBuild) {
+			this.focusLabelOnBuild = false;
+			window.setTimeout(() => {
+				input.focus();
+				input.select();
+			}, 0);
+		}
 	}
 
 	private numberField(
