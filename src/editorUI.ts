@@ -90,6 +90,7 @@ export class DiagramEditorUI {
 	private undoBtn?: HTMLButtonElement;
 	private redoBtn?: HTMLButtonElement;
 	private lockBtn?: HTMLButtonElement;
+	private zoomLabel?: HTMLButtonElement;
 
 	// code view auto-apply
 	private autoApplyCode = false;
@@ -128,6 +129,7 @@ export class DiagramEditorUI {
 				this.commit();
 			},
 			onContextMenu: (e) => this.showContextMenu(e),
+			onZoom: (z) => this.updateZoomLabel(z),
 		};
 		this.canvas = new DiagramCanvas(canvasHost, this.model, callbacks);
 
@@ -293,6 +295,21 @@ export class DiagramEditorUI {
 			this.showHelpDialog(),
 		);
 
+		// Zoom controls
+		const zoomGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
+		this.iconButton(zoomGroup, "zoom-out", "Zoom out (Ctrl/Cmd -)", () =>
+			this.canvas.zoomOut(),
+		);
+		this.zoomLabel = zoomGroup.createEl("button", {
+			cls: "mermaid-flow-tb-btn mermaid-flow-zoom-label",
+			text: "100%",
+			attr: { "aria-label": "Reset zoom to 100%", title: "Reset zoom to 100%" },
+		});
+		this.zoomLabel.addEventListener("click", () => this.canvas.zoomReset());
+		this.iconButton(zoomGroup, "zoom-in", "Zoom in (Ctrl/Cmd +)", () =>
+			this.canvas.zoomIn(),
+		);
+
 		// Spacer to push theme/direction to the right
 		bar.createDiv({ cls: "mermaid-flow-spacer" });
 
@@ -403,6 +420,10 @@ export class DiagramEditorUI {
 			if (!btn) continue;
 			btn.toggleClass("is-active", mode === this.mode);
 		}
+	}
+
+	private updateZoomLabel(zoom: number): void {
+		if (this.zoomLabel) this.zoomLabel.setText(`${Math.round(zoom * 100)}%`);
 	}
 
 	// --- theme / layout / lock ---------------------------------------------
@@ -1446,6 +1467,22 @@ export class DiagramEditorUI {
 				return;
 			}
 
+			if (mod && (e.key === "=" || e.key === "+")) {
+				e.preventDefault();
+				this.canvas.zoomIn();
+				return;
+			}
+			if (mod && e.key === "-") {
+				e.preventDefault();
+				this.canvas.zoomOut();
+				return;
+			}
+			if (mod && e.key === "0") {
+				e.preventDefault();
+				this.canvas.zoomReset();
+				return;
+			}
+
 			if (mod && (e.key === "d" || e.key === "D")) {
 				e.preventDefault();
 				this.duplicateSelected();
@@ -1514,6 +1551,7 @@ export class DiagramEditorUI {
 			{ key: "Ctrl+Z / Cmd+Z", action: "Undo" },
 			{ key: "Ctrl+Shift+Z / Cmd+Shift+Z", action: "Redo" },
 			{ key: "Ctrl+Y / Cmd+Y", action: "Redo (alternative)" },
+			{ key: "Ctrl/Cmd + = / − / 0", action: "Zoom in / out / reset" },
 			{ key: "Ctrl+D / Cmd+D", action: "Duplicate selected node" },
 			{ key: "Delete / Backspace", action: "Delete selected element" },
 			{ key: "S", action: "Select/Move mode" },
@@ -1531,6 +1569,7 @@ export class DiagramEditorUI {
 		content.createEl("h3", { text: "🖱️ Canvas Controls" });
 		const controls = [
 			"Scroll, or use the scrollbars, to move around the canvas",
+			"Zoom with Ctrl/Cmd + scroll, or the toolbar +/− buttons",
 			"Click a node or edge to select it",
 			"Drag a node to move it",
 			"Shift-click nodes, or drag a box on empty canvas, to select several",

@@ -33,6 +33,7 @@ export interface CanvasCallbacks {
 	onSelect: (sel: Selection) => void;
 	onChange: () => void;
 	onContextMenu?: (event: MouseEvent) => void;
+	onZoom?: (zoom: number) => void;
 }
 
 interface Geom {
@@ -44,6 +45,8 @@ const NODE_H = 44;
 const MIN_W = 80;
 const PADDING = 80;
 const CHAR_W = 8.2;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 4;
 
 export class DiagramCanvas {
 	private model: DiagramModel;
@@ -59,6 +62,7 @@ export class DiagramCanvas {
 
 	private mode: EditorMode = "select";
 	private selection: Selection = null;
+	private zoom = 1;
 
 	private geomCache = new Map<string, Geom>();
 
@@ -114,6 +118,9 @@ export class DiagramCanvas {
 		this.svg.addEventListener("pointerdown", (e) => this.onBackgroundDown(e));
 		this.svg.addEventListener("pointermove", (e) => this.onPointerMove(e));
 		this.svg.addEventListener("pointerup", (e) => this.onPointerUp(e));
+		this.scroller.addEventListener("wheel", (e) => this.onWheel(e), {
+			passive: false,
+		});
 
 		// Overlay shown only when the diagram has no nodes (first-open / cleared).
 		this.emptyState = parent.createDiv({ cls: "mermaid-flow-canvas-empty" });
@@ -154,6 +161,52 @@ export class DiagramCanvas {
 
 	getMode(): EditorMode {
 		return this.mode;
+	}
+
+	getZoom(): number {
+		return this.zoom;
+	}
+
+	zoomIn(): void {
+		this.setZoom(this.zoom * 1.2);
+	}
+
+	zoomOut(): void {
+		this.setZoom(this.zoom / 1.2);
+	}
+
+	zoomReset(): void {
+		this.zoom = 1;
+		this.resizeCanvas();
+		this.callbacks.onZoom?.(this.zoom);
+	}
+
+	/**
+	 * Set the zoom level, keeping the point under (clientX, clientY) — or the
+	 * viewport centre when omitted — stationary on screen.
+	 */
+	private setZoom(z: number, clientX?: number, clientY?: number): void {
+		const old = this.zoom;
+		const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+		if (Math.abs(next - old) < 0.0001) return;
+		const rect = this.scroller.getBoundingClientRect();
+		const offsetX = (clientX ?? rect.left + rect.width / 2) - rect.left;
+		const offsetY = (clientY ?? rect.top + rect.height / 2) - rect.top;
+		const ratio = next / old;
+		this.zoom = next;
+		this.resizeCanvas();
+		this.scroller.scrollLeft =
+			(this.scroller.scrollLeft + offsetX) * ratio - offsetX;
+		this.scroller.scrollTop =
+			(this.scroller.scrollTop + offsetY) * ratio - offsetY;
+		this.callbacks.onZoom?.(this.zoom);
+	}
+
+	private onWheel(e: WheelEvent): void {
+		if (!(e.ctrlKey || e.metaKey)) return; // plain scroll keeps native panning
+		e.preventDefault();
+		const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+		this.setZoom(this.zoom * factor, e.clientX, e.clientY);
 	}
 
 	getSelection(): Selection {
@@ -359,8 +412,8 @@ export class DiagramCanvas {
 		}
 		const w = Math.round(maxX + PADDING);
 		const h = Math.round(maxY + PADDING);
-		this.svg.setAttribute("width", String(w));
-		this.svg.setAttribute("height", String(h));
+		this.svg.setAttribute("width", String(Math.round(w * this.zoom)));
+		this.svg.setAttribute("height", String(Math.round(h * this.zoom)));
 		this.svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
 	}
 

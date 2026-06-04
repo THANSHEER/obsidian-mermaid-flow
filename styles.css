@@ -51,6 +51,12 @@
 	height: 28px;
 }
 
+.mermaid-flow-zoom-label {
+	min-width: 52px;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+
 .mermaid-flow-icon-btn {
 	display: inline-flex;
 	align-items: center;
