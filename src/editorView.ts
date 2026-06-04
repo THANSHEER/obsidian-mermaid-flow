@@ -14,6 +14,7 @@ export class MermaidEditorView extends ItemView {
 	private model: DiagramModel | null = null;
 	private onSave: ((model: DiagramModel) => void) | null = null;
 	private autoSave = false;
+	private toolbarStyle: "native" | "floating" = "native";
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -36,10 +37,12 @@ export class MermaidEditorView extends ItemView {
 		model: DiagramModel,
 		onSave: (model: DiagramModel) => void,
 		autoSave = false,
+		toolbarStyle: "native" | "floating" = "native",
 	): void {
 		this.model = model;
 		this.onSave = onSave;
 		this.autoSave = autoSave;
+		this.toolbarStyle = toolbarStyle;
 		this.rebuild();
 	}
 
@@ -73,6 +76,7 @@ export class MermaidEditorView extends ItemView {
 			persist: (m) => this.onSave?.(m),
 			close: () => this.leaf.detach(),
 			autoSave: this.autoSave,
+			toolbarStyle: this.toolbarStyle,
 		});
 		this.ui.build();
 	}

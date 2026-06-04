@@ -10,9 +10,11 @@ import {
 import type MermaidFlowPlugin from "./main";
 
 export type OpenMode = "modal" | "pane";
+export type ToolbarStyle = "native" | "floating";
 
 export interface MermaidFlowSettings {
 	openMode: OpenMode;
+	toolbarStyle: ToolbarStyle;
 	defaultDirection: Direction;
 	defaultShape: NodeShape;
 	savePositions: boolean;
@@ -21,6 +23,7 @@ export interface MermaidFlowSettings {
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	openMode: "modal",
+	toolbarStyle: "native",
 	defaultDirection: "TB",
 	defaultShape: "rect",
 	savePositions: true,
@@ -52,6 +55,21 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				dd.setValue(this.plugin.settings.openMode);
 				dd.onChange(async (value) => {
 					this.plugin.settings.openMode = value as "modal" | "pane";
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Toolbar style")
+			.setDesc(
+				"Native docks the toolbar at the top. Floating shows it as a compact bar over the canvas.",
+			)
+			.addDropdown((dd) => {
+				dd.addOption("native", "Native (docked)");
+				dd.addOption("floating", "Floating");
+				dd.setValue(this.plugin.settings.toolbarStyle);
+				dd.onChange(async (value) => {
+					this.plugin.settings.toolbarStyle = value as ToolbarStyle;
 					await this.plugin.saveSettings();
 				});
 			});

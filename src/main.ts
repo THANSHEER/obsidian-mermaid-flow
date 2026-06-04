@@ -95,7 +95,12 @@ export default class MermaidFlowPlugin extends Plugin {
 				allowAutoSave && this.settings.autoSave,
 			);
 		} else {
-			new MermaidEditorModal(this.app, model, onSave).open();
+			new MermaidEditorModal(
+				this.app,
+				model,
+				onSave,
+				this.settings.toolbarStyle,
+			).open();
 		}
 	}
 
@@ -109,7 +114,7 @@ export default class MermaidFlowPlugin extends Plugin {
 		this.app.workspace.revealLeaf(leaf);
 		const view = leaf.view;
 		if (view instanceof MermaidEditorView) {
-			view.setData(model, onSave, autoSave);
+			view.setData(model, onSave, autoSave, this.settings.toolbarStyle);
 		}
 	}
 

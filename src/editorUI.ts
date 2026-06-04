@@ -56,6 +56,8 @@ export interface EditorHost {
 	closeOnSave?: boolean;
 	/** Label for the save button. */
 	saveLabel?: string;
+	/** Toolbar placement: "native" docks it; "floating" floats it over the canvas. */
+	toolbarStyle?: "native" | "floating";
 }
 
 export class DiagramEditorUI {
@@ -107,6 +109,9 @@ export class DiagramEditorUI {
 
 	build(): void {
 		this.root.addClass("mermaid-flow-editor");
+		const floating = (this.host.toolbarStyle ?? "native") === "floating";
+		this.root.toggleClass("is-toolbar-floating", floating);
+		this.root.toggleClass("is-toolbar-native", !floating);
 
 		// Create the DOM skeleton in visual order first, then create the canvas
 		// (so it exists before the toolbar wires itself up).

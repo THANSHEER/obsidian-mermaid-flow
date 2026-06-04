@@ -101,6 +101,42 @@
 	background: var(--interactive-accent-hover);
 }
 
+/* --- toolbar style: native (docked, tidied with group dividers) --- */
+.mermaid-flow-editor.is-toolbar-native .mermaid-flow-toolbar {
+	gap: 10px;
+}
+
+.mermaid-flow-editor.is-toolbar-native
+	.mermaid-flow-toolbar
+	> .mermaid-flow-tb-group:not(:first-child) {
+	border-left: 1px solid var(--background-modifier-border);
+	padding-left: 10px;
+}
+
+/* --- toolbar style: floating (compact bar over the canvas) --- */
+.mermaid-flow-editor.is-toolbar-floating {
+	position: relative;
+}
+
+.mermaid-flow-editor.is-toolbar-floating .mermaid-flow-toolbar {
+	position: absolute;
+	top: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+	max-width: calc(100% - 20px);
+	gap: 8px;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l, 12px);
+	background: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+}
+
+.mermaid-flow-editor.is-toolbar-floating .mermaid-flow-body {
+	padding-top: 58px;
+}
+
 /* --- semantic / quick-add chips --- */
 .mermaid-flow-chip-row {
 	display: flex;

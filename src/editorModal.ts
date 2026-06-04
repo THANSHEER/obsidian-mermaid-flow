@@ -9,16 +9,19 @@ import { DiagramModel } from "./model";
 export class MermaidEditorModal extends Modal {
 	private model: DiagramModel;
 	private onSave: (model: DiagramModel) => void;
+	private toolbarStyle: "native" | "floating";
 	private ui: DiagramEditorUI | null = null;
 
 	constructor(
 		app: App,
 		model: DiagramModel,
 		onSave: (model: DiagramModel) => void,
+		toolbarStyle: "native" | "floating" = "native",
 	) {
 		super(app);
 		this.model = model;
 		this.onSave = onSave;
+		this.toolbarStyle = toolbarStyle;
 	}
 
 	onOpen(): void {
@@ -28,6 +31,7 @@ export class MermaidEditorModal extends Modal {
 			persist: (m) => this.onSave(m),
 			close: () => this.close(),
 			closeOnSave: true,
+			toolbarStyle: this.toolbarStyle,
 		});
 		this.ui.build();
 	}
