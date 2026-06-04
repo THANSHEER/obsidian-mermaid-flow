@@ -75,6 +75,7 @@ export class DiagramEditorUI {
 	private codeVisible = false;
 	private lockLayout = false;
 	private keyHandler?: (e: KeyboardEvent) => void;
+	private trapHandler?: (e: KeyboardEvent) => void;
 
 	// properties-panel focus management: only focus the label on selection change
 	private lastSelKey: string | null = null;
@@ -146,6 +147,9 @@ export class DiagramEditorUI {
 	destroy(): void {
 		if (this.keyHandler) {
 			this.root.removeEventListener("keydown", this.keyHandler);
+		}
+		if (this.trapHandler) {
+			this.root.removeEventListener("keydown", this.trapHandler);
 		}
 		window.clearTimeout(this.historyTimer);
 		window.clearTimeout(this.autoSaveTimer);
@@ -1471,26 +1475,29 @@ export class DiagramEditorUI {
 	}
 
 	private trapFocus(): void {
-		const focusableElements = this.root.querySelectorAll(
-			"button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])"
-		);
-		const firstElement = focusableElements[0] as HTMLElement;
-		const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
-
-		this.root.addEventListener("keydown", (e: KeyboardEvent) => {
+		// Query focusables at event time (the panel re-renders, so cached refs go
+		// stale) and keep a handle so destroy() can detach this listener.
+		this.trapHandler = (e: KeyboardEvent) => {
 			if (e.key !== "Tab") return;
+			const focusable = this.root.querySelectorAll<HTMLElement>(
+				"button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])",
+			);
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
 			if (e.shiftKey) {
-				if (document.activeElement === firstElement) {
+				if (document.activeElement === first) {
 					e.preventDefault();
-					lastElement?.focus();
+					last?.focus();
 				}
 			} else {
-				if (document.activeElement === lastElement) {
+				if (document.activeElement === last) {
 					e.preventDefault();
-					firstElement?.focus();
+					first?.focus();
 				}
 			}
-		});
+		};
+		this.root.addEventListener("keydown", this.trapHandler);
 	}
 
 	private showHelpDialog(): void {
