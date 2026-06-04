@@ -1319,14 +1319,15 @@ export class DiagramEditorUI {
 			this.autoApplyCode = autoToggle.checked;
 		});
 
-		const apply = header.createEl("button", {
+		const actions = header.createDiv({ cls: "mermaid-flow-code-actions" });
+		const apply = actions.createEl("button", {
 			text: "Apply to diagram",
 			cls: "mermaid-flow-panel-btn",
 			attr: { "aria-label": "Apply code changes to diagram" },
 		});
 		apply.addEventListener("click", () => this.applyCode());
 
-		const copyBtn = header.createEl("button", {
+		const copyBtn = actions.createEl("button", {
 			text: "Copy",
 			cls: "mermaid-flow-panel-btn",
 			attr: { "aria-label": "Copy diagram code to clipboard" },

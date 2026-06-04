@@ -613,6 +613,17 @@
 	gap: 6px;
 }
 
+.mermaid-flow-code-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* Code-view action buttons size to content (panel buttons are full-width). */
+.mermaid-flow-code-actions .mermaid-flow-panel-btn {
+	width: auto;
+}
+
 .mermaid-flow-auto-apply-toggle {
 	cursor: pointer;
 	width: 16px;
