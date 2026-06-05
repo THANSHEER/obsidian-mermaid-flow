@@ -120,10 +120,7 @@ export function mermaidLivePreviewExtension(cb: LivePreviewCallbacks) {
 
 				const codeBtn = overlay.createEl("button", {
 					cls: "mermaid-flow-overlay-btn",
-					attr: {
-						"aria-label": "View Mermaid code",
-						title: "View Mermaid code",
-					},
+					attr: { "aria-label": "Edit Mermaid code" },
 				});
 				setIcon(codeBtn, "code");
 

@@ -22,7 +22,8 @@ import {
 
 const INDENT = "    ";
 
-/** Wrap a label so Mermaid treats spaces/punctuation safely. */
+/** Wrap a label so Mermaid treats spaces/punctuation safely.
+ *  `\n` in the label is encoded as `<br/>` which Mermaid renders as a line break. */
 function quoteLabel(label: string): string {
 	// Collapse newlines (a multi-line label would split the single-line Mermaid
 	// statement) and escape embedded double quotes with the entity Mermaid
@@ -123,13 +124,16 @@ function styleLine(node: DiagramNode): string | null {
 
 function linkStyleLine(edge: DiagramEdge, index: number): string | null {
 	const s = edge.style;
-	if (!hasEdgeStyle(s) || !s) return null;
+	const hasAnimated = edge.animated === true;
+	if (!hasEdgeStyle(s) && !hasAnimated) return null;
 	const props: string[] = [];
-	if (s.strokeColor) props.push(`stroke:${s.strokeColor}`);
-	if (s.strokeWidth) props.push(`stroke-width:${s.strokeWidth}px`);
-	if (s.textColor) props.push(`color:${s.textColor}`);
-	if (s.fontSize) props.push(`font-size:${s.fontSize}px`);
-	if (s.extra) props.push(...s.extra);
+	if (s?.strokeColor) props.push(`stroke:${s.strokeColor}`);
+	if (s?.strokeWidth) props.push(`stroke-width:${s.strokeWidth}px`);
+	if (s?.textColor) props.push(`color:${s.textColor}`);
+	if (s?.fontSize) props.push(`font-size:${s.fontSize}px`);
+	if (s?.extra) props.push(...s.extra);
+	// animated flag is stored as a special marker so it round-trips
+	if (hasAnimated) props.push("mermaid-flow-animated:1");
 	if (props.length === 0) return null;
 	return `linkStyle ${index} ${props.join(",")}`;
 }
@@ -138,9 +142,9 @@ function configDirective(cfg: DiagramConfig): string | null {
 	if (!hasConfig(cfg)) return null;
 	const init: Record<string, unknown> = {};
 	if (cfg.theme) init.theme = cfg.theme;
-	if (cfg.themeVariables && Object.keys(cfg.themeVariables).length > 0) {
-		init.themeVariables = cfg.themeVariables;
-	}
+	const themeVars: Record<string, string> = { ...(cfg.themeVariables ?? {}) };
+	if (cfg.background) themeVars.background = cfg.background;
+	if (Object.keys(themeVars).length > 0) init.themeVariables = themeVars;
 	const fc: Record<string, number> = {};
 	if (cfg.nodeSpacing !== undefined) fc.nodeSpacing = cfg.nodeSpacing;
 	if (cfg.rankSpacing !== undefined) fc.rankSpacing = cfg.rankSpacing;

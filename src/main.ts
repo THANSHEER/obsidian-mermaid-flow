@@ -2,6 +2,7 @@ import {
 	Editor,
 	MarkdownPostProcessorContext,
 	MarkdownView,
+	Modal,
 	Notice,
 	Plugin,
 	setIcon,
@@ -21,7 +22,8 @@ import {
 } from "./editorExtension";
 import { MermaidEditorView, VIEW_TYPE_MERMAID_FLOW } from "./editorView";
 import { layoutMissing } from "./layout";
-import { DiagramModel, emptyModel } from "./model";
+import { DiagramModel, cloneModel, starterModel } from "./model";
+import { DIAGRAM_TEMPLATES } from "./templates";
 import { mermaidToModel } from "./parser";
 import { modelToFencedBlock, modelToMermaid } from "./serializer";
 import {
@@ -62,6 +64,12 @@ export default class MermaidFlowPlugin extends Plugin {
 			editorCallback: (editor) => this.openEditAtCursor(editor),
 		});
 
+		this.addCommand({
+			id: "insert-from-template",
+			name: "Insert Mermaid diagram from template",
+			editorCallback: (editor) => this.openTemplatesPicker(editor),
+		});
+
 		this.registerMarkdownPostProcessor((el, ctx) =>
 			this.addEditButton(el, ctx),
 		);
@@ -74,6 +82,33 @@ export default class MermaidFlowPlugin extends Plugin {
 				viewCode: (range) => this.viewCodeFromLines(range),
 			}),
 		);
+	}
+
+	private openTemplatesPicker(editor: Editor): void {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Insert from template");
+		const content = modal.contentEl;
+		content.addClass("mermaid-flow-templates-modal");
+
+		const grid = content.createDiv({ cls: "mermaid-flow-templates-grid" });
+		for (const tpl of DIAGRAM_TEMPLATES) {
+			const card = grid.createDiv({ cls: "mermaid-flow-template-card" });
+			const icon = card.createDiv({ cls: "mermaid-flow-template-icon" });
+			setIcon(icon, tpl.icon);
+			card.createEl("strong", { text: tpl.label });
+			card.createEl("p", { text: tpl.description, cls: "mermaid-flow-template-desc" });
+			card.addEventListener("click", () => {
+				modal.close();
+				const model = cloneModel(tpl.model());
+				this.openEditor(model, (result) => {
+					const block = modelToFencedBlock(result, {
+						includePositions: this.settings.savePositions,
+					});
+					insertBlockAtCursor(editor, block);
+				});
+			});
+		}
+		modal.open();
 	}
 
 	onunload(): void {
@@ -96,7 +131,14 @@ export default class MermaidFlowPlugin extends Plugin {
 				allowAutoSave && this.settings.autoSave,
 			);
 		} else {
-			new MermaidEditorModal(this.app, model, onSave).open();
+			new MermaidEditorModal(
+				this.app,
+				model,
+				onSave,
+				this.settings.toolbarStyle,
+				this.settings.exportFolder,
+				this.settings.snapToGrid ? this.settings.snapSize : 0,
+			).open();
 		}
 	}
 
@@ -110,7 +152,14 @@ export default class MermaidFlowPlugin extends Plugin {
 		this.app.workspace.revealLeaf(leaf);
 		const view = leaf.view;
 		if (view instanceof MermaidEditorView) {
-			view.setData(model, onSave, autoSave);
+			view.setData(
+				model,
+				onSave,
+				autoSave,
+				this.settings.toolbarStyle,
+				this.settings.exportFolder,
+				this.settings.snapToGrid ? this.settings.snapSize : 0,
+			);
 		}
 	}
 
@@ -143,7 +192,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	}
 
 	private openInsert(editor: Editor): void {
-		const model = emptyModel(this.settings.defaultDirection);
+		const model = starterModel(this.settings.defaultDirection);
 		this.openEditor(model, (result) => {
 			const block = modelToFencedBlock(result, {
 				includePositions: this.settings.savePositions,
@@ -249,7 +298,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		const codeBtn = overlay.createEl("button", {
 			cls: "mermaid-flow-overlay-btn",
-			attr: { "aria-label": "View Mermaid code", title: "View Mermaid code" },
+			attr: { "aria-label": "Edit Mermaid code" },
 		});
 		setIcon(codeBtn, "code");
 		codeBtn.addEventListener("click", (e) => {
@@ -278,9 +327,22 @@ export default class MermaidFlowPlugin extends Plugin {
 			new Notice("Could not locate the diagram source.");
 			return;
 		}
+		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+		if (!(file instanceof TFile)) return;
+
 		const lines = info.text.split("\n");
-		const code = lines.slice(info.lineStart + 1, info.lineEnd).join("\n");
-		new CodeViewModal(this.app, code).open();
+		const lineStart = info.lineStart;
+		const lineEnd = info.lineEnd;
+		const code = lines.slice(lineStart + 1, lineEnd).join("\n");
+
+		new CodeViewModal(this.app, code, (edited) => {
+			void this.app.vault.process(file, (data) => {
+				const dl = data.split("\n");
+				const before = dl.slice(0, lineStart + 1);
+				const after = dl.slice(lineEnd);
+				return [...before, ...edited.split("\n"), ...after].join("\n");
+			});
+		}).open();
 	}
 
 	// --- Live Preview entry points (driven by the CM6 extension) ------------
@@ -313,7 +375,14 @@ export default class MermaidFlowPlugin extends Plugin {
 		const editor = this.getEditor();
 		if (!editor) return;
 		const code = this.readBlockContent(editor, range.startLine, range.endLine);
-		new CodeViewModal(this.app, code).open();
+		new CodeViewModal(this.app, code, (edited) => {
+			// Replace just the inner lines of the fence, keeping the ``` delimiters.
+			editor.replaceRange(
+				edited + "\n",
+				{ line: range.startLine + 1, ch: 0 },
+				{ line: range.endLine, ch: 0 },
+			);
+		}).open();
 	}
 
 	private async editFromReading(
