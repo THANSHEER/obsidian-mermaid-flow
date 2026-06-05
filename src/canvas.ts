@@ -493,14 +493,17 @@ export class DiagramCanvas {
 			cls: "mermaid-flow-canvas-empty-inner",
 		});
 		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
-		inner.createEl("p", {
-			cls: "mermaid-flow-canvas-empty-title",
-			text: "Start your diagram",
-		});
-		inner.createEl("p", {
-			cls: "mermaid-flow-canvas-empty-hint",
-			text: "Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.",
-		});
+		// Use standard DOM so this method works in the test environment (jsdom),
+		// which does not polyfill Obsidian's createEl helper.
+		const title = document.createElement("p");
+		title.className = "mermaid-flow-canvas-empty-title";
+		title.textContent = "Start your diagram";
+		inner.appendChild(title);
+		const hint = document.createElement("p");
+		hint.className = "mermaid-flow-canvas-empty-hint";
+		hint.textContent =
+			"Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.";
+		inner.appendChild(hint);
 	}
 
 	// --- geometry -----------------------------------------------------------
@@ -580,7 +583,9 @@ export class DiagramCanvas {
 		this.renderGroups();
 		this.renderEdges();
 		this.renderNodes();
-		this.emptyState?.toggleClass("is-visible", this.model.nodes.length === 0);
+		// classList.toggle is standard DOM; toggleClass is Obsidian-only and
+		// unavailable in the test environment (jsdom).
+		this.emptyState?.classList.toggle("is-visible", this.model.nodes.length === 0);
 	}
 
 	private static readonly GROUP_PAD = 26;

@@ -22,6 +22,8 @@ export interface MermaidFlowSettings {
 	exportFolder: string;
 	snapToGrid: boolean;
 	snapSize: number;
+	/** Template used when sending diagram code to an AI prompt. Must contain {{text}}. */
+	promptTemplate: string;
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	exportFolder: "mermaid flow",
 	snapToGrid: false,
 	snapSize: 10,
+	promptTemplate: "Here is a Mermaid flowchart diagram:\n\n{{text}}\n\nPlease explain or improve it.",
 };
 
 export class MermaidFlowSettingTab extends PluginSettingTab {
