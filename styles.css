@@ -12,6 +12,8 @@
 	height: 100%;
 	min-height: 0;
 	padding-top: 8px;
+	/* positioning context for the pinned Save/Discard actions */
+	position: relative;
 }
 
 .mermaid-flow-view {
@@ -40,6 +42,42 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
+}
+
+/* Docked Save/Discard (embedded pane): pinned to the toolbar's top-right. */
+.mermaid-flow-editor.is-actions-docked .mermaid-flow-actions {
+	position: absolute;
+	top: 6px;
+	right: 8px;
+	z-index: 5;
+}
+
+/* Reserve room so wrapped toolbar items never slide under the pinned actions. */
+.mermaid-flow-editor.is-actions-docked .mermaid-flow-toolbar {
+	padding-right: 200px;
+}
+
+/* Modal title-bar actions: sit where the native close X was. */
+.mermaid-flow-title-actions-slot {
+	position: absolute;
+	top: var(--size-4-2);
+	right: var(--size-4-2);
+	z-index: var(--layer-modal, 100);
+}
+
+.mermaid-flow-title-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mermaid-flow-title-actions .mermaid-flow-icon-btn.mod-cta {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mermaid-flow-title-actions .mermaid-flow-icon-btn.mod-cta:hover {
+	background: var(--interactive-accent-hover);
 }
 
 .mermaid-flow-tb-label {
@@ -114,7 +152,7 @@
 
 .mermaid-flow-editor.is-toolbar-native
 	.mermaid-flow-toolbar
-	> .mermaid-flow-tb-group:not(:first-child) {
+	> .mermaid-flow-tb-group:not(:first-child):not(.mermaid-flow-actions) {
 	border-left: 1px solid var(--background-modifier-border);
 	padding-left: 10px;
 }
@@ -143,6 +181,16 @@
 	padding-top: 58px;
 }
 
+/* --- align & distribute toolbar group --- */
+.mermaid-flow-align-group {
+	transition: opacity 150ms ease;
+}
+
+.mermaid-flow-align-group.is-disabled {
+	opacity: 0.35;
+	pointer-events: none;
+}
+
 /* --- semantic / quick-add chips --- */
 .mermaid-flow-chip-row {
 	display: flex;
@@ -162,6 +210,22 @@
 
 .mermaid-flow-chip:hover {
 	background: var(--interactive-hover);
+}
+
+.mermaid-flow-chip.is-active {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mermaid-flow-bg-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mermaid-flow-bg-rect {
+	pointer-events: none;
 }
 
 .mermaid-flow-size-row {
@@ -479,6 +543,23 @@
 	pointer-events: none;
 }
 
+/* --- locked node --- */
+.mermaid-flow-node.is-locked .mermaid-flow-shape {
+	stroke-dasharray: 4 3;
+	opacity: 0.85;
+}
+
+.mermaid-flow-node.is-locked {
+	cursor: default;
+}
+
+/* --- highlighted node (find bar) --- */
+.mermaid-flow-node.is-highlighted .mermaid-flow-shape {
+	stroke: var(--color-yellow) !important;
+	stroke-width: 3px !important;
+	filter: drop-shadow(0 0 4px var(--color-yellow));
+}
+
 /* --- connection anchors (shown on node hover) --- */
 .mermaid-flow-anchor {
 	fill: var(--interactive-accent);
@@ -595,6 +676,17 @@
 	pointer-events: none;
 }
 
+/* --- animated edges (marching ants) --- */
+@keyframes mermaid-flow-march {
+	from { stroke-dashoffset: 24; }
+	to   { stroke-dashoffset: 0;  }
+}
+
+.mermaid-flow-edge-line.is-animated {
+	stroke-dasharray: 8 4;
+	animation: mermaid-flow-march 0.6s linear infinite;
+}
+
 /* --- code view --- */
 .mermaid-flow-code-wrap {
 	margin-top: 10px;
@@ -677,7 +769,34 @@
 	font-weight: bold;
 }
 
-/* --- help modal styling --- */
+/* --- find bar --- */
+.mermaid-flow-find-bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.mermaid-flow-find-input {
+	flex: 1;
+	min-width: 0;
+	font-size: var(--font-ui-smaller);
+	padding: 3px 8px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.mermaid-flow-find-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+/* --- help modal --- */
 .mermaid-flow-help-modal {
 	max-height: 600px;
 	overflow-y: auto;
@@ -737,6 +856,97 @@
 	cursor: pointer;
 }
 
+/* --- templates modal --- */
+.mermaid-flow-templates-modal .modal-content {
+	padding: 16px;
+}
+
+.mermaid-flow-templates-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	gap: 12px;
+	padding: 4px 0 8px;
+}
+
+.mermaid-flow-template-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 16px 12px;
+	border-radius: var(--radius-m);
+	border: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	text-align: center;
+	transition: background 120ms, border-color 120ms;
+}
+
+.mermaid-flow-template-card:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.mermaid-flow-template-icon {
+	width: 32px;
+	height: 32px;
+	color: var(--interactive-accent);
+}
+
+.mermaid-flow-template-desc {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	margin: 0;
+}
+
+/* --- export dialog --- */
+.mermaid-flow-export-settings .mermaid-flow-field,
+.mermaid-flow-export-settings .mermaid-flow-field-inline {
+	margin-bottom: 10px;
+}
+
+.mermaid-flow-export-settings .mermaid-flow-footer {
+	border-top: none;
+	padding-top: 0;
+	margin-top: 16px;
+}
+
+/* --- reading-mode edit button --- */
+.mermaid-flow-block {
+	position: relative;
+}
+
+.mermaid-flow-overlay {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 5;
+	display: flex;
+	gap: 4px;
+	opacity: 0.6;
+	transition: opacity 120ms ease-in-out;
+}
+
+.mermaid-flow-block:hover .mermaid-flow-overlay {
+	opacity: 1;
+}
+
+.mermaid-flow-overlay-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 3px 8px;
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+	cursor: pointer;
+	box-shadow: var(--shadow-s);
+}
+
+/* --- accessibility --- */
+.mermaid-flow-icon-btn:focus {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 /* --- mobile responsiveness --- */
 @media (max-width: 768px) {
 	.mermaid-flow-modal {
@@ -771,6 +981,10 @@
 		padding: 6px 2px;
 	}
 
+	.mermaid-flow-editor.is-actions-docked .mermaid-flow-toolbar {
+		padding-right: 160px;
+	}
+
 	.mermaid-flow-tb-group {
 		gap: 4px;
 	}
@@ -784,56 +998,11 @@
 	}
 }
 
-/* --- accessibility improvements --- */
-button:focus,
-input:focus,
-select:focus,
-textarea:focus {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
-}
-
-.mermaid-flow-icon-btn:focus {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 1px;
-}
-
-/* Reduced motion support */
+/* --- reduced motion --- */
 @media (prefers-reduced-motion: reduce) {
 	* {
 		animation-duration: 0.01ms !important;
 		animation-iteration-count: 1 !important;
 		transition-duration: 0.01ms !important;
 	}
-}
-
-/* --- reading-mode edit button --- */
-.mermaid-flow-block {
-	position: relative;
-}
-
-.mermaid-flow-overlay {
-	position: absolute;
-	top: 6px;
-	right: 6px;
-	z-index: 5;
-	display: flex;
-	gap: 4px;
-	opacity: 0.6;
-	transition: opacity 120ms ease-in-out;
-}
-
-.mermaid-flow-block:hover .mermaid-flow-overlay {
-	opacity: 1;
-}
-
-.mermaid-flow-overlay-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 3px 8px;
-	font-size: var(--font-ui-smaller);
-	line-height: 1.4;
-	cursor: pointer;
-	box-shadow: var(--shadow-s);
 }

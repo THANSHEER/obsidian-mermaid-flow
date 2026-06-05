@@ -19,6 +19,9 @@ export interface MermaidFlowSettings {
 	defaultShape: NodeShape;
 	savePositions: boolean;
 	autoSave: boolean;
+	exportFolder: string;
+	snapToGrid: boolean;
+	snapSize: number;
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
@@ -28,6 +31,9 @@ export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	defaultShape: "rect",
 	savePositions: true,
 	autoSave: true,
+	exportFolder: "mermaid flow",
+	snapToGrid: false,
+	snapSize: 10,
 };
 
 export class MermaidFlowSettingTab extends PluginSettingTab {
@@ -105,6 +111,44 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl).setName("Behavior").setHeading();
+
+		new Setting(containerEl)
+			.setName("Export folder")
+			.setDesc(
+				"Vault folder where PNG/SVG exports are saved. Created automatically if it doesn't exist.",
+			)
+			.addText((text) => {
+				text.setPlaceholder("mermaid flow");
+				text.setValue(this.plugin.settings.exportFolder);
+				text.onChange(async (value) => {
+					this.plugin.settings.exportFolder = value.trim() || "mermaid flow";
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Snap nodes to grid")
+			.setDesc("Snap nodes to a fixed grid while dragging for cleaner alignment.")
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.snapToGrid);
+				tg.onChange(async (value) => {
+					this.plugin.settings.snapToGrid = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Grid size (px)")
+			.setDesc("Snap grid cell size in pixels (applies when Snap to grid is on).")
+			.addSlider((sl) => {
+				sl.setLimits(5, 40, 5);
+				sl.setValue(this.plugin.settings.snapSize);
+				sl.setDynamicTooltip();
+				sl.onChange(async (value) => {
+					this.plugin.settings.snapSize = value;
+					await this.plugin.saveSettings();
+				});
+			});
 
 		new Setting(containerEl)
 			.setName("Auto-save (embedded pane)")

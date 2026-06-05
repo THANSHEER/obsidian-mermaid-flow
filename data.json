@@ -1,6 +1,8 @@
 {
-  "openMode": "pane",
+  "openMode": "modal",
   "defaultDirection": "TB",
   "defaultShape": "rect",
-  "savePositions": true
+  "savePositions": true,
+  "autoSave": true,
+  "promptTemplate": ""
 }
