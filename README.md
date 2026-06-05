@@ -1,7 +1,7 @@
 # Mermaid Flow
 
-[![Obsidian](https://img.shields.io/badge/Obsidian-v1.7.2+-purple.svg)](https://obsidian.md/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Obsidian Downloads](https://img.shields.io/badge/Obsidian-v1.7.2+-purple.svg)](https://obsidian.md/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 A visual, drag-and-drop editor for **Mermaid flowcharts** inside Obsidian. Build and rearrange diagrams by moving nodes and drawing connections — Mermaid Flow writes the underlying ` ```mermaid ` code for you, so no syntax knowledge is required.
 
@@ -41,20 +41,17 @@ Your edits round-trip safely: the plugin reads your existing Mermaid blocks, let
 
 ## Settings
 
-- **Open editor as** — a centered popup or an embedded side-pane.
-- **Toolbar style** — docked (native) or floating over the canvas.
-- **Default direction** — flow direction applied to new diagrams.
-- **Default node shape** — shape applied to newly added nodes.
-- **Auto-save (embedded pane)** — automatically save edits in the embedded pane.
-- **Remember node positions** — store manual layouts in hidden Mermaid comments (recommended).
+## 🔒 Advanced syntax & safety
+
+The editor focuses on flowchart structure. Advanced or unrecognized Mermaid syntax in an existing diagram (for example `click`, `classDef`, or `linkStyle` directives) is **preserved verbatim** when you edit and re-save, and is rendered by Obsidian's own Mermaid engine — Mermaid Flow never executes diagram code itself.
+
+## 🤝 Contributing
 
 ## Contributing
 
 Contributions are welcome. See the [Contribution Guide](docs/CONTRIBUTING.md) and [Architecture Overview](docs/ARCHITECTURE.md) to get started.
 
-## License
-
-Released under the [MIT License](LICENSE).
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 

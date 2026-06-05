@@ -1,10 +1,10 @@
 {
 	"id": "mermaid-flow",
 	"name": "Mermaid Flow",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"minAppVersion": "1.7.2",
 	"description": "Create and edit Mermaid flowcharts visually by dragging nodes and drawing connections. No Mermaid syntax required.",
 	"author": "Mohammed Thansheer",
 	"authorUrl": "https://github.com/THANSHEER",
-	"isDesktopOnly": false
+	"isDesktopOnly": true
 }
