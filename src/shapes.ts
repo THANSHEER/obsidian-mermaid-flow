@@ -11,7 +11,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 function el<K extends keyof SVGElementTagNameMap>(
 	name: K,
 ): SVGElementTagNameMap[K] {
-	return document.createElementNS(SVG_NS, name);
+	return activeDocument.createElementNS(SVG_NS, name);
 }
 
 function polygon(points: Array<[number, number]>): SVGPolygonElement {
@@ -205,7 +205,7 @@ function vline(x: number, y0: number, y1: number): SVGLineElement {
 
 /** A small preview icon for the shape palette. */
 export function createShapeIcon(shape: NodeShape): SVGSVGElement {
-	const svg = document.createElementNS(SVG_NS, "svg");
+	const svg = activeDocument.createElementNS(SVG_NS, "svg");
 	svg.setAttribute("viewBox", "0 0 36 24");
 	svg.classList.add("mermaid-flow-shape-icon");
 	for (const node of createShapeElements(shape, 18, 12, 28, 16)) {

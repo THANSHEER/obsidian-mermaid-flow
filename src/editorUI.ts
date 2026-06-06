@@ -302,7 +302,7 @@ export class DiagramEditorUI {
 	private addNode(shape: NodeShape): void {
 		const id = nextNodeId(this.model);
 		let x = 140, y = 90;
-		const scroller = this.root.querySelector(".mermaid-flow-canvas-scroll") as HTMLElement | null;
+		const scroller = this.root.querySelector<HTMLElement>(".mermaid-flow-canvas-scroll");
 		if (scroller) {
 			x = scroller.scrollLeft + scroller.clientWidth / 2;
 			y = scroller.scrollTop + scroller.clientHeight / 2;
@@ -883,12 +883,18 @@ export class DiagramEditorUI {
 				"button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])",
 			);
 			if (focusable.length === 0) return;
-			const first = focusable[0];
-			const last = focusable[focusable.length - 1];
+			const firstEl = focusable[0];
+			const lastEl = focusable[focusable.length - 1];
 			if (e.shiftKey) {
-				if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+				if (activeDocument.activeElement === firstEl) {
+					e.preventDefault();
+					lastEl?.focus();
+				}
 			} else {
-				if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+				if (activeDocument.activeElement === lastEl) {
+					e.preventDefault();
+					firstEl?.focus();
+				}
 			}
 		};
 		this.root.addEventListener("keydown", this.trapHandler);
@@ -956,5 +962,93 @@ export class DiagramEditorUI {
 		const closeBtn = content.createEl("button", { text: "Close", cls: "mermaid-flow-modal-close-btn" });
 		closeBtn.addEventListener("click", () => modal.close());
 		modal.open();
+	}
+
+	private showExportMenu(e: MouseEvent): void {
+		const menu = new Menu();
+		menu.addItem((item) =>
+			item
+				.setTitle("Export as PNG")
+				.setIcon("image")
+				.onClick(() => this.exportDiagram("png")),
+		);
+		menu.addItem((item) =>
+			item
+				.setTitle("Export as SVG")
+				.setIcon("file-text")
+				.onClick(() => this.exportDiagram("svg")),
+		);
+		menu.addSeparator();
+		menu.addItem((item) =>
+			item
+				.setTitle("Copy code to clipboard")
+				.setIcon("copy")
+				.onClick(() => this.copyDiagramCode()),
+		);
+		menu.showAtMouseEvent(e);
+	}
+
+	private exportDiagram(format: "png" | "svg"): void {
+		try {
+			const svg = this.canvas.getSVG();
+			if (!svg) {
+				new Notice("Could not export: SVG not available");
+				return;
+			}
+
+			if (format === "svg") {
+				const serializer = new XMLSerializer();
+				const svgString = serializer.serializeToString(svg);
+				void navigator.clipboard
+					.writeText(svgString)
+					.then(() => new Notice("SVG copied to clipboard"))
+					.catch(() => new Notice("Failed to copy SVG"));
+			} else if (format === "png") {
+				const canvasEl = activeDocument.createElement("canvas");
+				const ctx = canvasEl.getContext("2d");
+				if (!ctx) {
+					new Notice("Could not export: Canvas context unavailable");
+					return;
+				}
+
+				const rect = svg.getBoundingClientRect();
+				canvasEl.width = rect.width;
+				canvasEl.height = rect.height;
+
+				const img = new Image();
+				const serializer = new XMLSerializer();
+				const svgString = serializer.serializeToString(svg);
+				const blob = new Blob([svgString], { type: "image/svg+xml" });
+				const url = URL.createObjectURL(blob);
+
+				img.onload = () => {
+					ctx.drawImage(img, 0, 0);
+					canvasEl.toBlob((pngBlob) => {
+						if (pngBlob) {
+							void navigator.clipboard
+								.write([
+									new ClipboardItem({
+										"image/png": pngBlob,
+									}),
+								])
+								.then(() => new Notice("PNG copied to clipboard"))
+								.catch(() => new Notice("Failed to copy PNG"));
+						}
+					});
+					URL.revokeObjectURL(url);
+				};
+				img.src = url;
+			}
+		} catch (err) {
+			new Notice("Export failed: " + (err instanceof Error ? err.message : "Unknown error"));
+		}
+	}
+
+	private copyDiagramCode(): void {
+		const code = modelToMermaid(this.model);
+		void navigator.clipboard
+			.writeText(code)
+			.then(() => new Notice("Diagram code copied to clipboard"))
+			.catch(() => new Notice("Failed to copy code"));
 	}
 }
