@@ -180,6 +180,9 @@ export class DiagramCanvas {
 		this.scroller.appendChild(this.svg);
 
 		this.buildDefs();
+		this.bgRect = activeDocument.createElementNS(SVG_NS, "rect");
+		this.bgRect.classList.add("mermaid-flow-bg-rect", "mermaid-flow-bg-hidden");
+		this.svg.appendChild(this.bgRect);
 		this.groupLayer = activeDocument.createElementNS(SVG_NS, "g");
 		this.edgeLayer = activeDocument.createElementNS(SVG_NS, "g");
 		this.nodeLayer = activeDocument.createElementNS(SVG_NS, "g");
@@ -394,7 +397,7 @@ export class DiagramCanvas {
 	/** Notify canvas that Space key is held (enables pan mode). */
 	setSpaceDown(down: boolean): void {
 		this.spaceDown = down;
-		this.scroller.style.cursor = down ? "grab" : "";
+		this.scroller.classList.toggle("mermaid-flow-cursor-grab", down);
 	}
 
 	/** Move all currently-selected node(s) by dx/dy pixels. */
@@ -490,11 +493,11 @@ export class DiagramCanvas {
 		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
 		// Use standard DOM so this method works in the test environment (jsdom),
 		// which does not polyfill Obsidian's createEl helper.
-		const title = document.createElement("p");
+		const title = activeDocument.createElement("p");
 		title.className = "mermaid-flow-canvas-empty-title";
 		title.textContent = "Start your diagram";
 		inner.appendChild(title);
-		const hint = document.createElement("p");
+		const hint = activeDocument.createElement("p");
 		hint.className = "mermaid-flow-canvas-empty-hint";
 		hint.textContent =
 			"Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.";
@@ -681,9 +684,9 @@ export class DiagramCanvas {
 		const bg = this.model.config.background;
 		if (bg) {
 			this.bgRect.setAttribute("fill", bg);
-			this.bgRect.style.removeProperty("display");
+			this.bgRect.classList.remove("mermaid-flow-bg-hidden");
 		} else {
-			this.bgRect.style.display = "none";
+			this.bgRect.classList.add("mermaid-flow-bg-hidden");
 		}
 	}
 
@@ -1058,7 +1061,8 @@ export class DiagramCanvas {
 				scrollLeft: this.scroller.scrollLeft,
 				scrollTop: this.scroller.scrollTop,
 			};
-			this.scroller.style.cursor = "grabbing";
+			this.scroller.classList.remove("mermaid-flow-cursor-grab");
+			this.scroller.classList.add("mermaid-flow-cursor-grabbing");
 			try { this.svg.setPointerCapture(e.pointerId); } catch { /* ignore */ }
 			return;
 		}
@@ -1287,7 +1291,8 @@ export class DiagramCanvas {
 	private onPointerUp(e: PointerEvent): void {
 		if (this.panDrag) {
 			this.panDrag = null;
-			this.scroller.style.cursor = this.spaceDown ? "grab" : "";
+			this.scroller.classList.remove("mermaid-flow-cursor-grabbing");
+			this.scroller.classList.toggle("mermaid-flow-cursor-grab", this.spaceDown);
 			try { this.svg.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
 			return;
 		}

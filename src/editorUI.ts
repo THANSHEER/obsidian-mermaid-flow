@@ -302,7 +302,7 @@ export class DiagramEditorUI {
 	private addNode(shape: NodeShape): void {
 		const id = nextNodeId(this.model);
 		let x = 140, y = 90;
-		const scroller = this.root.querySelector(".mermaid-flow-canvas-scroll") as HTMLElement | null;
+		const scroller = this.root.querySelector<HTMLElement>(".mermaid-flow-canvas-scroll");
 		if (scroller) {
 			x = scroller.scrollLeft + scroller.clientWidth / 2;
 			y = scroller.scrollTop + scroller.clientHeight / 2;
@@ -883,17 +883,17 @@ export class DiagramEditorUI {
 				"button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])",
 			);
 			if (focusable.length === 0) return;
-			const first = focusable[0];
-			const last = focusable[focusable.length - 1];
+			const firstEl = focusable[0];
+			const lastEl = focusable[focusable.length - 1];
 			if (e.shiftKey) {
-				if (activeDocument.activeElement === firstElement) {
+				if (activeDocument.activeElement === firstEl) {
 					e.preventDefault();
-					lastElement?.focus();
+					lastEl?.focus();
 				}
 			} else {
-				if (activeDocument.activeElement === lastElement) {
+				if (activeDocument.activeElement === lastEl) {
 					e.preventDefault();
-					firstElement?.focus();
+					firstEl?.focus();
 				}
 			}
 		};

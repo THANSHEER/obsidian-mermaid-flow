@@ -9,9 +9,7 @@ import {
 	DiagramNode,
 	EDGE_KINDS,
 	EDGE_LABELS,
-	EdgeKind,
 	NODE_SHAPES,
-	NodeShape,
 	SHAPE_LABELS,
 	assignNodeToGroup,
 	groupOf,
@@ -240,7 +238,7 @@ export class PropertiesPanel {
 
 		this.sectionHead("Shape & size");
 		this.selectField("Shape", NODE_SHAPES, (s) => SHAPE_LABELS[s], node.shape, (value) => {
-			node.shape = value as NodeShape;
+			node.shape = value;
 			this.ops.render();
 			this.ops.commit();
 		});
@@ -418,7 +416,7 @@ export class PropertiesPanel {
 		});
 
 		this.selectField("Type", EDGE_KINDS, (k) => EDGE_LABELS[k], edge.kind, (value) => {
-			edge.kind = value as EdgeKind;
+			edge.kind = value;
 			this.ops.render();
 			this.ops.commit();
 		});

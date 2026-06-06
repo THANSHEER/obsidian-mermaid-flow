@@ -357,6 +357,13 @@
 	user-select: none;
 }
 
+/* Canvas interaction cursors (toggled via classList to avoid inline style assignments). */
+.mermaid-flow-cursor-grab { cursor: grab; }
+.mermaid-flow-cursor-grabbing { cursor: grabbing; }
+
+/* Background rect hidden state (no background color set). */
+.mermaid-flow-bg-hidden { display: none; }
+
 /* --- canvas empty state (shown only when there are zero nodes) --- */
 .mermaid-flow-canvas-empty {
 	display: none;
@@ -555,8 +562,8 @@
 
 /* --- highlighted node (find bar) --- */
 .mermaid-flow-node.is-highlighted .mermaid-flow-shape {
-	stroke: var(--color-yellow) !important;
-	stroke-width: 3px !important;
+	stroke: var(--color-yellow);
+	stroke-width: 3px;
 	filter: drop-shadow(0 0 4px var(--color-yellow));
 }
 

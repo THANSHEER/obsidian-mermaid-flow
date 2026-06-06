@@ -159,7 +159,7 @@ export class ExportManager {
 		scale = 2,
 	): Promise<ArrayBuffer> {
 		return new Promise((resolve, reject) => {
-			const canvasEl = document.createElement("canvas");
+			const canvasEl = activeDocument.createElement("canvas");
 			const ctx = canvasEl.getContext("2d");
 			if (!ctx) { reject(new Error("Canvas context unavailable")); return; }
 			canvasEl.width  = Math.max(1, Math.round(width  * scale));
