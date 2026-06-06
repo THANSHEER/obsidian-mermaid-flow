@@ -171,3 +171,30 @@ For `prefers-reduced-motion`, scope to plugin elements only
 (`.mermaid-flow-editor *, .mermaid-flow-modal *`) rather than the global `*` selector.
 
 Deeper write-ups live in `docs/ARCHITECTURE.md` and `docs/CODE_EXPLANATION.md`.
+
+## Testing
+
+```bash
+npm test              # run all tests once
+npm test -- --watch   # watch mode
+npm test -- canvas    # run a single test file by name pattern
+```
+
+Tests live in `tests/` and run under Vitest with the `jsdom` environment.
+`tests/setup.ts` is the **single place** for all Obsidian global polyfills
+(loaded via `vitest.config.ts` `setupFiles`). It currently provides:
+`activeDocument`, `activeWindow`, `HTMLElement.prototype.createDiv/createEl/addClass/removeClass/empty`.
+
+**When to update `tests/setup.ts`:**
+- You add a call to a new Obsidian global (e.g. `activeWindow.ResizeObserver`)
+  in any `src/` file → add the matching polyfill to `tests/setup.ts`.
+- You add a new Obsidian HTMLElement helper call in `src/` → add it to the
+  `proto.*` block in `tests/setup.ts`.
+- Never polyfill inside an individual test file's `beforeAll` — centralise it.
+
+**When to update test files:**
+- Any UI change that alters how nodes, edges, or labels render in SVG needs
+  a corresponding assertion update in `canvas.test.ts`.
+- New rendering paths (new shapes, new edge types) should add a test case.
+- The test file imports `DiagramCanvas` directly and calls `canvas.getSVG()` —
+  you can assert on `.querySelector` results against the returned SVGSVGElement.
