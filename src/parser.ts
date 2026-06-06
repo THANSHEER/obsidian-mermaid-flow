@@ -47,10 +47,12 @@ function opToKind(op: string): EdgeKind {
 
 function stripQuotes(s: string): string {
 	const t = s.trim();
-	if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) {
-		return t.slice(1, -1);
+	let inner = t;
+	if (inner.length >= 2 && inner.startsWith('"') && inner.endsWith('"')) {
+		inner = inner.slice(1, -1);
 	}
-	return t;
+	// Decode <br/> back to \n for multi-line labels
+	return inner.replace(/<br\s*\/?>/gi, "\n");
 }
 
 interface ParsedToken {
@@ -221,6 +223,13 @@ function applyInitConfig(model: DiagramModel, jsonBody: string): void {
 	if (typeof obj.theme === "string") model.config.theme = obj.theme;
 	if (obj.themeVariables && typeof obj.themeVariables === "object") {
 		model.config.themeVariables = obj.themeVariables as Record<string, string>;
+		// Background is modelled as its own field, not a raw theme variable.
+		const tv = model.config.themeVariables;
+		if (typeof tv.background === "string") {
+			model.config.background = tv.background;
+			delete tv.background;
+			if (Object.keys(tv).length === 0) delete model.config.themeVariables;
+		}
 	}
 	const fc = obj.flowchart as Record<string, unknown> | undefined;
 	if (fc && typeof fc === "object") {
@@ -411,7 +420,18 @@ export function mermaidToModel(text: string): ParseResult {
 	// Apply collected linkStyle directives to edges by index.
 	for (const { index, props } of linkStyleDirectives) {
 		const edge = model.edges[index];
-		if (edge) edge.style = { ...edge.style, ...parseEdgeStyleProps(props) };
+		if (!edge) continue;
+		const parsed = parseEdgeStyleProps(props);
+		// Lift animated marker out of extra before merging into style
+		if (parsed.extra) {
+			const animIdx = parsed.extra.indexOf("mermaid-flow-animated:1");
+			if (animIdx >= 0) {
+				edge.animated = true;
+				parsed.extra.splice(animIdx, 1);
+				if (parsed.extra.length === 0) delete parsed.extra;
+			}
+		}
+		edge.style = { ...edge.style, ...parsed };
 	}
 
 	// Drop groups that ended up empty.

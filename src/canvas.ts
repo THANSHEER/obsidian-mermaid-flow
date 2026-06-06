@@ -21,6 +21,58 @@ function clearChildren(el: Element): void {
 	while (el.firstChild) el.removeChild(el.firstChild);
 }
 
+/** Presentation properties copied onto exported elements so a serialized SVG
+ *  renders identically without the editor's stylesheet. */
+const EXPORT_STYLE_PROPS = [
+	"fill",
+	"fill-opacity",
+	"fill-rule",
+	"stroke",
+	"stroke-width",
+	"stroke-opacity",
+	"stroke-dasharray",
+	"stroke-linecap",
+	"stroke-linejoin",
+	"color",
+	"opacity",
+	"font-family",
+	"font-size",
+	"font-weight",
+	"font-style",
+	"text-anchor",
+	"dominant-baseline",
+	"letter-spacing",
+	"text-decoration",
+	"display",
+	"visibility",
+];
+
+/**
+ * Walk a live SVG subtree and its fresh clone in lockstep, copying each live
+ * element's *computed* presentation style onto the clone as an inline `style`.
+ * `getComputedStyle` resolves theme CSS variables and any per-node inline
+ * colours to concrete values, so the clone no longer depends on the stylesheet.
+ */
+function inlineComputedStyles(src: Element, dst: Element): void {
+	const cs = getComputedStyle(src);
+	let inline = "";
+	for (const prop of EXPORT_STYLE_PROPS) {
+		// Keep "none" (e.g. an edge path's fill:none must survive, or it would
+		// fall back to a solid black fill); only drop genuinely empty values.
+		const value = cs.getPropertyValue(prop);
+		if (value) inline += `${prop}:${value};`;
+	}
+	if (inline) dst.setAttribute("style", inline);
+
+	const srcChildren = src.children;
+	const dstChildren = dst.children;
+	for (let i = 0; i < srcChildren.length; i++) {
+		const sc = srcChildren[i];
+		const dc = dstChildren[i];
+		if (sc && dc) inlineComputedStyles(sc, dc);
+	}
+}
+
 export type EditorMode = "select" | "connect";
 
 export type Selection =
@@ -32,7 +84,19 @@ export type Selection =
 export interface CanvasCallbacks {
 	onSelect: (sel: Selection) => void;
 	onChange: () => void;
-	onContextMenu?: (event: MouseEvent) => void;
+	/** empty=true when the click was on the canvas background (no element). */
+	onContextMenu?: (event: MouseEvent, empty?: boolean) => void;
+	onZoom?: (zoom: number) => void;
+	/** Double-click on empty canvas at SVG coordinates. */
+	onDblClickBackground?: (svgX: number, svgY: number) => void;
+	/** Double-click on a node — its id is passed for inline edit. */
+	onDblClickNode?: (id: string) => void;
+	/** Called whenever the multi-selection set changes (for toolbar updates). */
+	onMultiChange?: () => void;
+	/** Shape dragged from palette and dropped at SVG coordinates. */
+	onDrop?: (shape: string, svgX: number, svgY: number) => void;
+	/** A .mmd file was dropped onto the canvas — raw Mermaid text. */
+	onImportFile?: (text: string) => void;
 }
 
 interface Geom {
@@ -44,6 +108,8 @@ const NODE_H = 44;
 const MIN_W = 80;
 const PADDING = 80;
 const CHAR_W = 8.2;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 4;
 
 export class DiagramCanvas {
 	private model: DiagramModel;
@@ -55,15 +121,23 @@ export class DiagramCanvas {
 	private edgeLayer: SVGGElement;
 	private nodeLayer: SVGGElement;
 	private overlayLayer: SVGGElement;
+	private bgRect: SVGRectElement;
+	private emptyState!: HTMLElement;
 
 	private mode: EditorMode = "select";
 	private selection: Selection = null;
+	private zoom = 1;
+	private snapSize = 0;  // 0 = off
+	private spaceDown = false;
 
 	private geomCache = new Map<string, Geom>();
 
 	// drag state (delta-based)
 	private dragId: string | null = null;
 	private dragLast = { x: 0, y: 0 };
+
+	// space/middle-click pan
+	private panDrag: { startX: number; startY: number; scrollLeft: number; scrollTop: number } | null = null;
 
 	// multi-selection
 	private multi = new Set<string>();
@@ -86,6 +160,11 @@ export class DiagramCanvas {
 	// group (subgraph) drag
 	private groupDragId: string | null = null;
 	private groupDragLast = { x: 0, y: 0 };
+
+	// external drop callback (registered by toolbar)
+	private dropCallback: ((shape: string, svgX: number, svgY: number) => void) | null = null;
+	// edge-type picker callback: called with new edge id + mouse event after anchor-drag
+	private newEdgePickerCb: ((edgeId: string, e: MouseEvent) => void) | null = null;
 
 	constructor(
 		parent: HTMLElement,
@@ -113,6 +192,23 @@ export class DiagramCanvas {
 		this.svg.addEventListener("pointerdown", (e) => this.onBackgroundDown(e));
 		this.svg.addEventListener("pointermove", (e) => this.onPointerMove(e));
 		this.svg.addEventListener("pointerup", (e) => this.onPointerUp(e));
+		this.svg.addEventListener("contextmenu", (e) => this.onBackgroundContext(e));
+		this.svg.addEventListener("dblclick", (e) => this.onDblClick(e));
+		this.scroller.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
+		// Safari pinch-zoom via GestureChange events
+		this.scroller.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+		this.scroller.addEventListener("gesturechange", (e) => {
+			e.preventDefault();
+			const ge = e as Event & { scale?: number };
+			if (ge.scale !== undefined) this.setZoom(this.zoom * ge.scale, undefined, undefined);
+		}, { passive: false });
+		// Drag-from-palette drop target
+		this.scroller.addEventListener("dragover", (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
+		this.scroller.addEventListener("drop", (e) => this.onDrop(e));
+
+		// Overlay shown only when the diagram has no nodes (first-open / cleared).
+		this.emptyState = parent.createDiv({ cls: "mermaid-flow-canvas-empty" });
+		this.buildEmptyState();
 
 		this.render();
 	}
@@ -151,6 +247,52 @@ export class DiagramCanvas {
 		return this.mode;
 	}
 
+	getZoom(): number {
+		return this.zoom;
+	}
+
+	zoomIn(): void {
+		this.setZoom(this.zoom * 1.2);
+	}
+
+	zoomOut(): void {
+		this.setZoom(this.zoom / 1.2);
+	}
+
+	zoomReset(): void {
+		this.zoom = 1;
+		this.resizeCanvas();
+		this.callbacks.onZoom?.(this.zoom);
+	}
+
+	/**
+	 * Set the zoom level, keeping the point under (clientX, clientY) — or the
+	 * viewport centre when omitted — stationary on screen.
+	 */
+	private setZoom(z: number, clientX?: number, clientY?: number): void {
+		const old = this.zoom;
+		const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+		if (Math.abs(next - old) < 0.0001) return;
+		const rect = this.scroller.getBoundingClientRect();
+		const offsetX = (clientX ?? rect.left + rect.width / 2) - rect.left;
+		const offsetY = (clientY ?? rect.top + rect.height / 2) - rect.top;
+		const ratio = next / old;
+		this.zoom = next;
+		this.resizeCanvas();
+		this.scroller.scrollLeft =
+			(this.scroller.scrollLeft + offsetX) * ratio - offsetX;
+		this.scroller.scrollTop =
+			(this.scroller.scrollTop + offsetY) * ratio - offsetY;
+		this.callbacks.onZoom?.(this.zoom);
+	}
+
+	private onWheel(e: WheelEvent): void {
+		if (!(e.ctrlKey || e.metaKey)) return; // plain scroll keeps native panning
+		e.preventDefault();
+		const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+		this.setZoom(this.zoom * factor, e.clientX, e.clientY);
+	}
+
 	getSelection(): Selection {
 		return this.selection;
 	}
@@ -159,10 +301,175 @@ export class DiagramCanvas {
 		return this.svg;
 	}
 
+	/** Clear all selection (e.g. before exporting a clean image). */
+	deselect(): void {
+		this.multi.clear();
+		this.setSelection(null);
+	}
+
+	/**
+	 * Build a standalone, self-contained SVG string for file export.
+	 *
+	 * The live SVG relies entirely on CSS (theme variables for fills, strokes,
+	 * fonts) so a naive serialize produces an image with no colours or text
+	 * styling. Here we clone the tree, inline every element's *computed* style
+	 * (which resolves CSS variables and per-node custom colours to concrete
+	 * values), drop the interactive overlay layer, and emit a properly namespaced
+	 * document with explicit dimensions.
+	 *
+	 * @returns the SVG markup plus pixel dimensions and the canvas background
+	 *   colour (used to flatten PNG exports so text stays legible).
+	 */
+	getExportSVG(): {
+		svg: string;
+		width: number;
+		height: number;
+		background: string;
+	} {
+		const live = this.svg;
+		const clone = live.cloneNode(true) as SVGSVGElement;
+
+		// Inline computed styles in lockstep — clone mirrors live exactly here.
+		inlineComputedStyles(live, clone);
+
+		// Remove the interactive overlay layer (selection handles, ghost lines,
+		// rubber-band) — it must never appear in an exported image. The overlay
+		// is the last child, so map it by index from the live tree.
+		const overlayIndex = Array.prototype.indexOf.call(
+			live.children,
+			this.overlayLayer,
+		);
+		const cloneOverlay = clone.children[overlayIndex];
+		if (overlayIndex >= 0 && cloneOverlay) cloneOverlay.remove();
+
+		const rect = live.getBoundingClientRect();
+		const width = live.viewBox.baseVal.width || rect.width;
+		const height = live.viewBox.baseVal.height || rect.height;
+		clone.setAttribute("width", String(Math.round(width)));
+		clone.setAttribute("height", String(Math.round(height)));
+		clone.setAttribute("viewBox", `0 0 ${width} ${height}`);
+		clone.setAttribute("xmlns", SVG_NS);
+		clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+		const scrollerBg = getComputedStyle(this.scroller).backgroundColor;
+		const background =
+			scrollerBg && scrollerBg !== "rgba(0, 0, 0, 0)" && scrollerBg !== "transparent"
+				? scrollerBg
+				: "#ffffff";
+
+		const svg = new XMLSerializer().serializeToString(clone);
+		return { svg, width, height, background };
+	}
+
 	/** Public select: also clears any multi-selection. */
 	select(sel: Selection): void {
 		this.multi.clear();
 		this.setSelection(sel);
+		this.callbacks.onMultiChange?.();
+	}
+
+	/** Select a set of node IDs as a multi-selection. */
+	selectIds(ids: string[]): void {
+		this.multi.clear();
+		for (const id of ids) this.multi.add(id);
+		const first = ids[0];
+		this.setSelection(first ? { type: "node", id: first } : null);
+		this.callbacks.onMultiChange?.();
+	}
+
+	/** Select all nodes into the multi-selection. */
+	selectAll(): void {
+		this.multi.clear();
+		for (const n of this.model.nodes) this.multi.add(n.id);
+		const first = this.model.nodes[0];
+		this.setSelection(first ? { type: "node", id: first.id } : null);
+		this.callbacks.onMultiChange?.();
+	}
+
+	/** Configure optional snap-to-grid. size=0 disables snap. */
+	setSnapGrid(size: number): void {
+		this.snapSize = Math.max(0, size);
+	}
+
+	/** Notify canvas that Space key is held (enables pan mode). */
+	setSpaceDown(down: boolean): void {
+		this.spaceDown = down;
+		this.scroller.style.cursor = down ? "grab" : "";
+	}
+
+	/** Move all currently-selected node(s) by dx/dy pixels. */
+	nudgeSelected(dx: number, dy: number): void {
+		const ids = this.multi.size > 0 ? [...this.multi] : [];
+		if (ids.length === 0) {
+			if (this.selection?.type === "node") ids.push(this.selection.id);
+		}
+		if (ids.length === 0) return;
+		this.moveNodes(ids, dx, dy);
+		this.resizeCanvas();
+		this.renderGroups();
+		this.renderEdges();
+		this.renderNodes();
+	}
+
+	/** Scale and scroll to fit all nodes in the visible viewport. */
+	zoomToFit(): void {
+		if (this.model.nodes.length === 0) return;
+		let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+		for (const node of this.model.nodes) {
+			const g = this.geomCache.get(node.id) ?? this.geom(node);
+			minX = Math.min(minX, node.x - g.w / 2);
+			minY = Math.min(minY, node.y - g.h / 2);
+			maxX = Math.max(maxX, node.x + g.w / 2);
+			maxY = Math.max(maxY, node.y + g.h / 2);
+		}
+		const pad = 60;
+		const cw = maxX - minX + pad * 2;
+		const ch = maxY - minY + pad * 2;
+		const dw = this.scroller.clientWidth;
+		const dh = this.scroller.clientHeight;
+		if (dw === 0 || dh === 0) return;
+		const newZoom = Math.min(dw / cw, dh / ch, MAX_ZOOM);
+		this.zoom = Math.max(MIN_ZOOM, newZoom);
+		this.resizeCanvas();
+		this.callbacks.onZoom?.(this.zoom);
+		// Scroll to center
+		this.scroller.scrollLeft = (minX - pad) * this.zoom;
+		this.scroller.scrollTop = (minY - pad) * this.zoom;
+	}
+
+	/** Register the callback used by the toolbar's drop handler. */
+	registerDropTarget(cb: (shape: string, svgX: number, svgY: number) => void): void {
+		this.dropCallback = cb;
+	}
+
+	/** Add/remove the `is-highlighted` class on node groups matching ids. */
+	highlightNodes(ids: Set<string>): void {
+		this.nodeLayer.querySelectorAll<SVGGElement>(".mermaid-flow-node").forEach((g, i) => {
+			const node = this.model.nodes[i];
+			if (node) g.classList.toggle("is-highlighted", ids.has(node.id));
+		});
+	}
+
+	/** Scroll the first node whose id is in ids into the visible area. */
+	scrollNodeIntoView(id: string): void {
+		const node = this.model.nodes.find((n) => n.id === id);
+		if (!node) return;
+		const g = this.geomCache.get(node.id) ?? this.geom(node);
+		const cx = node.x * this.zoom;
+		const cy = node.y * this.zoom;
+		const hw = (g.w / 2) * this.zoom + 40;
+		const hh = (g.h / 2) * this.zoom + 40;
+		const vw = this.scroller.clientWidth;
+		const vh = this.scroller.clientHeight;
+		const sl = this.scroller.scrollLeft;
+		const st = this.scroller.scrollTop;
+		if (cx - hw < sl || cx + hw > sl + vw) this.scroller.scrollLeft = cx - vw / 2;
+		if (cy - hh < st || cy + hh > st + vh) this.scroller.scrollTop  = cy - vh / 2;
+	}
+
+	/** Called after anchor-drag creates an edge — fire the edge-type picker. */
+	setNewEdgePickerCallback(cb: ((edgeId: string, e: MouseEvent) => void) | null): void {
+		this.newEdgePickerCb = cb;
 	}
 
 	private setSelection(sel: Selection): void {
@@ -173,6 +480,25 @@ export class DiagramCanvas {
 
 	destroy(): void {
 		this.scroller.remove();
+		this.emptyState?.remove();
+	}
+
+	private buildEmptyState(): void {
+		const inner = this.emptyState.createDiv({
+			cls: "mermaid-flow-canvas-empty-inner",
+		});
+		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
+		// Use standard DOM so this method works in the test environment (jsdom),
+		// which does not polyfill Obsidian's createEl helper.
+		const title = document.createElement("p");
+		title.className = "mermaid-flow-canvas-empty-title";
+		title.textContent = "Start your diagram";
+		inner.appendChild(title);
+		const hint = document.createElement("p");
+		hint.className = "mermaid-flow-canvas-empty-hint";
+		hint.textContent =
+			"Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.";
+		inner.appendChild(hint);
 	}
 
 	// --- geometry -----------------------------------------------------------
@@ -183,9 +509,12 @@ export class DiagramCanvas {
 			this.geomCache.set(node.id, g);
 			return g;
 		}
-		const text = node.label || node.id;
-		let w = Math.max(MIN_W, Math.round(text.length * CHAR_W) + 32);
-		let h = NODE_H;
+		const rawLabel = node.label || node.id;
+		const lines = rawLabel.split("\n");
+		// Width uses the longest line; height grows for multi-line labels.
+		const longestLine = lines.reduce((a, b) => (a.length > b.length ? a : b), "");
+		let w = Math.max(MIN_W, Math.round(longestLine.length * CHAR_W) + 32);
+		let h = NODE_H + Math.max(0, (lines.length - 1) * 16);
 		switch (node.shape) {
 			case "circle":
 			case "double-circle": {
@@ -249,6 +578,9 @@ export class DiagramCanvas {
 		this.renderGroups();
 		this.renderEdges();
 		this.renderNodes();
+		// classList.toggle is standard DOM; toggleClass is Obsidian-only and
+		// unavailable in the test environment (jsdom).
+		this.emptyState?.classList.toggle("is-visible", this.model.nodes.length === 0);
 	}
 
 	private static readonly GROUP_PAD = 26;
@@ -337,9 +669,27 @@ export class DiagramCanvas {
 		}
 		const w = Math.round(maxX + PADDING);
 		const h = Math.round(maxY + PADDING);
-		this.svg.setAttribute("width", String(w));
-		this.svg.setAttribute("height", String(h));
+		this.svg.setAttribute("width", String(Math.round(w * this.zoom)));
+		this.svg.setAttribute("height", String(Math.round(h * this.zoom)));
 		this.svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+		this.bgRect.setAttribute("width", String(w));
+		this.bgRect.setAttribute("height", String(h));
+		this.paintBackground();
+	}
+
+	private paintBackground(): void {
+		const bg = this.model.config.background;
+		if (bg) {
+			this.bgRect.setAttribute("fill", bg);
+			this.bgRect.style.removeProperty("display");
+		} else {
+			this.bgRect.style.display = "none";
+		}
+	}
+
+	/** Repaint only the diagram background after model.config.background changes. */
+	refreshBackground(): void {
+		this.paintBackground();
 	}
 
 	private renderNodes(): void {
@@ -352,9 +702,8 @@ export class DiagramCanvas {
 				this.selection?.type === "node" && this.selection.id === node.id;
 			if (isSelected) group.classList.add("is-selected");
 			if (this.multi.has(node.id)) group.classList.add("is-multi");
-			if (this.connectFrom === node.id) {
-				group.classList.add("is-connect-source");
-			}
+			if (this.connectFrom === node.id) group.classList.add("is-connect-source");
+			if (node.locked) group.classList.add("is-locked");
 
 			for (const el of createShapeElements(node.shape, node.x, node.y, g.w, g.h)) {
 				el.classList.add("mermaid-flow-shape");
@@ -385,6 +734,10 @@ export class DiagramCanvas {
 			group.addEventListener("contextmenu", (e) =>
 				this.onNodeContext(e, node.id),
 			);
+			group.addEventListener("dblclick", (e) => {
+				e.stopPropagation();
+				this.callbacks.onDblClickNode?.(node.id);
+			});
 			this.nodeLayer.appendChild(group);
 		}
 	}
@@ -403,9 +756,7 @@ export class DiagramCanvas {
 	private nodeLabel(node: DiagramNode): SVGTextElement {
 		const text = activeDocument.createElementNS(SVG_NS, "text");
 		text.setAttribute("x", String(node.x));
-		text.setAttribute("y", String(node.y));
 		text.setAttribute("text-anchor", "middle");
-		text.setAttribute("dominant-baseline", "central");
 		text.classList.add("mermaid-flow-node-label");
 		text.textContent = node.label || node.id;
 		const s = node.style;
@@ -600,7 +951,7 @@ export class DiagramCanvas {
 	// --- interaction --------------------------------------------------------
 
 	private onNodeDown(e: PointerEvent, id: string): void {
-		if (e.button !== 0) return; // let right-click open the context menu
+		if (e.button !== 0) return;
 		e.stopPropagation();
 		e.preventDefault();
 
@@ -609,20 +960,31 @@ export class DiagramCanvas {
 			return;
 		}
 
+		// Locked nodes can still be selected but not dragged.
+		const node = this.model.nodes.find((n) => n.id === id);
+		if (node?.locked) {
+			this.setSelection({ type: "node", id });
+			return;
+		}
+
 		// Shift-click toggles multi-selection (for grouping); no drag.
 		if (e.shiftKey) {
 			if (this.multi.has(id)) this.multi.delete(id);
 			else this.multi.add(id);
 			this.setSelection({ type: "node", id });
+			this.callbacks.onMultiChange?.();
 			return;
 		}
 
 		// Plain click on a node outside the current multi-selection clears it.
-		if (!this.multi.has(id)) this.multi.clear();
+		if (!this.multi.has(id)) {
+			this.multi.clear();
+			this.callbacks.onMultiChange?.();
+		}
 		this.setSelection({ type: "node", id });
 
-		const node = this.model.nodes.find((n) => n.id === id);
-		if (!node) return;
+		const dragNode = this.model.nodes.find((n) => n.id === id);
+		if (!dragNode) return;
 		this.dragId = id;
 		this.dragLast = this.toSvgPoint(e);
 		try {
@@ -687,7 +1049,22 @@ export class DiagramCanvas {
 	}
 
 	private onBackgroundDown(e: PointerEvent): void {
-		if (e.button !== 0) return; // ignore right/middle clicks on the canvas
+		// Middle-click or Space+left-click: start pan
+		if (e.button === 1 || (e.button === 0 && this.spaceDown)) {
+			e.preventDefault();
+			this.panDrag = {
+				startX: e.clientX,
+				startY: e.clientY,
+				scrollLeft: this.scroller.scrollLeft,
+				scrollTop: this.scroller.scrollTop,
+			};
+			this.scroller.style.cursor = "grabbing";
+			try { this.svg.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+			return;
+		}
+
+		if (e.button !== 0) return;
+
 		if (this.mode === "connect") {
 			this.connectFrom = null;
 			this.clearGhost();
@@ -708,6 +1085,55 @@ export class DiagramCanvas {
 		}
 	}
 
+	private onBackgroundContext(e: MouseEvent): void {
+		// Only fire when the click was directly on the background, not on a node.
+		if (e.target !== this.svg && e.target !== this.bgRect) return;
+		e.preventDefault();
+		e.stopPropagation();
+		// Attach SVG coordinates to the event so the context menu can place a new node.
+		const p = this.toSvgPoint(e as unknown as PointerEvent);
+		Object.assign(e, { svgX: p.x, svgY: p.y });
+		this.multi.clear();
+		this.setSelection(null);
+		this.callbacks.onContextMenu?.(e, true);
+	}
+
+	private onDblClick(e: MouseEvent): void {
+		if (e.target === this.svg || e.target === this.bgRect) {
+			// Double-click on empty canvas: add node at this position
+			const p = this.toSvgPoint(e as unknown as PointerEvent);
+			this.callbacks.onDblClickBackground?.(p.x, p.y);
+		}
+	}
+
+	private onDrop(e: DragEvent): void {
+		e.preventDefault();
+		// Check for .mmd file drop first
+		const files = e.dataTransfer?.files;
+		if (files && files.length > 0) {
+			const file = files[0];
+			if (file && (file.name.endsWith(".mmd") || file.type === "text/plain")) {
+				const reader = new FileReader();
+				reader.onload = () => {
+					const text = reader.result as string;
+					this.callbacks.onImportFile?.(text);
+				};
+				reader.readAsText(file);
+				return;
+			}
+		}
+		const shape = e.dataTransfer?.getData("text/plain");
+		if (!shape) return;
+		const svgRect = this.svg.getBoundingClientRect();
+		const vbW = this.svg.viewBox.baseVal.width || svgRect.width;
+		const vbH = this.svg.viewBox.baseVal.height || svgRect.height;
+		const scaleX = svgRect.width ? vbW / svgRect.width : 1;
+		const scaleY = svgRect.height ? vbH / svgRect.height : 1;
+		const svgX = (e.clientX - svgRect.left) * scaleX;
+		const svgY = (e.clientY - svgRect.top) * scaleY;
+		(this.dropCallback ?? this.callbacks.onDrop)?.(shape, svgX, svgY);
+	}
+
 	private onAnchorDown(e: PointerEvent, id: string): void {
 		if (e.button !== 0) return;
 		e.stopPropagation();
@@ -722,6 +1148,12 @@ export class DiagramCanvas {
 	}
 
 	private onPointerMove(e: PointerEvent): void {
+		if (this.panDrag) {
+			this.scroller.scrollLeft = this.panDrag.scrollLeft - (e.clientX - this.panDrag.startX);
+			this.scroller.scrollTop  = this.panDrag.scrollTop  - (e.clientY - this.panDrag.startY);
+			return;
+		}
+
 		if (this.resizeId) {
 			const node = this.model.nodes.find((n) => n.id === this.resizeId);
 			if (!node) return;
@@ -787,12 +1219,17 @@ export class DiagramCanvas {
 		this.moveNodes(grp.nodeIds, dx, dy);
 	}
 
+	private snap(val: number): number {
+		if (!this.snapSize) return Math.round(val);
+		return Math.round(val / this.snapSize) * this.snapSize;
+	}
+
 	private moveNodes(ids: string[], dx: number, dy: number): void {
 		const set = new Set(ids);
 		for (const node of this.model.nodes) {
 			if (!set.has(node.id)) continue;
-			node.x = Math.max(40, Math.round(node.x + dx));
-			node.y = Math.max(30, Math.round(node.y + dy));
+			node.x = Math.max(40, this.snap(node.x + dx));
+			node.y = Math.max(30, this.snap(node.y + dy));
 		}
 	}
 
@@ -844,9 +1281,17 @@ export class DiagramCanvas {
 		}
 		const first = [...this.multi][0];
 		this.setSelection(first ? { type: "node", id: first } : null);
+		this.callbacks.onMultiChange?.();
 	}
 
 	private onPointerUp(e: PointerEvent): void {
+		if (this.panDrag) {
+			this.panDrag = null;
+			this.scroller.style.cursor = this.spaceDown ? "grab" : "";
+			try { this.svg.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+			return;
+		}
+
 		if (this.resizeId) {
 			this.resizeId = null;
 			try {
@@ -912,6 +1357,12 @@ export class DiagramCanvas {
 				this.model.edges.push(edge);
 				this.callbacks.onChange();
 				this.select({ type: "edge", id: edge.id });
+				// If a picker callback is registered, show it so the user can
+				// choose the edge type right after drawing the connection.
+				if (this.newEdgePickerCb) {
+					const mouseEv = new MouseEvent("click", { clientX: e.clientX, clientY: e.clientY, bubbles: true });
+					this.newEdgePickerCb(edge.id, mouseEv);
+				}
 			} else {
 				this.render();
 			}

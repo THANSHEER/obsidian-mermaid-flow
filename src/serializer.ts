@@ -22,16 +22,30 @@ import {
 
 const INDENT = "    ";
 
-/** Wrap a label so Mermaid treats spaces/punctuation safely. */
+/** Wrap a label so Mermaid treats spaces/punctuation safely.
+ *  `\n` in the label is encoded as `<br/>` which Mermaid renders as a line break. */
 function quoteLabel(label: string): string {
-	// Escape embedded double quotes with the HTML entity Mermaid understands.
-	const safe = label.replace(/"/g, "&quot;");
+	// Collapse newlines (a multi-line label would split the single-line Mermaid
+	// statement) and escape embedded double quotes with the entity Mermaid
+	// understands — together this keeps a label from breaking out of its node.
+	const safe = label.replace(/\r?\n/g, " ").replace(/"/g, "&quot;");
 	return `"${safe}"`;
+}
+
+/**
+ * Mermaid node/subgraph identifiers must be alphanumeric or underscore. IDs are
+ * generated internally (see `nextNodeId`) and parsed from a restricted charset,
+ * so this is defense-in-depth: it guarantees an id can never carry extra Mermaid
+ * tokens into the output, even if a malformed id ever reaches the serializer.
+ */
+function sanitizeId(id: string): string {
+	const safe = id.replace(/[^A-Za-z0-9_]/g, "_");
+	return safe.length > 0 ? safe : "_";
 }
 
 function nodeDeclaration(node: DiagramNode): string {
 	const label = quoteLabel(node.label);
-	const id = node.id;
+	const id = sanitizeId(node.id);
 	switch (node.shape) {
 		case "round":
 			return `${id}(${label})`;
@@ -85,11 +99,13 @@ function edgeOperator(kind: EdgeKind): string {
 
 function edgeLine(edge: DiagramEdge): string {
 	const op = edgeOperator(edge.kind);
+	const from = sanitizeId(edge.from);
+	const to = sanitizeId(edge.to);
 	// Invisible links carry no label in Mermaid.
 	if (edge.kind !== "invisible" && edge.label && edge.label.trim() !== "") {
-		return `${edge.from} ${op}|${quoteLabel(edge.label)}| ${edge.to}`;
+		return `${from} ${op}|${quoteLabel(edge.label)}| ${to}`;
 	}
-	return `${edge.from} ${op} ${edge.to}`;
+	return `${from} ${op} ${to}`;
 }
 
 function styleLine(node: DiagramNode): string | null {
@@ -103,18 +119,21 @@ function styleLine(node: DiagramNode): string | null {
 	if (s.fontFamily) props.push(`font-family:${s.fontFamily}`);
 	if (s.extra) props.push(...s.extra);
 	if (props.length === 0) return null;
-	return `style ${node.id} ${props.join(",")}`;
+	return `style ${sanitizeId(node.id)} ${props.join(",")}`;
 }
 
 function linkStyleLine(edge: DiagramEdge, index: number): string | null {
 	const s = edge.style;
-	if (!hasEdgeStyle(s) || !s) return null;
+	const hasAnimated = edge.animated === true;
+	if (!hasEdgeStyle(s) && !hasAnimated) return null;
 	const props: string[] = [];
-	if (s.strokeColor) props.push(`stroke:${s.strokeColor}`);
-	if (s.strokeWidth) props.push(`stroke-width:${s.strokeWidth}px`);
-	if (s.textColor) props.push(`color:${s.textColor}`);
-	if (s.fontSize) props.push(`font-size:${s.fontSize}px`);
-	if (s.extra) props.push(...s.extra);
+	if (s?.strokeColor) props.push(`stroke:${s.strokeColor}`);
+	if (s?.strokeWidth) props.push(`stroke-width:${s.strokeWidth}px`);
+	if (s?.textColor) props.push(`color:${s.textColor}`);
+	if (s?.fontSize) props.push(`font-size:${s.fontSize}px`);
+	if (s?.extra) props.push(...s.extra);
+	// animated flag is stored as a special marker so it round-trips
+	if (hasAnimated) props.push("mermaid-flow-animated:1");
 	if (props.length === 0) return null;
 	return `linkStyle ${index} ${props.join(",")}`;
 }
@@ -123,9 +142,9 @@ function configDirective(cfg: DiagramConfig): string | null {
 	if (!hasConfig(cfg)) return null;
 	const init: Record<string, unknown> = {};
 	if (cfg.theme) init.theme = cfg.theme;
-	if (cfg.themeVariables && Object.keys(cfg.themeVariables).length > 0) {
-		init.themeVariables = cfg.themeVariables;
-	}
+	const themeVars: Record<string, string> = { ...(cfg.themeVariables ?? {}) };
+	if (cfg.background) themeVars.background = cfg.background;
+	if (Object.keys(themeVars).length > 0) init.themeVariables = themeVars;
 	const fc: Record<string, number> = {};
 	if (cfg.nodeSpacing !== undefined) fc.nodeSpacing = cfg.nodeSpacing;
 	if (cfg.rankSpacing !== undefined) fc.rankSpacing = cfg.rankSpacing;
@@ -138,7 +157,7 @@ function positionComment(model: DiagramModel): string | null {
 	const parts = model.nodes
 		.filter((n) => Number.isFinite(n.x) && Number.isFinite(n.y))
 		.map((n) => {
-			const base = `${n.id}=${Math.round(n.x)},${Math.round(n.y)}`;
+			const base = `${sanitizeId(n.id)}=${Math.round(n.x)},${Math.round(n.y)}`;
 			if (n.w && n.h) return `${base},${Math.round(n.w)},${Math.round(n.h)}`;
 			return base;
 		});
@@ -171,7 +190,7 @@ export function modelToMermaid(
 		const title = group.title && group.title !== group.id
 			? ` [${quoteLabel(group.title)}]`
 			: "";
-		lines.push(`${INDENT}subgraph ${group.id}${title}`);
+		lines.push(`${INDENT}subgraph ${sanitizeId(group.id)}${title}`);
 		for (const id of members) {
 			grouped.add(id);
 			const node = nodeById.get(id);

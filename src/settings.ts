@@ -10,23 +10,33 @@ import {
 import type MermaidFlowPlugin from "./main";
 
 export type OpenMode = "modal" | "pane";
+export type ToolbarStyle = "native" | "floating";
 
 export interface MermaidFlowSettings {
 	openMode: OpenMode;
+	toolbarStyle: ToolbarStyle;
 	defaultDirection: Direction;
 	defaultShape: NodeShape;
 	savePositions: boolean;
 	autoSave: boolean;
+	exportFolder: string;
+	snapToGrid: boolean;
+	snapSize: number;
+	/** Template used when sending diagram code to an AI prompt. Must contain {{text}}. */
 	promptTemplate: string;
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	openMode: "modal",
+	toolbarStyle: "native",
 	defaultDirection: "TB",
 	defaultShape: "rect",
 	savePositions: true,
 	autoSave: true,
-	promptTemplate: "I need a Mermaid flowchart that shows: {{text}}",
+	exportFolder: "mermaid flow",
+	snapToGrid: false,
+	snapSize: 10,
+	promptTemplate: "Here is a Mermaid flowchart diagram:\n\n{{text}}\n\nPlease explain or improve it.",
 };
 
 export class MermaidFlowSettingTab extends PluginSettingTab {
@@ -40,6 +50,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+
+		new Setting(containerEl).setName("Editor").setHeading();
 
 		new Setting(containerEl)
 			.setName("Open editor as")
@@ -55,6 +67,23 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName("Toolbar style")
+			.setDesc(
+				"Native docks the toolbar at the top. Floating shows it as a compact bar over the canvas.",
+			)
+			.addDropdown((dd) => {
+				dd.addOption("native", "Native (docked)");
+				dd.addOption("floating", "Floating");
+				dd.setValue(this.plugin.settings.toolbarStyle);
+				dd.onChange(async (value) => {
+					this.plugin.settings.toolbarStyle = value as ToolbarStyle;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl).setName("Diagram defaults").setHeading();
 
 		new Setting(containerEl)
 			.setName("Default direction")
@@ -84,6 +113,46 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl).setName("Behavior").setHeading();
+
+		new Setting(containerEl)
+			.setName("Export folder")
+			.setDesc(
+				"Vault folder where PNG/SVG exports are saved. Created automatically if it doesn't exist.",
+			)
+			.addText((text) => {
+				text.setPlaceholder("mermaid flow");
+				text.setValue(this.plugin.settings.exportFolder);
+				text.onChange(async (value) => {
+					this.plugin.settings.exportFolder = value.trim() || "mermaid flow";
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Snap nodes to grid")
+			.setDesc("Snap nodes to a fixed grid while dragging for cleaner alignment.")
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.snapToGrid);
+				tg.onChange(async (value) => {
+					this.plugin.settings.snapToGrid = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Grid size (px)")
+			.setDesc("Snap grid cell size in pixels (applies when Snap to grid is on).")
+			.addSlider((sl) => {
+				sl.setLimits(5, 40, 5);
+				sl.setValue(this.plugin.settings.snapSize);
+				sl.setDynamicTooltip();
+				sl.onChange(async (value) => {
+					this.plugin.settings.snapSize = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
 		new Setting(containerEl)
 			.setName("Auto-save (embedded pane)")
 			.setDesc(
@@ -108,23 +177,6 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 					this.plugin.settings.savePositions = value;
 					await this.plugin.saveSettings();
 				});
-			});
-
-		containerEl.createEl("h3", { text: "AI & Templates" });
-
-		new Setting(containerEl)
-			.setName("AI Prompt Template")
-			.setDesc("The template used when generating diagrams via AI. Use {{text}} as a placeholder for your instructions.")
-			.setClass("mermaid-flow-prompt-setting")
-			.addTextArea((text) => {
-				text.setPlaceholder("I need a Mermaid flowchart that shows: {{text}}")
-					.setValue(this.plugin.settings.promptTemplate)
-					.onChange(async (value) => {
-						this.plugin.settings.promptTemplate = value;
-						await this.plugin.saveSettings();
-					});
-				text.inputEl.rows = 4;
-				text.inputEl.addClass("mermaid-flow-prompt-textarea");
 			});
 	}
 }

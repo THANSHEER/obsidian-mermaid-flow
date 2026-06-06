@@ -119,6 +119,8 @@ export interface DiagramNode {
 	w?: number;
 	h?: number;
 	style?: NodeStyle;
+	/** When true the node cannot be dragged on the canvas. */
+	locked?: boolean;
 }
 
 /** A Mermaid `subgraph` — a labelled container grouping member nodes. */
@@ -131,6 +133,8 @@ export interface DiagramGroup {
 /** Diagram-level Mermaid config, emitted as a `%%{init: …}%%` directive. */
 export interface DiagramConfig {
 	theme?: string;
+	/** Diagram background colour; undefined = transparent. Emitted as themeVariables.background. */
+	background?: string;
 	themeVariables?: Record<string, string>;
 	nodeSpacing?: number;
 	rankSpacing?: number;
@@ -140,6 +144,7 @@ export function hasConfig(cfg: DiagramConfig | undefined): boolean {
 	if (!cfg) return false;
 	return (
 		cfg.theme !== undefined ||
+		cfg.background !== undefined ||
 		cfg.nodeSpacing !== undefined ||
 		cfg.rankSpacing !== undefined ||
 		(cfg.themeVariables !== undefined &&
@@ -177,6 +182,8 @@ export interface DiagramEdge {
 	label: string;
 	kind: EdgeKind;
 	style?: EdgeStyle;
+	/** Show a marching-ants CSS animation on the edge line. */
+	animated?: boolean;
 }
 
 export interface DiagramModel {
@@ -303,6 +310,22 @@ export function duplicateNode(
 	return newId;
 }
 
+/** Move a node to the end of the nodes array (rendered on top). */
+export function bringToFront(model: DiagramModel, id: string): void {
+	const idx = model.nodes.findIndex((n) => n.id === id);
+	if (idx < 0 || idx === model.nodes.length - 1) return;
+	const [node] = model.nodes.splice(idx, 1);
+	if (node) model.nodes.push(node);
+}
+
+/** Move a node to the start of the nodes array (rendered at back). */
+export function sendToBack(model: DiagramModel, id: string): void {
+	const idx = model.nodes.findIndex((n) => n.id === id);
+	if (idx <= 0) return;
+	const [node] = model.nodes.splice(idx, 1);
+	if (node) model.nodes.unshift(node);
+}
+
 /** Deep clone so the editor can discard changes on cancel. */
 export function cloneModel(model: DiagramModel): DiagramModel {
 	return {
@@ -315,6 +338,7 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 		})),
 		edges: model.edges.map((e) => ({
 			...e,
+			animated: e.animated,
 			style: e.style
 				? { ...e.style, extra: e.style.extra ? [...e.style.extra] : undefined }
 				: undefined,

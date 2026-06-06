@@ -1,12 +1,15 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - '*'
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
 
 jobs:
-  build:
+  release:
+    # Only run when CI passed on a push to main.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
