@@ -4,77 +4,197 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A visual WYSIWYG editor for Mermaid flowcharts, packaged as an **Obsidian community plugin**. Users drag nodes and draw connections; the plugin reads/writes the underlying ` ```mermaid ` code blocks for them.
-
-This working directory **is a live plugin install** inside an Obsidian vault (`.obsidian/plugins/obsidian-mermaid-flow`). `main.js` is the bundled artifact Obsidian actually loads — `npm run dev` rebuilds it in place, so reloading Obsidian (or using `obsidian-plugin-hot-reload`) picks up changes. `main.js` and `styles.css` are build outputs; edit `src/**` and `styles.css` source, not `main.js`.
+Mermaid Flow is an Obsidian community plugin: a visual WYSIWYG editor for Mermaid
+flowcharts. TypeScript in `src/` is bundled by esbuild into a single `main.js`
+that Obsidian loads. The repo lives *inside* a real vault at
+`.obsidian/plugins/obsidian-mermaid-flow/`, so a `dev`/`build` writes `main.js`
+into the very Obsidian instance that will run it — reload the plugin (or use
+hot-reload) to test changes against this vault.
 
 ## Commands
 
-- `npm run dev` — esbuild watch; rebuilds `main.js` on save (inline sourcemaps).
-- `npm run build` — full check: `tsc -noEmit` typecheck **then** minified production bundle. Run this before committing.
-- `npm run lint` — ESLint over `src/**/*.ts` (flat config, `typescript-eslint`).
-- `npm run validate` — asserts `manifest.json` version equals `package.json` version and required manifest fields exist.
-- `npm version <x.y.z>` — bumps version, syncs `manifest.json` + `versions.json` via `version-bump.mjs`, and stages them.
+```bash
+npm run dev       # esbuild watch mode → rebuilds main.js on change (no typecheck)
+npm run build     # tsc -noEmit typecheck + minified production bundle
+npm run lint      # eslint over src/**/*.ts (relies on shell globbing the paths)
+npm run validate  # assert manifest.json version === package.json version + required fields
+npm version <v>   # runs version-bump.mjs → syncs manifest.json + versions.json, stages them
+```
 
-**There is no automated test suite** (no `test` script, no test runner). The CI gate is `validate` → `lint` → `build` (`.github/workflows/ci.yml`); reproduce it locally with those three commands. Tagging a release triggers `release.yml`, which uploads `main.js`, `manifest.json`, `styles.css`.
+CI (`.github/workflows/ci.yml`) runs exactly `validate` → `lint` → `build` on
+push/PR to `main`. There is **no test suite** — those three are the full check
+set; run them before considering a change done. Pushing a git **tag** triggers
+`release.yml`, which builds and attaches `main.js`, `manifest.json`, `styles.css`
+to a GitHub release.
 
-TypeScript runs in full `strict` mode plus `noUncheckedIndexedAccess` — array/index access is `T | undefined`, which is why the code is heavy on `?? fallback` and explicit index guards. Keep that pattern.
+`@typescript-eslint/no-explicit-any` is off; `tsconfig.json` is otherwise
+`strict` (incl. `noUncheckedIndexedAccess`), so expect to guard array/Map access.
 
 ## Architecture
 
-The plugin is a **visual wrapper around Mermaid text**. Everything flows through one round-trip:
+### The round-trip core
+
+The plugin is a visual wrapper around Mermaid text. Everything centers on one
+in-memory shape, `DiagramModel` (`src/model.ts`), and converting to/from it:
 
 ```
-Mermaid text  --parser.ts-->  DiagramModel  --serializer.ts-->  Mermaid text
-                                  ^   |
-                                  |   v
-                         DiagramEditorUI / DiagramCanvas (visual edits)
+Mermaid text ──parser.ts──▶ DiagramModel ──serializer.ts──▶ Mermaid text
+                            (editor mutates
+                             this in place)
 ```
 
-- **`model.ts`** — `DiagramModel` (nodes, edges, groups/subgraphs, config, `extras`) is the single source of truth. The visual editor mutates it in place; `cloneModel` is used for undo/cancel snapshots.
-- **`parser.ts`** — line/regex-based Mermaid→Model (no Mermaid lib dependency). **`serializer.ts`** — Model→Mermaid, the inverse.
-- **`layout.ts`** — rank-based auto-layout when a diagram has no saved positions or the user clicks "Auto layout".
-- **`canvas.ts`** — the SVG editing surface (drag, connect, select, resize). **`node.x`/`node.y` are the node CENTRE.** **`shapes.ts`** is the single source of shape geometry, shared by the canvas and the palette icons.
-- **`editorUI.ts`** — the host-agnostic editor (toolbar + canvas + properties panel + raw-code view + undo/redo). Hosted via the `EditorHost` interface.
-- **`presets.ts`** — the single source of dropdown options (`THEME_PRESETS`, `DIRECTIONS`, `STYLE_PRESETS`, `LAYOUT_PRESETS`, `SPACING_PRESETS`), shared by `editorUI.ts` and `settings.ts`. Add a preset here, not in the consumers.
-- **`settings.ts`** — the settings tab + defaults. Settings flow outward: `openMode`/`toolbarStyle` are read by `main.ts` when opening a host; `defaultDirection`/`defaultNodeShape` seed new diagrams; `savePositions` gates the serializer; `autoSave` gates the embedded pane only.
+- **`parser.ts`** — line-based, regex-driven, deliberately *forgiving*. It only
+  understands the common flowchart subset. **Critical invariant:** any line it
+  cannot interpret (classDef, click bindings, unknown directives, comments) is
+  pushed verbatim into `model.extras` and re-emitted on save, so the visual
+  editor never corrupts a user's advanced syntax. Preserve this when extending
+  the parser — add real handling *or* let it fall through to `extras`, never drop.
+- **`serializer.ts`** — `DiagramModel` → Mermaid, plus a `%% mermaid-flow:pos
+  A=x,y[,w,h] …` comment that persists manual node positions (Mermaid ignores
+  `%%` lines, so it stays valid). The parser reads this comment back. Gated by
+  the `savePositions` setting / `includePositions` option.
+- **`layout.ts`** — rank-based auto layout, used when parsed nodes have no saved
+  positions (`layoutMissing`) or on explicit "Auto layout".
 
-### Two invariants to protect when editing parser/serializer
+`model.ts` also holds all enum tables (`NodeShape`, `EdgeKind`, `Direction`) with
+parallel `*_LABELS` maps, and model mutators (`removeNode`, `assignNodeToGroup`,
+`cloneModel` for cancel/undo, id generators: nodes `A,B,…,N1,N2`; groups `sub1…`).
 
-1. **Lossless round-trip.** Any line the parser does not understand (e.g. `classDef`, `click`, `direction`) is preserved in `model.extras` and re-emitted verbatim on save. Never drop unknown syntax. When adding support for a construct, move it out of `extras` and into a real model field on *both* sides.
-2. **Position persistence.** Mermaid has no node coordinates. Manual layout is stored in a self-authored comment `%% mermaid-flow:pos A=x,y[,w,h] ...` that the parser reads and the serializer writes (gated by the `savePositions` setting). Mermaid ignores `%%` lines, so the diagram still renders.
+### Three edit entry points, one editor
 
-Diagram-level Mermaid config (`theme`, spacing) round-trips through a `%%{init: {...}}%%` directive.
+`main.ts` (the `Plugin` subclass) wires three ways to start editing, which all
+converge on `openEditor` → either a Modal or a pane:
 
-### Obsidian integration: three ways to locate a Mermaid block
+1. **Editor commands / ribbon** — cursor-based. `editorBridge.ts` finds the
+   `mermaid` block enclosing the cursor and writes back via the `Editor` API.
+   Because the document can shift while the editor is open, `relocateBlock`
+   re-scans a ±5-line window for the fence before replacing on save.
+2. **Reading mode** — `registerMarkdownPostProcessor` adds an Edit/Code overlay.
+   A `MutationObserver` re-attaches the overlay because Mermaid renders async and
+   wipes it. Write-back uses `vault.process` (no live editor) against source
+   lines from `ctx.getSectionInfo`.
+3. **Live Preview** — `getSectionInfo` returns null for CM6 block widgets, so
+   `editorExtension.ts` (a CM6 `ViewPlugin`) instead scans the doc for fences,
+   watches the DOM for `.cm-embed-block` embeds, maps each back to a source line
+   range via `posAtDOM`, and injects the same overlay. Line ranges come straight
+   from editor state, so write-back is reliable.
 
-This is the subtle part — the same ` ```mermaid ` block is found differently per render context, all wired in `main.ts`:
+Note: the opening-fence regex (`OPEN_FENCE_RE`) is **duplicated** in `main.ts`,
+`editorBridge.ts`, and `editorExtension.ts` — keep them in sync if you change it.
 
-- **Reading mode** → `registerMarkdownPostProcessor` adds the Edit/Code overlay using `ctx.getSectionInfo`. Mermaid renders async and can wipe the overlay, so a short-lived `MutationObserver` re-attaches it (`addEditButton` / `attachOverlay`).
-- **Live Preview** → `getSectionInfo` returns null here, so a CM6 `ViewPlugin` (`editorExtension.ts`) instead scans the doc for fences and maps rendered `.cm-embed-block` DOM nodes back to source line ranges via `posAtDOM`.
-- **Source mode + commands/ribbon** → `editorBridge.ts` walks fences around the cursor.
+### The visual editor (host-agnostic)
 
-### Write-back must survive edits made while the editor is open
+`DiagramEditorUI` (`editorUI.ts`, the largest file) is the whole editor —
+toolbar, canvas, properties panel, raw-code view, undo/redo, autosave — and
+renders into *any* container. It's hosted two ways behind the `EditorHost`
+interface (`persist`/`close`/`autoSave`/`closeOnSave`):
 
-The user can edit the note while the visual editor is open, shifting line numbers. So saving re-locates the block first:
-- editor-based paths use `relocateBlock` (searches a small window around the original fence line) then `editor.replaceRange`;
-- the reading-mode path uses `app.vault.process(file, ...)` with line slices.
+- `editorModal.ts` — popup (`Modal`)
+- `editorView.ts` — embedded workspace pane (`ItemView`, `VIEW_TYPE_MERMAID_FLOW`)
 
-### One editor UI, two hosts
+The `openMode` setting picks which. Autosave (debounced `persist`) applies only
+to the embedded pane editing an existing block.
 
-`DiagramEditorUI` is rendered into either:
-- **`editorModal.ts`** — popup `Modal`, or
-- **`editorView.ts`** — embedded `ItemView` pane (`VIEW_TYPE_MERMAID_FLOW`).
+`canvas.ts` (`DiagramCanvas`) is the SVG interaction surface: drag, connect,
+rubber-band multi-select, resize, subgraph drag. It **mutates the model in place**
+and reports via `CanvasCallbacks` (`onSelect`/`onChange`/`onContextMenu`).
+**Convention:** `node.x`/`node.y` are the node *centre*, not top-left.
+`shapes.ts` builds the SVG geometry per `NodeShape` and the toolbar shape icons.
+`presets.ts` maps draw.io-style choices (themes, layouts, semantic node roles)
+onto Mermaid `theme`/`themeVariables`/direction/shape+style.
 
-The `openMode` setting picks which. **Auto-save applies only to the embedded pane when editing an existing diagram** — not the popup, not new-diagram insertion.
+## Conventions & gotchas
 
-`EditorHost` lets the host relocate the Save/Discard actions: when it passes an `actionsSlot` element (the modal removes the native close X and supplies its title bar), `editorUI.ts` renders them there as icon buttons; otherwise they dock in the toolbar as text buttons. Tooltips come from `aria-label` alone — do **not** also set `title` or call `setTooltip`, or buttons show two overlapping tooltips.
+- **`isDesktopOnly: false`** — keep runtime code mobile-safe: no Node/Electron
+  APIs at runtime. (`@types/node`, `node:module`, `process` appear only in
+  build/config scripts, which esbuild marks external — never `import` them from
+  `src/`.)
+- **Version sync is enforced.** `manifest.json` and `package.json` versions must
+  match (CI fails otherwise). Use `npm version`; don't hand-edit one alone.
+  `versions.json` maps plugin version → minimum Obsidian `minAppVersion`.
+- **Build output is git-ignored.** `main.js` is in `.gitignore` (a fresh clone
+  must `npm install && npm run build`), but `styles.css` is tracked and shipped.
+- Settings persist to `data.json` via Obsidian's `loadData`/`saveData`.
+- Styling uses Obsidian CSS variables (e.g. `--text-normal`) so it follows the
+  active theme; plugin styles live in `styles.css`.
 
-## Conventions
+## Obsidian coding standards (plugin review rules)
 
-- Use Obsidian DOM helpers (`createDiv`, `createEl`, `setIcon`, `addClass`) rather than raw DOM, matching the existing code.
-- Styles live in `styles.css` and must use Obsidian theme CSS variables (e.g. `--text-normal`, `--background-modifier-border`) so the plugin follows the user's theme.
-- esbuild marks `obsidian`, `electron`, `@codemirror/*`, and `@lezer/*` as externals — they are provided by Obsidian at runtime; do not bundle them.
-- Settings persist to `data.json` via `loadData`/`saveData`.
+These four rules map directly to Obsidian's community plugin audit checks. Violations
+block listing. The ESLint config (`eslint.config.mjs`) enforces #2 and #3 locally.
 
-See `docs/ARCHITECTURE.md` and `docs/CODE_EXPLANATION.md` for the author's own notes.
+**1. Use `activeDocument` instead of `document`** (popout window compatibility)
+```typescript
+// WRONG
+const g = document.createElementNS(SVG_NS, "g");
+
+// RIGHT — activeDocument is a global provided by Obsidian (no import needed):
+const g = activeDocument.createElementNS(SVG_NS, "g");
+```
+Applies to: `createElementNS`, `createElement`, `activeElement`, and any other
+`document.*` call. `activeDocument` is declared as a global by the `obsidian`
+package — it is automatically in scope in all `src/` files with no import required.
+
+**2. No direct `.style.*` on SVG elements** (`obsidianmd/no-static-styles-assignment`)
+
+Use SVG presentation attributes instead — they are equivalent and don't trigger the rule:
+```typescript
+// WRONG
+el.style.fill = "#ff0000";
+el.style.strokeWidth = "2px";
+
+// RIGHT
+el.setAttribute("fill", "#ff0000");
+el.setAttribute("stroke-width", "2");   // SVG stroke-width has no px units
+el.setAttribute("font-size", "14px");   // text attributes do use px
+```
+For toggling visibility/cursor on HTML elements, add a CSS class in `styles.css`
+and toggle with `classList.add/remove` rather than setting `.style.*` directly.
+
+**3. Always handle promise rejections** (`@typescript-eslint/no-floating-promises`)
+
+Never use the bare `void` operator to discard a promise. Use `.catch()`:
+```typescript
+// WRONG
+void this.openInPane(model, onSave, autoSave);
+
+// RIGHT
+this.openInPane(model, onSave, autoSave)
+    .catch((e) => console.error("[mermaid-flow]", e));
+```
+
+**4. No `!important` in CSS**
+
+Increase selector specificity instead. Since `.modal` is always present on Obsidian
+modals, chain it for responsive overrides: `.modal.mermaid-flow-modal { width: ... }`.
+For `prefers-reduced-motion`, scope to plugin elements only
+(`.mermaid-flow-editor *, .mermaid-flow-modal *`) rather than the global `*` selector.
+
+Deeper write-ups live in `docs/ARCHITECTURE.md` and `docs/CODE_EXPLANATION.md`.
+
+## Testing
+
+```bash
+npm test              # run all tests once
+npm test -- --watch   # watch mode
+npm test -- canvas    # run a single test file by name pattern
+```
+
+Tests live in `tests/` and run under Vitest with the `jsdom` environment.
+`tests/setup.ts` is the **single place** for all Obsidian global polyfills
+(loaded via `vitest.config.ts` `setupFiles`). It currently provides:
+`activeDocument`, `activeWindow`, `HTMLElement.prototype.createDiv/createEl/addClass/removeClass/empty`.
+
+**When to update `tests/setup.ts`:**
+- You add a call to a new Obsidian global (e.g. `activeWindow.ResizeObserver`)
+  in any `src/` file → add the matching polyfill to `tests/setup.ts`.
+- You add a new Obsidian HTMLElement helper call in `src/` → add it to the
+  `proto.*` block in `tests/setup.ts`.
+- Never polyfill inside an individual test file's `beforeAll` — centralise it.
+
+**When to update test files:**
+- Any UI change that alters how nodes, edges, or labels render in SVG needs
+  a corresponding assertion update in `canvas.test.ts`.
+- New rendering paths (new shapes, new edge types) should add a test case.
+- The test file imports `DiagramCanvas` directly and calls `canvas.getSVG()` —
+  you can assert on `.querySelector` results against the returned SVGSVGElement.

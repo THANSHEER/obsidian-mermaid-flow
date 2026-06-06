@@ -1,22 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DiagramCanvas } from '../src/canvas';
 import { emptyModel } from '../src/model';
 import type { DiagramModel } from '../src/model';
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
+// Obsidian globals (activeDocument, activeWindow, createDiv, createEl, etc.)
+// are polyfilled for all tests in tests/setup.ts — do not duplicate here.
 
-// Obsidian augments HTMLElement with createDiv(); provide the single helper the
-// canvas constructor relies on so it can run under plain jsdom.
-beforeAll(() => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(HTMLElement.prototype as any).createDiv = function (o?: { cls?: string }) {
-		const d = document.createElement('div');
-		if (o?.cls) d.className = o.cls;
-		this.appendChild(d);
-		return d;
-	};
-});
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function render(model: DiagramModel): SVGSVGElement {
 	const parent = document.createElement('div');
