@@ -89,11 +89,11 @@ export default class MermaidFlowPlugin extends Plugin {
 		allowAutoSave = false,
 	): void {
 		if (this.settings.openMode === "pane") {
-			void this.openInPane(
+			this.openInPane(
 				model,
 				onSave,
 				allowAutoSave && this.settings.autoSave,
-			);
+			).catch((e) => console.error("[mermaid-flow] Failed to open pane:", e));
 		} else {
 			new MermaidEditorModal(this.app, model, onSave).open();
 		}
@@ -106,7 +106,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	): Promise<void> {
 		const leaf = this.app.workspace.getLeaf("split", "vertical");
 		await leaf.setViewState({ type: VIEW_TYPE_MERMAID_FLOW, active: true });
-		this.app.workspace.revealLeaf(leaf);
+		await this.app.workspace.revealLeaf(leaf);
 		const view = leaf.view;
 		if (view instanceof MermaidEditorView) {
 			view.setData(model, onSave, autoSave);
@@ -264,7 +264,8 @@ export default class MermaidFlowPlugin extends Plugin {
 		editBtn.addEventListener("click", (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			void this.editFromReading(el, ctx);
+			this.editFromReading(el, ctx)
+				.catch((e) => console.error("[mermaid-flow] Failed to open editor:", e));
 		});
 	}
 
@@ -340,12 +341,12 @@ export default class MermaidFlowPlugin extends Plugin {
 				const code = modelToMermaid(result, {
 					includePositions: this.settings.savePositions,
 				});
-				void this.app.vault.process(file, (data) => {
+				this.app.vault.process(file, (data) => {
 					const dl = data.split("\n");
 					const before = dl.slice(0, lineStart + 1);
 					const after = dl.slice(lineEnd);
 					return [...before, ...code.split("\n"), ...after].join("\n");
-				});
+				}).catch((e) => console.error("[mermaid-flow] Failed to save diagram:", e));
 			},
 			true,
 		);

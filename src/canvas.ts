@@ -96,15 +96,15 @@ export class DiagramCanvas {
 		this.callbacks = callbacks;
 
 		this.scroller = parent.createDiv({ cls: "mermaid-flow-canvas-scroll" });
-		this.svg = document.createElementNS(SVG_NS, "svg");
+		this.svg = activeDocument.createElementNS(SVG_NS, "svg");
 		this.svg.classList.add("mermaid-flow-svg");
 		this.scroller.appendChild(this.svg);
 
 		this.buildDefs();
-		this.groupLayer = document.createElementNS(SVG_NS, "g");
-		this.edgeLayer = document.createElementNS(SVG_NS, "g");
-		this.nodeLayer = document.createElementNS(SVG_NS, "g");
-		this.overlayLayer = document.createElementNS(SVG_NS, "g");
+		this.groupLayer = activeDocument.createElementNS(SVG_NS, "g");
+		this.edgeLayer = activeDocument.createElementNS(SVG_NS, "g");
+		this.nodeLayer = activeDocument.createElementNS(SVG_NS, "g");
+		this.overlayLayer = activeDocument.createElementNS(SVG_NS, "g");
 		this.svg.appendChild(this.groupLayer);
 		this.svg.appendChild(this.edgeLayer);
 		this.svg.appendChild(this.nodeLayer);
@@ -281,13 +281,13 @@ export class DiagramCanvas {
 			const bw = maxX - minX + pad * 2;
 			const bh = maxY - minY + pad * 2 + titleH;
 
-			const g = document.createElementNS(SVG_NS, "g");
+			const g = activeDocument.createElementNS(SVG_NS, "g");
 			g.classList.add("mermaid-flow-group");
 			if (this.selection?.type === "group" && this.selection.id === grp.id) {
 				g.classList.add("is-selected");
 			}
 
-			const box = document.createElementNS(SVG_NS, "rect");
+			const box = activeDocument.createElementNS(SVG_NS, "rect");
 			box.setAttribute("x", String(bx));
 			box.setAttribute("y", String(by));
 			box.setAttribute("width", String(bw));
@@ -295,7 +295,7 @@ export class DiagramCanvas {
 			box.setAttribute("rx", "8");
 			box.classList.add("mermaid-flow-group-box");
 
-			const header = document.createElementNS(SVG_NS, "rect");
+			const header = activeDocument.createElementNS(SVG_NS, "rect");
 			header.setAttribute("x", String(bx));
 			header.setAttribute("y", String(by));
 			header.setAttribute("width", String(bw));
@@ -303,7 +303,7 @@ export class DiagramCanvas {
 			header.setAttribute("rx", "8");
 			header.classList.add("mermaid-flow-group-header");
 
-			const title = document.createElementNS(SVG_NS, "text");
+			const title = activeDocument.createElementNS(SVG_NS, "text");
 			title.setAttribute("x", String(bx + 10));
 			title.setAttribute("y", String(by + titleH / 2));
 			title.setAttribute("dominant-baseline", "central");
@@ -346,7 +346,7 @@ export class DiagramCanvas {
 		clearChildren(this.nodeLayer);
 		for (const node of this.model.nodes) {
 			const g = this.geomCache.get(node.id) ?? this.geom(node);
-			const group = document.createElementNS(SVG_NS, "g");
+			const group = activeDocument.createElementNS(SVG_NS, "g");
 			group.classList.add("mermaid-flow-node");
 			const isSelected =
 				this.selection?.type === "node" && this.selection.id === node.id;
@@ -366,7 +366,7 @@ export class DiagramCanvas {
 
 			// Resize handle on the single-selected node.
 			if (isSelected && this.multi.size === 0) {
-				const handle = document.createElementNS(SVG_NS, "rect");
+				const handle = activeDocument.createElementNS(SVG_NS, "rect");
 				const hs = 9;
 				handle.setAttribute("x", String(node.x + g.w / 2 - hs / 2));
 				handle.setAttribute("y", String(node.y + g.h / 2 - hs / 2));
@@ -393,17 +393,15 @@ export class DiagramCanvas {
 		const s = node.style;
 		if (!s) return;
 		if (s.fillColor && el.getAttribute("fill") !== "none") {
-			(el as SVGElement & { style: CSSStyleDeclaration }).style.fill =
-				s.fillColor;
+			el.setAttribute("fill", s.fillColor);
 		}
 		if (s.strokeColor) {
-			(el as SVGElement & { style: CSSStyleDeclaration }).style.stroke =
-				s.strokeColor;
+			el.setAttribute("stroke", s.strokeColor);
 		}
 	}
 
 	private nodeLabel(node: DiagramNode): SVGTextElement {
-		const text = document.createElementNS(SVG_NS, "text");
+		const text = activeDocument.createElementNS(SVG_NS, "text");
 		text.setAttribute("x", String(node.x));
 		text.setAttribute("y", String(node.y));
 		text.setAttribute("text-anchor", "middle");
@@ -411,9 +409,9 @@ export class DiagramCanvas {
 		text.classList.add("mermaid-flow-node-label");
 		text.textContent = node.label || node.id;
 		const s = node.style;
-		if (s?.textColor) text.style.fill = s.textColor;
-		if (s?.fontSize) text.style.fontSize = `${s.fontSize}px`;
-		if (s?.fontFamily) text.style.fontFamily = s.fontFamily;
+		if (s?.textColor) text.setAttribute("fill", s.textColor);
+		if (s?.fontSize) text.setAttribute("font-size", `${s.fontSize}px`);
+		if (s?.fontFamily) text.setAttribute("font-family", s.fontFamily);
 		return text;
 	}
 
@@ -428,7 +426,7 @@ export class DiagramCanvas {
 			[node.x - hw, node.y],
 		];
 		for (const [ax, ay] of points) {
-			const dot = document.createElementNS(SVG_NS, "circle");
+			const dot = activeDocument.createElementNS(SVG_NS, "circle");
 			dot.setAttribute("cx", String(ax));
 			dot.setAttribute("cy", String(ay));
 			dot.setAttribute("r", "5");
@@ -449,30 +447,30 @@ export class DiagramCanvas {
 			const start = this.borderPoint(from, to.x, to.y);
 			const end = this.borderPoint(to, from.x, from.y);
 
-			const group = document.createElementNS(SVG_NS, "g");
+			const group = activeDocument.createElementNS(SVG_NS, "g");
 			group.classList.add("mermaid-flow-edge");
 			if (this.selection?.type === "edge" && this.selection.id === edge.id) {
 				group.classList.add("is-selected");
 			}
 
 			// Wide invisible hit line for easy clicking.
-			const hit = document.createElementNS(SVG_NS, "line");
+			const hit = activeDocument.createElementNS(SVG_NS, "line");
 			hit.setAttribute("x1", String(start.x));
 			hit.setAttribute("y1", String(start.y));
 			hit.setAttribute("x2", String(end.x));
 			hit.setAttribute("y2", String(end.y));
 			hit.classList.add("mermaid-flow-edge-hit");
 
-			const line = document.createElementNS(SVG_NS, "line");
+			const line = activeDocument.createElementNS(SVG_NS, "line");
 			line.setAttribute("x1", String(start.x));
 			line.setAttribute("y1", String(start.y));
 			line.setAttribute("x2", String(end.x));
 			line.setAttribute("y2", String(end.y));
 			line.classList.add("mermaid-flow-edge-line");
 			this.styleEdgeLine(line, edge.kind);
-			if (edge.style?.strokeColor) line.style.stroke = edge.style.strokeColor;
+			if (edge.style?.strokeColor) line.setAttribute("stroke", edge.style.strokeColor);
 			if (edge.style?.strokeWidth) {
-				line.style.strokeWidth = `${edge.style.strokeWidth}px`;
+				line.setAttribute("stroke-width", String(edge.style.strokeWidth));
 			}
 
 			group.appendChild(hit);
@@ -544,8 +542,8 @@ export class DiagramCanvas {
 		edge: DiagramEdge,
 	): SVGGElement {
 		const fontSize = edge.style?.fontSize ?? 11;
-		const g = document.createElementNS(SVG_NS, "g");
-		const rect = document.createElementNS(SVG_NS, "rect");
+		const g = activeDocument.createElementNS(SVG_NS, "g");
+		const rect = activeDocument.createElementNS(SVG_NS, "rect");
 		const approxW = label.length * (fontSize * 0.6) + 10;
 		const half = fontSize * 0.85;
 		rect.setAttribute("x", String(x - approxW / 2));
@@ -553,23 +551,23 @@ export class DiagramCanvas {
 		rect.setAttribute("width", String(approxW));
 		rect.setAttribute("height", String(half * 2));
 		rect.classList.add("mermaid-flow-edge-label-bg");
-		const text = document.createElementNS(SVG_NS, "text");
+		const text = activeDocument.createElementNS(SVG_NS, "text");
 		text.setAttribute("x", String(x));
 		text.setAttribute("y", String(y));
 		text.setAttribute("text-anchor", "middle");
 		text.setAttribute("dominant-baseline", "central");
 		text.classList.add("mermaid-flow-edge-label");
 		text.textContent = label;
-		if (edge.style?.textColor) text.style.fill = edge.style.textColor;
-		if (edge.style?.fontSize) text.style.fontSize = `${edge.style.fontSize}px`;
+		if (edge.style?.textColor) text.setAttribute("fill", edge.style.textColor);
+		if (edge.style?.fontSize) text.setAttribute("font-size", `${edge.style.fontSize}px`);
 		g.appendChild(rect);
 		g.appendChild(text);
 		return g;
 	}
 
 	private buildDefs(): void {
-		const defs = document.createElementNS(SVG_NS, "defs");
-		const marker = document.createElementNS(SVG_NS, "marker");
+		const defs = activeDocument.createElementNS(SVG_NS, "defs");
+		const marker = activeDocument.createElementNS(SVG_NS, "marker");
 		marker.setAttribute("id", "mermaid-flow-arrow");
 		marker.setAttribute("viewBox", "0 0 10 10");
 		marker.setAttribute("refX", "9");
@@ -577,7 +575,7 @@ export class DiagramCanvas {
 		marker.setAttribute("markerWidth", "7");
 		marker.setAttribute("markerHeight", "7");
 		marker.setAttribute("orient", "auto-start-reverse");
-		const path = document.createElementNS(SVG_NS, "path");
+		const path = activeDocument.createElementNS(SVG_NS, "path");
 		path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
 		path.classList.add("mermaid-flow-arrowhead");
 		marker.appendChild(path);
@@ -700,7 +698,7 @@ export class DiagramCanvas {
 		const p = this.toSvgPoint(e);
 		this.rubber = { x0: p.x, y0: p.y };
 		this.rubberMoved = false;
-		this.rubberRect = document.createElementNS(SVG_NS, "rect");
+		this.rubberRect = activeDocument.createElementNS(SVG_NS, "rect");
 		this.rubberRect.classList.add("mermaid-flow-rubber");
 		this.overlayLayer.appendChild(this.rubberRect);
 		try {
@@ -943,7 +941,7 @@ export class DiagramCanvas {
 		if (!from) return;
 		const p = this.toSvgPoint(e);
 		if (!this.ghostLine) {
-			this.ghostLine = document.createElementNS(SVG_NS, "line");
+			this.ghostLine = activeDocument.createElementNS(SVG_NS, "line");
 			this.ghostLine.classList.add("mermaid-flow-ghost-line");
 			this.overlayLayer.appendChild(this.ghostLine);
 		}
@@ -986,7 +984,7 @@ export class DiagramCanvas {
 		if (!from) return;
 		const p = this.toSvgPoint(e);
 		if (!this.ghostLine) {
-			this.ghostLine = document.createElementNS(SVG_NS, "line");
+			this.ghostLine = activeDocument.createElementNS(SVG_NS, "line");
 			this.ghostLine.classList.add("mermaid-flow-ghost-line");
 			this.overlayLayer.appendChild(this.ghostLine);
 		}

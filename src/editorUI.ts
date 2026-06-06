@@ -1443,12 +1443,12 @@ export class DiagramEditorUI {
 		this.root.addEventListener("keydown", (e: KeyboardEvent) => {
 			if (e.key !== "Tab") return;
 			if (e.shiftKey) {
-				if (document.activeElement === firstElement) {
+				if (activeDocument.activeElement === firstElement) {
 					e.preventDefault();
 					lastElement?.focus();
 				}
 			} else {
-				if (document.activeElement === lastElement) {
+				if (activeDocument.activeElement === lastElement) {
 					e.preventDefault();
 					firstElement?.focus();
 				}
@@ -1559,7 +1559,7 @@ export class DiagramEditorUI {
 					.then(() => new Notice("SVG copied to clipboard"))
 					.catch(() => new Notice("Failed to copy SVG"));
 			} else if (format === "png") {
-				const canvasEl = document.createElement("canvas");
+				const canvasEl = activeDocument.createElement("canvas");
 				const ctx = canvasEl.getContext("2d");
 				if (!ctx) {
 					new Notice("Could not export: Canvas context unavailable");
