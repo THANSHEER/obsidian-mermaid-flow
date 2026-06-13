@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"lint": "eslint src/**/*.ts",
+		"lint": "eslint \"src/**/*.ts\"",
 		"validate": "node scripts/validate-manifest.cjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"test": "vitest run",
@@ -23,6 +23,7 @@
 	"devDependencies": {
 		"@codemirror/state": "^6.5.0",
 		"@codemirror/view": "^6.38.6",
+		"@dagrejs/dagre": "^3.0.0",
 		"@eslint/js": "^10.0.1",
 		"@types/node": "^25.9.1",
 		"@typescript-eslint/eslint-plugin": "^8.60.0",

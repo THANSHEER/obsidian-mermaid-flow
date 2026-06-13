@@ -4,7 +4,7 @@
  */
 
 import { ItemView, WorkspaceLeaf } from "obsidian";
-import { DiagramEditorUI } from "./editorUI";
+import { AiHostBridge, DiagramEditorUI } from "./editorUI";
 import { DiagramModel } from "./model";
 
 export const VIEW_TYPE_MERMAID_FLOW = "mermaid-flow-editor-view";
@@ -17,6 +17,7 @@ export class MermaidEditorView extends ItemView {
 	private toolbarStyle: "native" | "floating" = "native";
 	private exportFolder = "mermaid flow";
 	private snapSize = 0;
+	private ai?: AiHostBridge;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -42,6 +43,7 @@ export class MermaidEditorView extends ItemView {
 		toolbarStyle: "native" | "floating" = "native",
 		exportFolder = "mermaid flow",
 		snapSize = 0,
+		ai?: AiHostBridge,
 	): void {
 		this.model = model;
 		this.onSave = onSave;
@@ -49,6 +51,7 @@ export class MermaidEditorView extends ItemView {
 		this.toolbarStyle = toolbarStyle;
 		this.exportFolder = exportFolder;
 		this.snapSize = snapSize;
+		this.ai = ai;
 		this.rebuild();
 	}
 
@@ -85,6 +88,7 @@ export class MermaidEditorView extends ItemView {
 			toolbarStyle: this.toolbarStyle,
 			exportFolder: this.exportFolder,
 			snapSize: this.snapSize,
+			ai: this.ai,
 		});
 		this.ui.build();
 	}

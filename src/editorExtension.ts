@@ -14,20 +14,26 @@
 
 import { setIcon } from "obsidian";
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import {
+	DiagramType,
+	OPEN_FENCE_RE,
+	detectDiagramType,
+	isVisuallyEditable,
+} from "./diagramType";
 
 export interface MermaidBlockRange {
 	/** 0-based line of the opening ```mermaid fence. */
 	startLine: number;
 	/** 0-based line of the closing fence. */
 	endLine: number;
+	/** Diagram type detected from the block's first meaningful line. */
+	type: DiagramType;
 }
 
 export interface LivePreviewCallbacks {
 	edit: (range: MermaidBlockRange) => void;
 	viewCode: (range: MermaidBlockRange) => void;
 }
-
-const OPEN_FENCE_RE = /^(\s*)(`{3,}|~{3,})\s*mermaid\s*$/i;
 
 function closeFenceRe(marker: string): RegExp {
 	const ch = marker[0] === "~" ? "~" : "`";
@@ -46,7 +52,13 @@ function scanMermaidBlocks(view: EditorView): MermaidBlockRange[] {
 		const cre = closeFenceRe(marker);
 		for (let j = i + 1; j <= total; j++) {
 			if (cre.test(doc.line(j).text)) {
-				blocks.push({ startLine: i - 1, endLine: j - 1 });
+				const inner: string[] = [];
+				for (let k = i + 1; k < j; k++) inner.push(doc.line(k).text);
+				blocks.push({
+					startLine: i - 1,
+					endLine: j - 1,
+					type: detectDiagramType(inner.join("\n")),
+				});
 				i = j;
 				break;
 			}
@@ -124,11 +136,6 @@ export function mermaidLivePreviewExtension(cb: LivePreviewCallbacks) {
 				});
 				setIcon(codeBtn, "code");
 
-				const editBtn = overlay.createEl("button", {
-					cls: "mermaid-flow-overlay-btn mermaid-flow-edit-btn mod-cta",
-					text: "Edit",
-				});
-
 				// Prevent the click from moving the editor cursor into the block.
 				const guard = (e: Event) => {
 					e.preventDefault();
@@ -138,6 +145,15 @@ export function mermaidLivePreviewExtension(cb: LivePreviewCallbacks) {
 				codeBtn.addEventListener("click", (e) => {
 					guard(e);
 					cb.viewCode(block);
+				});
+
+				// Known non-flowchart diagrams only get the code affordance —
+				// the visual editor would show a blank canvas for them.
+				if (!isVisuallyEditable(block.type)) return;
+
+				const editBtn = overlay.createEl("button", {
+					cls: "mermaid-flow-overlay-btn mermaid-flow-edit-btn mod-cta",
+					text: "Edit",
 				});
 				editBtn.addEventListener("click", (e) => {
 					guard(e);

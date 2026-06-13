@@ -16,6 +16,7 @@ import {
 	EdgeKind,
 	EdgeStyle,
 	NodeShape,
+	NodeStyle,
 	emptyModel,
 	newEdgeId,
 	newGroupId,
@@ -59,12 +60,26 @@ interface ParsedToken {
 	id: string;
 	shape?: NodeShape;
 	label?: string;
+	classes?: string[];
 }
 
 /** Parse a single node token such as `A`, `A[Label]`, `B{Decision}`. */
 function parseNodeToken(raw: string): ParsedToken | null {
 	const token = raw.trim();
 	if (!token) return null;
+
+	// `:::class` shorthand. Handled first (recursively) so it composes with
+	// every node form, including chains: `A[Label]:::a:::b`. The greedy prefix
+	// is safe — a class name can't end with a label's closing bracket.
+	const cls = token.match(/^(.*):::([A-Za-z0-9_-]+)$/);
+	if (cls && cls[1] !== undefined && cls[2] !== undefined) {
+		const inner = parseNodeToken(cls[1]);
+		if (inner) {
+			return { ...inner, classes: [...(inner.classes ?? []), cls[2]] };
+		}
+		// Prefix isn't a node (e.g. `A[x:::y]` — the ::: is inside an unquoted
+		// label): fall through to the normal shape patterns on the full token.
+	}
 
 	// Ordered so multi-character shape brackets are matched before their
 	// single-bracket counterparts (e.g. `((( )))` before `(( ))` before `( )`).
@@ -93,6 +108,21 @@ function parseNodeToken(raw: string): ParsedToken | null {
 		}
 	}
 
+	// Mermaid v11 attribute syntax: `A@{shape: diamond, label: "Hi"}`.
+	const v11 = token.match(/^([A-Za-z0-9_]+)@\{(.*)\}$/);
+	if (v11 && v11[1] !== undefined && v11[2] !== undefined) {
+		const props = parseV11Props(v11[2]);
+		const shapeName = props.get("shape");
+		const label = props.get("label");
+		const result: ParsedToken = { id: v11[1] };
+		// Unknown shape names degrade to rect (nearest supported shape).
+		if (shapeName !== undefined) {
+			result.shape = V11_SHAPE_MAP[shapeName.toLowerCase()] ?? "rect";
+		}
+		if (label !== undefined) result.label = label;
+		return result;
+	}
+
 	// Bare identifier, no shape declared.
 	const bare = token.match(/^([A-Za-z0-9_]+)$/);
 	if (bare && bare[1] !== undefined) {
@@ -100,6 +130,81 @@ function parseNodeToken(raw: string): ParsedToken | null {
 	}
 
 	return null;
+}
+
+/**
+ * Mermaid v11 `@{shape: …}` names → the nearest supported NodeShape.
+ * Aliases per the Mermaid v11 shape table; unmapped names fall back to rect.
+ */
+const V11_SHAPE_MAP: Record<string, NodeShape> = {
+	rect: "rect", process: "rect", proc: "rect", rectangle: "rect",
+	rounded: "round", event: "round",
+	stadium: "stadium", pill: "stadium", terminal: "stadium",
+	subroutine: "subroutine", subproc: "subroutine", "fr-rect": "subroutine",
+	"framed-rectangle": "subroutine",
+	cyl: "cylinder", cylinder: "cylinder", db: "cylinder", database: "cylinder",
+	circle: "circle", circ: "circle",
+	"dbl-circ": "double-circle", "double-circle": "double-circle",
+	diam: "diamond", diamond: "diamond", decision: "diamond", question: "diamond",
+	hex: "hexagon", hexagon: "hexagon", prepare: "hexagon",
+	"lean-r": "parallelogram", "lean-right": "parallelogram", "in-out": "parallelogram",
+	"lean-l": "parallelogram-alt", "lean-left": "parallelogram-alt", "out-in": "parallelogram-alt",
+	"trap-b": "trapezoid", "trapezoid-bottom": "trapezoid", trapezoid: "trapezoid",
+	priority: "trapezoid",
+	"trap-t": "trapezoid-alt", "trapezoid-top": "trapezoid-alt",
+	"inv-trapezoid": "trapezoid-alt", manual: "trapezoid-alt",
+	odd: "asymmetric",
+};
+
+/** Parse the body of `@{…}`: comma-separated key: value pairs, quote-aware. */
+function parseV11Props(body: string): Map<string, string> {
+	const props = new Map<string, string>();
+	const parts: string[] = [];
+	let cur = "";
+	let inQuote = false;
+	for (const ch of body) {
+		if (ch === '"') inQuote = !inQuote;
+		if (ch === "," && !inQuote) {
+			parts.push(cur);
+			cur = "";
+			continue;
+		}
+		cur += ch;
+	}
+	parts.push(cur);
+	for (const part of parts) {
+		const m = part.match(/^\s*([\w-]+)\s*:\s*(.*?)\s*$/);
+		if (m && m[1] !== undefined && m[2] !== undefined) {
+			props.set(m[1].toLowerCase(), stripQuotes(m[2]));
+		}
+	}
+	return props;
+}
+
+/**
+ * Split a node segment on `&` (Mermaid multi-node syntax, `A & B --> C`),
+ * ignoring `&` inside bracket labels (`A[Tom & Jerry]`) or quotes.
+ */
+function splitMultiNodes(segment: string): string[] {
+	const parts: string[] = [];
+	let cur = "";
+	let depth = 0;
+	let inQuote = false;
+	for (const ch of segment) {
+		if (ch === '"') inQuote = !inQuote;
+		if (!inQuote) {
+			if (ch === "(" || ch === "[" || ch === "{") depth++;
+			else if (ch === ")" || ch === "]" || ch === "}") depth--;
+			else if (ch === "&" && depth === 0) {
+				parts.push(cur);
+				cur = "";
+				continue;
+			}
+		}
+		cur += ch;
+	}
+	parts.push(cur);
+	return parts;
 }
 
 /**
@@ -124,9 +229,9 @@ function normalizeInlineLabels(stmt: string): string {
 }
 
 /** Parse `fill:#fff,stroke:#000,color:#111,font-size:18px,stroke-width:2px`. */
-function applyStyleProps(node: DiagramNode, propStr: string): void {
-	const style: NonNullable<DiagramNode["style"]> = node.style ?? {};
-	const extra: string[] = style.extra ?? [];
+function parseStyleProps(propStr: string): NodeStyle {
+	const style: NodeStyle = {};
+	const extra: string[] = [];
 	for (const raw of propStr.split(",")) {
 		const part = raw.trim();
 		if (!part) continue;
@@ -160,6 +265,21 @@ function applyStyleProps(node: DiagramNode, propStr: string): void {
 		}
 	}
 	if (extra.length > 0) style.extra = extra;
+	return style;
+}
+
+/** Merge a `style <id> ...` property string into the node's style. */
+function applyStyleProps(node: DiagramNode, propStr: string): void {
+	const parsed = parseStyleProps(propStr);
+	const style: NonNullable<DiagramNode["style"]> = node.style ?? {};
+	if (parsed.fillColor !== undefined) style.fillColor = parsed.fillColor;
+	if (parsed.strokeColor !== undefined) style.strokeColor = parsed.strokeColor;
+	if (parsed.textColor !== undefined) style.textColor = parsed.textColor;
+	if (parsed.fontSize !== undefined) style.fontSize = parsed.fontSize;
+	if (parsed.fontFamily !== undefined) style.fontFamily = parsed.fontFamily;
+	if (parsed.extra && parsed.extra.length > 0) {
+		style.extra = [...(style.extra ?? []), ...parsed.extra];
+	}
 	node.style = style;
 }
 
@@ -283,6 +403,9 @@ export function mermaidToModel(text: string): ParseResult {
 			if (token.shape) node.shape = token.shape;
 			if (token.label !== undefined) node.label = token.label;
 		}
+		for (const c of token.classes ?? []) {
+			if (!node.classes?.includes(c)) (node.classes ??= []).push(c);
+		}
 		// First mention inside a subgraph assigns membership.
 		const current = groupStack[groupStack.length - 1];
 		if (current && !groupedNodes.has(node.id)) {
@@ -399,6 +522,41 @@ export function mermaidToModel(text: string): ParseResult {
 			continue;
 		}
 
+		// `classDef name[,name2] prop:val,...` — named reusable styles.
+		// Malformed variants fall through to isStructuralLine → extras.
+		const classDefMatch = trimmed.match(
+			/^classDef\s+([A-Za-z0-9_-]+(?:\s*,\s*[A-Za-z0-9_-]+)*)\s+(.+)$/i,
+		);
+		if (classDefMatch && classDefMatch[1] && classDefMatch[2]) {
+			const style = parseStyleProps(classDefMatch[2]);
+			for (const rawName of classDefMatch[1].split(",")) {
+				const name = rawName.trim();
+				if (!name) continue;
+				// Redefinition wins (Mermaid semantics), keeping original order.
+				const existing = model.classDefs.find((c) => c.name === name);
+				if (existing) existing.style = style;
+				else model.classDefs.push({ name, style });
+			}
+			continue;
+		}
+
+		// `class A,B name` — assign a classDef to nodes.
+		const classMatch = trimmed.match(
+			/^class\s+([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)\s+([A-Za-z0-9_-]+)\s*$/i,
+		);
+		if (classMatch && classMatch[1] && classMatch[2]) {
+			const className = classMatch[2];
+			for (const rawId of classMatch[1].split(",")) {
+				const id = rawId.trim();
+				if (!id) continue;
+				const node = ensureNode({ id });
+				if (!node.classes?.includes(className)) {
+					(node.classes ??= []).push(className);
+				}
+			}
+			continue;
+		}
+
 		if (isStructuralLine(line)) {
 			model.extras.push(trimmed);
 			warnings.push(`Unsupported line kept as-is: "${trimmed}"`);
@@ -463,10 +621,12 @@ function parseStatement(
 	const normalized = normalizeInlineLabels(stmt);
 
 	if (!LINK_OP_RE.test(normalized)) {
-		// No link operator: this is a standalone node declaration.
-		const token = parseNodeToken(normalized);
-		if (token) {
-			ensureNode(token);
+		// No link operator: standalone node declaration(s), possibly `A & B`.
+		const tokens = splitMultiNodes(normalized)
+			.map((t) => parseNodeToken(t))
+			.filter((t): t is ParsedToken => t !== null);
+		if (tokens.length > 0 && tokens.length === splitMultiNodes(normalized).length) {
+			for (const token of tokens) ensureNode(token);
 		} else {
 			extras.push(stmt);
 			warnings.push(`Could not parse: "${stmt}"`);
@@ -478,7 +638,7 @@ function parseStatement(
 	const pieces = normalized.split(LINK_OP_RE_G).map((p) => p.trim());
 	// pieces = [node, op, node, op, node, ...]
 
-	let prevNode: DiagramNode | null = null;
+	let prevNodes: DiagramNode[] = [];
 	let pendingOp: string | null = null;
 
 	for (let i = 0; i < pieces.length; i++) {
@@ -500,26 +660,42 @@ function parseStatement(
 			nodePart = labelMatch[2].trim();
 		}
 
-		const token = parseNodeToken(nodePart);
-		if (!token) {
+		// A segment may name several nodes joined with `&` (`A & B --> C`).
+		const tokens = splitMultiNodes(nodePart)
+			.map((t) => t.trim())
+			.filter((t) => t.length > 0);
+		if (tokens.length === 0) {
 			extras.push(stmt);
 			warnings.push(`Could not parse node "${nodePart}" in "${stmt}"`);
 			return;
 		}
-
-		const node = ensureNode(token);
-
-		if (prevNode && pendingOp) {
-			edges.push({
-				id: newEdgeId(),
-				from: prevNode.id,
-				to: node.id,
-				label,
-				kind: opToKind(pendingOp),
-			});
+		const currentNodes: DiagramNode[] = [];
+		for (const tk of tokens) {
+			const token = parseNodeToken(tk);
+			if (!token) {
+				extras.push(stmt);
+				warnings.push(`Could not parse node "${tk}" in "${stmt}"`);
+				return;
+			}
+			currentNodes.push(ensureNode(token));
 		}
 
-		prevNode = node;
+		if (prevNodes.length > 0 && pendingOp) {
+			// `A & B --> C & D` connects every left node to every right node.
+			for (const from of prevNodes) {
+				for (const to of currentNodes) {
+					edges.push({
+						id: newEdgeId(),
+						from: from.id,
+						to: to.id,
+						label,
+						kind: opToKind(pendingOp),
+					});
+				}
+			}
+		}
+
+		prevNodes = currentNodes;
 		pendingOp = null;
 	}
 }

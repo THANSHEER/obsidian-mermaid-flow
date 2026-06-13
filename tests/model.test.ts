@@ -11,6 +11,7 @@ import {
 	duplicateNode,
 	groupOf,
 	assignNodeToGroup,
+	resolveNodeStyle,
 } from '../src/model';
 import type { DiagramModel } from '../src/model';
 
@@ -123,5 +124,36 @@ describe('model factories', () => {
 		const m = starterModel();
 		expect(m.nodes).toHaveLength(1);
 		expect(m.nodes[0]?.id).toBe('A');
+	});
+});
+
+describe('resolveNodeStyle', () => {
+	it('merges per property with default < classes (in order) < node.style', () => {
+		const m = modelWith(['A']);
+		m.classDefs.push({ name: 'default', style: { fillColor: '#ddd', textColor: '#111' } });
+		m.classDefs.push({ name: 'one', style: { fillColor: '#aaa', strokeColor: '#a0a' } });
+		m.classDefs.push({ name: 'two', style: { fillColor: '#bbb' } });
+		const node = m.nodes[0]!;
+		node.classes = ['one', 'two'];
+		node.style = { strokeColor: '#000' };
+
+		const eff = resolveNodeStyle(m, node);
+		expect(eff).toEqual({
+			fillColor: '#bbb',   // class "two" (later) beats "one" beats default
+			textColor: '#111',   // only default sets it
+			strokeColor: '#000', // explicit node.style beats class "one"
+		});
+	});
+
+	it('returns undefined when nothing applies (theme defaults kept)', () => {
+		const m = modelWith(['A']);
+		expect(resolveNodeStyle(m, m.nodes[0]!)).toBeUndefined();
+	});
+
+	it('ignores unknown class names', () => {
+		const m = modelWith(['A']);
+		const node = m.nodes[0]!;
+		node.classes = ['ghost'];
+		expect(resolveNodeStyle(m, node)).toBeUndefined();
 	});
 });

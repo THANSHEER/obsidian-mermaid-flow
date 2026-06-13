@@ -3,7 +3,7 @@
  */
 
 import { App, Modal } from "obsidian";
-import { DiagramEditorUI } from "./editorUI";
+import { AiHostBridge, DiagramEditorUI } from "./editorUI";
 import { DiagramModel } from "./model";
 
 export class MermaidEditorModal extends Modal {
@@ -12,6 +12,7 @@ export class MermaidEditorModal extends Modal {
 	private toolbarStyle: "native" | "floating";
 	private exportFolder: string;
 	private snapSize: number;
+	private ai?: AiHostBridge;
 	private ui: DiagramEditorUI | null = null;
 
 	constructor(
@@ -21,6 +22,7 @@ export class MermaidEditorModal extends Modal {
 		toolbarStyle: "native" | "floating" = "native",
 		exportFolder = "mermaid flow",
 		snapSize = 0,
+		ai?: AiHostBridge,
 	) {
 		super(app);
 		this.model = model;
@@ -28,6 +30,7 @@ export class MermaidEditorModal extends Modal {
 		this.toolbarStyle = toolbarStyle;
 		this.exportFolder = exportFolder;
 		this.snapSize = snapSize;
+		this.ai = ai;
 	}
 
 	onOpen(): void {
@@ -47,6 +50,7 @@ export class MermaidEditorModal extends Modal {
 			exportFolder: this.exportFolder,
 			snapSize: this.snapSize,
 			actionsSlot,
+			ai: this.ai,
 		});
 		this.ui.build();
 	}

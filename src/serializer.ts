@@ -15,6 +15,7 @@ import {
 	DiagramModel,
 	DiagramNode,
 	EdgeKind,
+	NodeStyle,
 	hasConfig,
 	hasEdgeStyle,
 	hasStyle,
@@ -25,10 +26,10 @@ const INDENT = "    ";
 /** Wrap a label so Mermaid treats spaces/punctuation safely.
  *  `\n` in the label is encoded as `<br/>` which Mermaid renders as a line break. */
 function quoteLabel(label: string): string {
-	// Collapse newlines (a multi-line label would split the single-line Mermaid
-	// statement) and escape embedded double quotes with the entity Mermaid
-	// understands — together this keeps a label from breaking out of its node.
-	const safe = label.replace(/\r?\n/g, " ").replace(/"/g, "&quot;");
+	// Newlines would split the single-line Mermaid statement, so encode them as
+	// <br/> (which Mermaid renders as a line break and the parser decodes back
+	// to \n). Embedded double quotes use the entity Mermaid understands.
+	const safe = label.replace(/\r?\n/g, "<br/>").replace(/"/g, "&quot;");
 	return `"${safe}"`;
 }
 
@@ -108,9 +109,7 @@ function edgeLine(edge: DiagramEdge): string {
 	return `${from} ${op} ${to}`;
 }
 
-function styleLine(node: DiagramNode): string | null {
-	const s = node.style;
-	if (!hasStyle(s) || !s) return null;
+function stylePropsToString(s: NodeStyle): string | null {
 	const props: string[] = [];
 	if (s.fillColor) props.push(`fill:${s.fillColor}`);
 	if (s.strokeColor) props.push(`stroke:${s.strokeColor}`);
@@ -119,7 +118,50 @@ function styleLine(node: DiagramNode): string | null {
 	if (s.fontFamily) props.push(`font-family:${s.fontFamily}`);
 	if (s.extra) props.push(...s.extra);
 	if (props.length === 0) return null;
-	return `style ${sanitizeId(node.id)} ${props.join(",")}`;
+	return props.join(",");
+}
+
+function styleLine(node: DiagramNode): string | null {
+	const s = node.style;
+	if (!hasStyle(s) || !s) return null;
+	const props = stylePropsToString(s);
+	if (!props) return null;
+	return `style ${sanitizeId(node.id)} ${props}`;
+}
+
+/**
+ * `classDef` lines in declaration order, then grouped `class A,B name`
+ * assignments. A parsed `:::name` shorthand is canonicalised to the grouped
+ * `class` form here — semantics are preserved, the text shape changes.
+ */
+function classLines(model: DiagramModel): string[] {
+	const out: string[] = [];
+	for (const def of model.classDefs) {
+		const props = stylePropsToString(def.style);
+		if (props) out.push(`classDef ${def.name} ${props}`);
+	}
+	// Group node ids per class name, preserving node order.
+	const members = new Map<string, string[]>();
+	for (const node of model.nodes) {
+		for (const name of node.classes ?? []) {
+			const list = members.get(name) ?? [];
+			list.push(sanitizeId(node.id));
+			members.set(name, list);
+		}
+	}
+	// Declared classes first (classDefs order), then undeclared in first use.
+	const ordered: string[] = [];
+	for (const def of model.classDefs) {
+		if (members.has(def.name)) ordered.push(def.name);
+	}
+	for (const name of members.keys()) {
+		if (!ordered.includes(name)) ordered.push(name);
+	}
+	for (const name of ordered) {
+		const ids = members.get(name);
+		if (ids && ids.length > 0) out.push(`class ${ids.join(",")} ${name}`);
+	}
+	return out;
 }
 
 function linkStyleLine(edge: DiagramEdge, index: number): string | null {
@@ -212,6 +254,10 @@ export function modelToMermaid(
 	for (const node of model.nodes) {
 		const sl = styleLine(node);
 		if (sl) lines.push(INDENT + sl);
+	}
+
+	for (const cl of classLines(model)) {
+		lines.push(INDENT + cl);
 	}
 
 	model.edges.forEach((edge, i) => {

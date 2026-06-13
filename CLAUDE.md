@@ -198,3 +198,26 @@ Tests live in `tests/` and run under Vitest with the `jsdom` environment.
 - New rendering paths (new shapes, new edge types) should add a test case.
 - The test file imports `DiagramCanvas` directly and calls `canvas.getSVG()` —
   you can assert on `.querySelector` results against the returned SVGSVGElement.
+
+## Local AI tooling (`.claude/`)
+
+This repo ships Claude Code config so AI-generated changes stay within the audit
+rules above. All of it is committed (team-wide).
+
+- **Guard hook** — `.claude/settings.json` registers a `PostToolUse` hook on
+  `Write|Edit|MultiEdit` that runs `.claude/hooks/guard-edit.cjs`. After any edit
+  it fast-greps the touched file for the four listing-blocking violations (bare
+  `document.`, `.style.*` assignment, bare `void` on a promise, CSS `!important`)
+  and, on `manifest.json`/`package.json`, runs `validate-manifest.cjs` for version
+  sync. A hit is fed back so it's fixed in the same turn. It is a *fast guard*, not
+  a substitute for `npm run lint && npm run build` — run those before "done".
+  (Plain Node, no jq dependency. Edits to `.claude/settings.json` only take effect
+  after `/hooks` reload or a restart.)
+- **`plugin-auditor` agent** (`.claude/agents/`) — on-demand deep audit before a
+  commit/PR/release: reviews the diff against the four rules, runtime mobile-safety,
+  the round-trip invariant, and version sync, then runs validate/lint/build/test.
+  Invoke it by asking to "audit before I push".
+- **`mermaid-roundtrip` skill** (`.claude/skills/`) — auto-triggers when editing the
+  fragile parse↔serialize core (`parser.ts`/`serializer.ts`/`model.ts`/`layout.ts`
+  or adding a shape/edge/direction). Encodes the `extras`-preservation invariant and
+  the round-trip test loop.

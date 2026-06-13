@@ -45,11 +45,27 @@ describe('modelToMermaid', () => {
 			expect(out).not.toContain('"hi"]');
 		});
 
-		it('collapses newlines so a multi-line label stays on one statement', () => {
+		it('encodes newlines as <br/> so a multi-line label stays on one statement', () => {
 			const model = emptyModel('LR');
 			model.nodes.push({ id: 'A', label: 'line1\nline2', shape: 'rect', x: 0, y: 0 });
 			const decl = lines(modelToMermaid(model)).find((l) => l.startsWith('A['));
-			expect(decl).toBe('A["line1 line2"]');
+			expect(decl).toBe('A["line1<br/>line2"]');
+		});
+
+		it('round-trips multi-line node and edge labels', () => {
+			const model = emptyModel('TB');
+			model.nodes.push({ id: 'A', label: 'top\nbottom', shape: 'rect', x: 0, y: 0 });
+			model.nodes.push({ id: 'B', label: 'B', shape: 'rect', x: 0, y: 100 });
+			model.edges.push({ id: 'e1', from: 'A', to: 'B', kind: 'arrow', label: 'yes\nplease' });
+
+			const out = modelToMermaid(model);
+			// Each statement stays on a single line with <br/> instead of \n.
+			expect(lines(out)).toContain('A["top<br/>bottom"]');
+			expect(lines(out)).toContain('A -->|"yes<br/>please"| B');
+
+			const back = mermaidToModel(out).model;
+			expect(back.nodes.find((n) => n.id === 'A')?.label).toBe('top\nbottom');
+			expect(back.edges[0]?.label).toBe('yes\nplease');
 		});
 	});
 
@@ -162,6 +178,64 @@ describe('modelToMermaid', () => {
 			model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0 });
 			model.extras.push('click A "https://example.com"');
 			expect(modelToMermaid(model)).toContain('click A "https://example.com"');
+		});
+	});
+
+	describe('classDef / class emission', () => {
+		function classyModel() {
+			const model = emptyModel('TB');
+			model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0, classes: ['hot'] });
+			model.nodes.push({ id: 'B', label: 'B', shape: 'rect', x: 0, y: 0, classes: ['hot'] });
+			model.classDefs.push({ name: 'hot', style: { fillColor: '#f96', strokeColor: '#333' } });
+			return model;
+		}
+
+		it('emits classDef and grouped class lines', () => {
+			const out = lines(modelToMermaid(classyModel()));
+			expect(out).toContain('classDef hot fill:#f96,stroke:#333');
+			expect(out).toContain('class A,B hot');
+		});
+
+		it('emits class lines after style lines and before linkStyle lines', () => {
+			const model = classyModel();
+			const a = model.nodes[0]!;
+			a.style = { textColor: '#000' };
+			model.edges.push({ id: 'e1', from: 'A', to: 'B', label: '', kind: 'arrow', style: { strokeColor: '#f00' } });
+			const out = lines(modelToMermaid(model));
+			const styleIdx = out.findIndex(l => l.startsWith('style A'));
+			const classDefIdx = out.findIndex(l => l.startsWith('classDef hot'));
+			const classIdx = out.findIndex(l => l.startsWith('class A,B'));
+			const linkIdx = out.findIndex(l => l.startsWith('linkStyle'));
+			expect(styleIdx).toBeGreaterThan(-1);
+			expect(classDefIdx).toBeGreaterThan(styleIdx);
+			expect(classIdx).toBeGreaterThan(classDefIdx);
+			expect(linkIdx).toBeGreaterThan(classIdx);
+		});
+
+		it('round-trips ::: shorthand as canonical class lines, stable across two trips', () => {
+			const src = [
+				'flowchart TD',
+				'  A:::hot --> B',
+				'  classDef hot fill:#f96',
+			].join('\n');
+			const once = mermaidToModel(src).model;
+			const text1 = modelToMermaid(once);
+			const twice = mermaidToModel(text1).model;
+			const text2 = modelToMermaid(twice);
+
+			expect(twice.nodes.find(n => n.id === 'A')?.classes).toEqual(['hot']);
+			expect(twice.classDefs).toEqual(once.classDefs);
+			expect(text2).toBe(text1); // canonical form is a fixed point
+			expect(text1).toContain('class A hot');
+		});
+
+		it('keeps declaration order across round trips', () => {
+			const model = emptyModel('TB');
+			model.classDefs.push({ name: 'zeta', style: { fillColor: '#111' } });
+			model.classDefs.push({ name: 'alpha', style: { fillColor: '#222' } });
+			model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0 });
+			const back = mermaidToModel(modelToMermaid(model)).model;
+			expect(back.classDefs.map(c => c.name)).toEqual(['zeta', 'alpha']);
 		});
 	});
 

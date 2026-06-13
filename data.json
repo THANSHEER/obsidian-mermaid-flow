@@ -1,8 +1,29 @@
 {
   "openMode": "modal",
+  "toolbarStyle": "native",
   "defaultDirection": "TB",
   "defaultShape": "rect",
   "savePositions": true,
   "autoSave": true,
+  "exportFolder": "mermaid flow",
+  "snapToGrid": false,
+  "snapSize": 10,
+  "ai": {
+    "enabled": true,
+    "provider": "cli",
+    "anthropicApiKey": "",
+    "anthropicModel": "claude-sonnet-4-5",
+    "openaiApiKey": "",
+    "openaiBaseUrl": "https://api.openai.com/v1",
+    "openaiModel": "gpt-4o-mini",
+    "geminiApiKey": "",
+    "geminiModel": "gemini-2.0-flash",
+    "cliPreset": "gemini-cli",
+    "cliCustomTemplate": "",
+    "cliTimeoutSec": 120,
+    "showCommands": true,
+    "showToolbarButton": true,
+    "enableImageDrop": true
+  },
   "promptTemplate": ""
 }

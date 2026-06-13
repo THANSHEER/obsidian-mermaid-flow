@@ -6,7 +6,7 @@
  * handles the change pipeline (undo/redo, auto-save) and keyboard shortcuts.
  */
 
-import { App, Menu, Modal, Notice, setIcon } from "obsidian";
+import { App, Menu, Modal, Notice, loadMermaid, setIcon } from "obsidian";
 import type { AlignDir, DistributeDir } from "./alignTools";
 import { alignNodes, distributeNodes } from "./alignTools";
 import { STYLE_PRESETS } from "./presets";
@@ -33,6 +33,19 @@ import { PropertiesPanel } from "./propertiesPanel";
 import { modelToMermaid } from "./serializer";
 import { ToolbarRefs, ToolbarOps, buildSlottedActions, buildToolbar } from "./toolbar";
 import { mermaidToModel } from "./parser";
+import {
+	describeDiagramType,
+	detectDiagramType,
+	isVisuallyEditable,
+} from "./diagramType";
+import { AiGenerateModal, AiModalMode } from "./ai/aiModal";
+import type { AiService } from "./ai/service";
+
+export interface AiHostBridge {
+	service: AiService;
+	showToolbarButton: boolean;
+	enableImageDrop: boolean;
+}
 
 export interface EditorHost {
 	persist: (model: DiagramModel) => void;
@@ -45,6 +58,8 @@ export interface EditorHost {
 	/** Snap-to-grid cell size in pixels; 0 means no snap. */
 	snapSize?: number;
 	actionsSlot?: HTMLElement;
+	/** Present when AI assistance is enabled in settings. */
+	ai?: AiHostBridge;
 }
 
 export class DiagramEditorUI {
@@ -110,6 +125,7 @@ export class DiagramEditorUI {
 			onDblClickNode: (id) => { this.canvas.select({ type: "node", id }); this.refreshPanel(); this.focusLabel(); },
 			onMultiChange: () => this.tbRefs?.updateAlignGroup(),
 			onImportFile: (text) => this.importMermaidText(text),
+			onImportImage: (file) => this.handleImportImage(file),
 		};
 		this.canvas = new DiagramCanvas(canvasHost, this.model, callbacks);
 
@@ -194,6 +210,9 @@ export class DiagramEditorUI {
 			getSaveLabel: () => this.host.saveLabel ?? "Save",
 			hasActionsSlot: () => !!this.host.actionsSlot,
 		};
+		if (this.host.ai?.showToolbarButton) {
+			tbOps.showAiMenu = (e) => this.showAiMenu(e);
+		}
 		this.tbRefs = buildToolbar(bar, tbOps);
 
 		if (this.host.actionsSlot) buildSlottedActions(this.host.actionsSlot, tbOps);
@@ -208,6 +227,30 @@ export class DiagramEditorUI {
 		this.pushHistory();
 		this.ready = true;
 		this.updateUndoRedo();
+		// Open with the whole diagram visible (waits for the host to gain size).
+		this.canvas.fitWhenReady();
+
+		// Defense in depth: a block whose content all landed in extras (e.g. a
+		// non-flowchart diagram that slipped past the entry-point guards) would
+		// otherwise show a silent blank canvas.
+		if (this.model.nodes.length === 0 && this.model.extras.length > 0) {
+			const type = detectDiagramType(this.model.extras.join("\n"));
+			if (!isVisuallyEditable(type)) {
+				this.canvas.setEmptyState({
+					title: `This looks like a ${describeDiagramType(type)}`,
+					hint: "The visual editor supports flowcharts only. Your text is preserved — use the code view to edit it.",
+					actionLabel: "Open code view",
+					onAction: () => this.codeView.toggle(),
+				});
+			} else {
+				this.canvas.setEmptyState({
+					title: "Nothing here is visually editable",
+					hint: "This block's content isn't recognized as flowchart nodes or edges. It is preserved as-is and re-emitted on save; use the code view to edit it.",
+					actionLabel: "Open code view",
+					onAction: () => this.codeView.toggle(),
+				});
+			}
+		}
 	}
 
 	destroy(): void {
@@ -618,6 +661,71 @@ export class DiagramEditorUI {
 
 	// --- align & distribute -------------------------------------------------
 
+	// --- AI assistance --------------------------------------------------------
+
+	private showAiMenu(e: MouseEvent): void {
+		if (!this.host.ai) return;
+		const menu = new Menu();
+		menu.addItem((item) =>
+			item.setTitle("From image…").setIcon("image-plus").onClick(() => this.openAiModal("image")),
+		);
+		menu.addItem((item) =>
+			item.setTitle("From description…").setIcon("text-cursor-input").onClick(() => this.openAiModal("text")),
+		);
+		menu.addItem((item) =>
+			item.setTitle("Improve diagram").setIcon("wand-2").onClick(() => this.openAiModal("improve")),
+		);
+		menu.showAtMouseEvent(e);
+	}
+
+	private openAiModal(
+		mode: AiModalMode,
+		initialImage?: { base64: string; mime: string },
+	): void {
+		const ai = this.host.ai;
+		if (!ai) return;
+		new AiGenerateModal(this.app, ai.service, mode, {
+			currentCode: mode === "improve" ? modelToMermaid(this.model) : undefined,
+			initialImage,
+			onResult: (code) => this.importMermaidText(code),
+		}).open();
+	}
+
+	/** Image dropped or pasted onto the canvas → AI modal pre-filled with it. */
+	private handleImportImage(file: File): void {
+		if (!this.host.ai?.enableImageDrop) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			const dataUrl = reader.result as string;
+			const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+			this.openAiModal("image", { base64, mime: file.type });
+		};
+		reader.readAsDataURL(file);
+	}
+
+	/** Ctrl+V on the canvas: paste copied nodes, else try a clipboard image. */
+	private pasteFromKeyboard(): void {
+		if (this.copyBuffer.length > 0) {
+			this.pasteNodes();
+			return;
+		}
+		if (!this.host.ai?.enableImageDrop) return;
+		this.pasteClipboardImage().catch(() => {
+			/* clipboard unavailable or no permission — nothing to paste */
+		});
+	}
+
+	private async pasteClipboardImage(): Promise<void> {
+		const items = await navigator.clipboard.read();
+		for (const item of items) {
+			const mime = item.types.find((t) => t.startsWith("image/"));
+			if (!mime) continue;
+			const blob = await item.getType(mime);
+			this.handleImportImage(new File([blob], "pasted-image", { type: mime }));
+			return;
+		}
+	}
+
 	private importMermaidText(text: string): void {
 		try {
 			const { model, warnings } = mermaidToModel(text);
@@ -803,6 +911,17 @@ export class DiagramEditorUI {
 
 	private save(): void {
 		this.host.persist(this.model);
+		// Best-effort validation with the real Mermaid parser — never blocks the
+		// save, and a loader failure (e.g. test environment) is silently ignored.
+		const code = modelToMermaid(this.model);
+		loadMermaid()
+			.then((mermaid) =>
+				Promise.resolve(mermaid.parse(code)).catch((err: unknown) => {
+					const msg = err instanceof Error ? err.message : String(err);
+					new Notice(`Saved, but Mermaid reports a syntax error: ${msg}`);
+				}),
+			)
+			.catch(() => { /* mermaid unavailable — validation is best-effort */ });
 		if (this.host.closeOnSave) this.host.close();
 		else new Notice("Diagram saved to note.");
 	}
@@ -831,7 +950,7 @@ export class DiagramEditorUI {
 
 			// Copy / paste (not in inputs)
 			if (mod && !inInput && (e.key === "c" || e.key === "C")) { e.preventDefault(); this.copySelected(); return; }
-			if (mod && !inInput && (e.key === "v" || e.key === "V")) { e.preventDefault(); this.pasteNodes(); return; }
+			if (mod && !inInput && (e.key === "v" || e.key === "V")) { e.preventDefault(); this.pasteFromKeyboard(); return; }
 
 			// Duplicate / group
 			if (mod && !inInput && (e.key === "d" || e.key === "D")) { e.preventDefault(); this.duplicateSelected(); return; }

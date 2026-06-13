@@ -318,6 +318,8 @@
 }
 
 .mermaid-flow-shape-icon .mermaid-flow-shape {
+	fill: var(--background-primary-alt);
+	stroke: var(--text-muted);
 	stroke-width: 1.2px;
 }
 
@@ -342,9 +344,11 @@
 	overflow: auto;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
+	/* Faint grid (alignment aid) over a plain background, so the editing surface
+	   reads close to Mermaid's plain render rather than a busy graph-paper grid. */
 	background:
-		linear-gradient(var(--background-modifier-border-hover) 1px, transparent 1px) 0 0 / 24px 24px,
-		linear-gradient(90deg, var(--background-modifier-border-hover) 1px, transparent 1px) 0 0 / 24px 24px,
+		linear-gradient(var(--background-modifier-border) 1px, transparent 1px) 0 0 / 28px 28px,
+		linear-gradient(90deg, var(--background-modifier-border) 1px, transparent 1px) 0 0 / 28px 28px,
 		var(--background-primary);
 	background-blend-mode: soft-light;
 }
@@ -402,6 +406,24 @@
 .mermaid-flow-canvas-empty-hint {
 	margin: 0;
 	font-size: var(--font-ui-smaller);
+}
+
+.mermaid-flow-canvas-empty-action {
+	/* Parent overlay is pointer-events: none so the canvas stays interactive;
+	   re-enable just for the button. */
+	pointer-events: auto;
+	margin-top: 12px;
+	padding: 6px 14px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+
+.mermaid-flow-canvas-empty-action:hover {
+	background: var(--interactive-hover);
 }
 
 .mermaid-flow-panel {
@@ -504,9 +526,10 @@
 	cursor: grabbing;
 }
 
+/* Canvas node fill/stroke come from the theme palette via setAttribute in
+   canvas.ts (presentation attributes lose to CSS, so no base fill/stroke here —
+   only stroke-width and the state-selector overrides below). */
 .mermaid-flow-shape {
-	fill: var(--background-primary-alt);
-	stroke: var(--text-muted);
 	stroke-width: 1.5px;
 }
 
@@ -544,9 +567,10 @@
 }
 
 .mermaid-flow-node-label {
-	fill: var(--text-normal);
-	font-size: 13px;
-	font-family: var(--font-interface);
+	/* Must match LABEL_FONT in textMetrics.ts (Mermaid's stock flowchart font) so
+	   the box we measure is the size of the text we draw, like the render. */
+	font-size: 16px;
+	font-family: "trebuchet ms", verdana, arial, sans-serif;
 	pointer-events: none;
 }
 
@@ -635,8 +659,9 @@
 	fill: none;
 }
 
+/* Stroke colour comes from the theme palette via setAttribute in canvas.ts;
+   the .is-selected / .is-invisible rules below still override it. */
 .mermaid-flow-edge-line {
-	stroke: var(--text-muted);
 	stroke-width: 1.7px;
 	fill: none;
 }
@@ -655,9 +680,7 @@
 	stroke-width: 2.6px;
 }
 
-.mermaid-flow-arrowhead {
-	fill: var(--text-muted);
-}
+/* Arrowhead fill comes from the theme palette via setAttribute in canvas.ts. */
 
 .mermaid-flow-edge.is-selected .mermaid-flow-arrowhead {
 	fill: var(--interactive-accent);
@@ -700,6 +723,10 @@
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+}
+
+.mermaid-flow-code-error.is-hidden {
+	display: none;
 }
 
 .mermaid-flow-code-header {
@@ -967,9 +994,9 @@
 	}
 
 	.mermaid-flow-canvas-host {
-		flex: 0 1 auto;
-		height: 300px;
-		min-height: 200px;
+		flex: 1 1 auto;
+		height: auto;
+		min-height: 240px;
 	}
 
 	.mermaid-flow-panel {
@@ -1030,4 +1057,105 @@
 		animation-iteration-count: 1;
 		transition-duration: 0.01ms;
 	}
+}
+
+/* --- AI assistance modal --- */
+.mermaid-flow-ai-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.mermaid-flow-ai-dropzone {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-6);
+	border: 2px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	cursor: pointer;
+	text-align: center;
+	color: var(--text-muted);
+	transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.mermaid-flow-ai-dropzone:hover,
+.mermaid-flow-ai-dropzone.is-dragover {
+	border-color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+.mermaid-flow-ai-dropzone.has-image .mermaid-flow-ai-dropzone-icon,
+.mermaid-flow-ai-dropzone.has-image .mermaid-flow-ai-dropzone-hint {
+	display: none;
+}
+
+.mermaid-flow-ai-dropzone-icon svg {
+	width: 32px;
+	height: 32px;
+}
+
+.mermaid-flow-ai-dropzone-hint {
+	font-size: var(--font-ui-small);
+}
+
+.mermaid-flow-ai-thumb {
+	max-width: 100%;
+	max-height: 240px;
+	border-radius: var(--radius-s);
+}
+
+.mermaid-flow-ai-file-input {
+	display: none;
+}
+
+.mermaid-flow-ai-textarea {
+	width: 100%;
+	resize: vertical;
+	font-family: var(--font-interface);
+}
+
+.mermaid-flow-ai-code-preview pre {
+	max-height: 200px;
+	overflow: auto;
+	padding: var(--size-4-2);
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-small);
+}
+
+.mermaid-flow-ai-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
+	margin: 0;
+}
+
+.mermaid-flow-ai-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--size-4-3);
+}
+
+.mermaid-flow-ai-status {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.mermaid-flow-ai-status::before {
+	content: "";
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-right: var(--size-2-2);
+	border: 2px solid var(--text-muted);
+	border-top-color: transparent;
+	border-radius: 50%;
+	vertical-align: middle;
+	animation: mermaid-flow-ai-spin 0.8s linear infinite;
+}
+
+@keyframes mermaid-flow-ai-spin {
+	to { transform: rotate(360deg); }
 }

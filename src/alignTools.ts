@@ -1,17 +1,14 @@
 /*
  * Pure geometry helpers for aligning and distributing selected nodes.
- * Uses the same size heuristic as canvas.ts (no canvas dependency).
+ * Uses the same size computation as the canvas renderer so aligned edges
+ * match what is actually rendered.
  */
 
 import type { DiagramModel, DiagramNode } from "./model";
-
-const CHAR_W = 8.2;
-const NODE_H = 44;
-const MIN_W = 80;
+import { estimateNodeSize } from "./nodeGeometry";
 
 function approxHalf(node: DiagramNode): { hw: number; hh: number } {
-	const w = node.w ?? Math.max(MIN_W, (node.label ?? "").length * CHAR_W + 32);
-	const h = node.h ?? NODE_H;
+	const { w, h } = estimateNodeSize(node);
 	return { hw: w / 2, hh: h / 2 };
 }
 

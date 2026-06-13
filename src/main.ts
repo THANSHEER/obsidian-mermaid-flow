@@ -21,7 +21,7 @@ import {
 	mermaidLivePreviewExtension,
 } from "./editorExtension";
 import { MermaidEditorView, VIEW_TYPE_MERMAID_FLOW } from "./editorView";
-import { layoutMissing } from "./layout";
+import { layoutMissing, resolveOverlaps } from "./layout";
 import { DiagramModel, cloneModel, starterModel } from "./model";
 import { DIAGRAM_TEMPLATES } from "./templates";
 import { mermaidToModel } from "./parser";
@@ -31,11 +31,19 @@ import {
 	MermaidFlowSettingTab,
 	MermaidFlowSettings,
 } from "./settings";
-
-const OPEN_FENCE_RE = /^(\s*)(`{3,}|~{3,})\s*mermaid\s*$/i;
+import { AiService } from "./ai/service";
+import { AiGenerateModal, AiModalMode } from "./ai/aiModal";
+import type { AiHostBridge } from "./editorUI";
+import {
+	OPEN_FENCE_RE,
+	describeDiagramType,
+	detectDiagramType,
+	isVisuallyEditable,
+} from "./diagramType";
 
 export default class MermaidFlowPlugin extends Plugin {
 	settings!: MermaidFlowSettings;
+	private aiService = new AiService(() => this.settings);
 	private observedBlocks = new WeakSet<HTMLElement>();
 	private blockObservers: MutationObserver[] = [];
 
@@ -68,6 +76,39 @@ export default class MermaidFlowPlugin extends Plugin {
 			id: "insert-from-template",
 			name: "Insert Mermaid diagram from template",
 			editorCallback: (editor) => this.openTemplatesPicker(editor),
+		});
+
+		// checkCallback hides these from the palette live when the toggles
+		// change — no plugin reload needed.
+		this.addCommand({
+			id: "ai-generate-from-image",
+			name: "AI: Generate diagram from image",
+			editorCheckCallback: (checking, editor) => {
+				if (!this.aiCommandsVisible()) return false;
+				if (!checking) this.openAiFlow("image", editor);
+				return true;
+			},
+		});
+
+		this.addCommand({
+			id: "ai-generate-from-text",
+			name: "AI: Generate diagram from description",
+			editorCheckCallback: (checking, editor) => {
+				if (!this.aiCommandsVisible()) return false;
+				if (!checking) this.openAiFlow("text", editor);
+				return true;
+			},
+		});
+
+		this.addCommand({
+			id: "ai-improve-at-cursor",
+			name: "AI: Improve Mermaid diagram at cursor",
+			editorCheckCallback: (checking, editor) => {
+				if (!this.aiCommandsVisible()) return false;
+				if (!findMermaidBlockAtCursor(editor)) return false;
+				if (!checking) this.openAiFlow("improve", editor);
+				return true;
+			},
 		});
 
 		this.registerMarkdownPostProcessor((el, ctx) =>
@@ -138,8 +179,60 @@ export default class MermaidFlowPlugin extends Plugin {
 				this.settings.toolbarStyle,
 				this.settings.exportFolder,
 				this.settings.snapToGrid ? this.settings.snapSize : 0,
+				this.buildAiBridge(),
 			).open();
 		}
+	}
+
+	private buildAiBridge(): AiHostBridge | undefined {
+		const ai = this.settings.ai;
+		if (!ai.enabled) return undefined;
+		return {
+			service: this.aiService,
+			showToolbarButton: ai.showToolbarButton,
+			enableImageDrop: ai.enableImageDrop,
+		};
+	}
+
+	private aiCommandsVisible(): boolean {
+		return this.settings.ai.enabled && this.settings.ai.showCommands;
+	}
+
+	/** AI commands: open the generate modal, then the visual editor on success. */
+	private openAiFlow(mode: AiModalMode, editor: Editor): void {
+		if (mode === "improve") {
+			const block = findMermaidBlockAtCursor(editor);
+			if (!block) return;
+			new AiGenerateModal(this.app, this.aiService, "improve", {
+				currentCode: block.content,
+				onResult: (code) => {
+					const model = this.parseOrEmpty(code);
+					this.openEditor(
+						model,
+						(result) => {
+							const out = modelToMermaid(result, {
+								includePositions: this.settings.savePositions,
+							});
+							const fresh = this.relocateBlock(editor, block);
+							replaceBlockContent(editor, fresh ?? block, out);
+						},
+						true,
+					);
+				},
+			}).open();
+			return;
+		}
+		new AiGenerateModal(this.app, this.aiService, mode, {
+			onResult: (code) => {
+				const model = this.parseOrEmpty(code);
+				this.openEditor(model, (result) => {
+					const block = modelToFencedBlock(result, {
+						includePositions: this.settings.savePositions,
+					});
+					insertBlockAtCursor(editor, block);
+				});
+			},
+		}).open();
 	}
 
 	private async openInPane(
@@ -159,6 +252,7 @@ export default class MermaidFlowPlugin extends Plugin {
 				this.settings.toolbarStyle,
 				this.settings.exportFolder,
 				this.settings.snapToGrid ? this.settings.snapSize : 0,
+				this.buildAiBridge(),
 			);
 		}
 	}
@@ -166,6 +260,9 @@ export default class MermaidFlowPlugin extends Plugin {
 	async loadSettings(): Promise<void> {
 		const saved = (await this.loadData()) as Partial<MermaidFlowSettings>;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
+		// Nested objects need their own merge: a saved partial `ai` block would
+		// otherwise mask any keys added in later versions.
+		this.settings.ai = Object.assign({}, DEFAULT_SETTINGS.ai, saved?.ai);
 	}
 
 	async saveSettings(): Promise<void> {
@@ -213,6 +310,14 @@ export default class MermaidFlowPlugin extends Plugin {
 	}
 
 	private openEditBlock(editor: Editor, block: MermaidBlock): void {
+		const type = detectDiagramType(block.content);
+		if (!isVisuallyEditable(type)) {
+			new Notice(
+				`This is a ${describeDiagramType(type)} — the visual editor supports flowcharts only. Opening code view.`,
+			);
+			this.viewCodeForBlock(editor, block);
+			return;
+		}
 		const model = this.parseOrEmpty(block.content);
 		this.openEditor(
 			model,
@@ -228,9 +333,20 @@ export default class MermaidFlowPlugin extends Plugin {
 		);
 	}
 
+	/** Code-view fallback for cursor/command entry points (no live preview range). */
+	private viewCodeForBlock(editor: Editor, block: MermaidBlock): void {
+		new CodeViewModal(this.app, block.content, (edited) => {
+			const fresh = this.relocateBlock(editor, block);
+			replaceBlockContent(editor, fresh ?? block, edited);
+		}).open();
+	}
+
 	private parseOrEmpty(content: string): DiagramModel {
 		const { model, warnings } = mermaidToModel(content);
 		layoutMissing(model);
+		// Separate any boxes that overlap at their saved positions (e.g. a diagram
+		// laid out before a label-size change) without discarding manual layout.
+		resolveOverlaps(model);
 		if (warnings.length > 0) {
 			new Notice(`Parsed diagram with ${warnings.length} warning(s).`);
 		}
@@ -297,6 +413,17 @@ export default class MermaidFlowPlugin extends Plugin {
 		el.addClass("mermaid-flow-block");
 		const overlay = el.createDiv({ cls: "mermaid-flow-overlay" });
 
+		// Known non-flowchart diagrams only get the code affordance — the
+		// visual editor would show a blank canvas for them.
+		const info = ctx.getSectionInfo(el);
+		const content = info
+			? info.text
+					.split("\n")
+					.slice(info.lineStart + 1, info.lineEnd)
+					.join("\n")
+			: "";
+		const editable = isVisuallyEditable(detectDiagramType(content));
+
 		const codeBtn = overlay.createEl("button", {
 			cls: "mermaid-flow-overlay-btn",
 			attr: { "aria-label": "Edit Mermaid code" },
@@ -307,6 +434,8 @@ export default class MermaidFlowPlugin extends Plugin {
 			e.stopPropagation();
 			this.viewCodeFromReading(el, ctx);
 		});
+
+		if (!editable) return;
 
 		const editBtn = overlay.createEl("button", {
 			cls: "mermaid-flow-overlay-btn mermaid-flow-edit-btn mod-cta",
@@ -338,12 +467,14 @@ export default class MermaidFlowPlugin extends Plugin {
 		const code = lines.slice(lineStart + 1, lineEnd).join("\n");
 
 		new CodeViewModal(this.app, code, (edited) => {
-			void this.app.vault.process(file, (data) => {
-				const dl = data.split("\n");
-				const before = dl.slice(0, lineStart + 1);
-				const after = dl.slice(lineEnd);
-				return [...before, ...edited.split("\n"), ...after].join("\n");
-			});
+			this.app.vault
+				.process(file, (data) => {
+					const dl = data.split("\n");
+					const before = dl.slice(0, lineStart + 1);
+					const after = dl.slice(lineEnd);
+					return [...before, ...edited.split("\n"), ...after].join("\n");
+				})
+				.catch((e) => console.error("[mermaid-flow]", e));
 		}).open();
 	}
 
@@ -401,6 +532,14 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		const lines = info.text.split("\n");
 		const content = lines.slice(info.lineStart + 1, info.lineEnd).join("\n");
+		const type = detectDiagramType(content);
+		if (!isVisuallyEditable(type)) {
+			new Notice(
+				`This is a ${describeDiagramType(type)} — the visual editor supports flowcharts only. Opening code view.`,
+			);
+			this.viewCodeFromReading(el, ctx);
+			return;
+		}
 		const model = this.parseOrEmpty(content);
 
 		const lineStart = info.lineStart;
