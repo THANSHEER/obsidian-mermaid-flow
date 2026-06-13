@@ -34,12 +34,24 @@ if (typeof document !== "undefined") {
 		return el;
 	};
 
+	proto.createSpan = function (o?: { cls?: string; text?: string }) {
+		const s = document.createElement("span");
+		if (o?.cls) s.className = o.cls;
+		if (o?.text) s.textContent = o.text;
+		this.appendChild(s);
+		return s;
+	};
+
 	proto.addClass = function (cls: string) {
 		this.classList.add(cls);
 	};
 
 	proto.removeClass = function (cls: string) {
 		this.classList.remove(cls);
+	};
+
+	proto.toggleClass = function (cls: string, value: boolean) {
+		this.classList.toggle(cls, value);
 	};
 
 	proto.empty = function () {

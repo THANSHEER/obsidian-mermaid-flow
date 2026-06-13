@@ -198,6 +198,111 @@ export class PropertiesPanel {
 		});
 	}
 
+	// --- node class section ---------------------------------------------------
+
+	/** Remembered "Edit class" pick so the selection survives panel refreshes. */
+	private classEditName: string | null = null;
+
+	private buildNodeClassSection(node: DiagramNode, model: DiagramModel): void {
+		this.sectionHead("Classes");
+
+		// All known class names: declared classDefs first, then names referenced
+		// on nodes without a matching classDef (so parsed docs show everything).
+		const names: string[] = model.classDefs.map((c) => c.name);
+		for (const n of model.nodes) {
+			for (const c of n.classes ?? []) {
+				if (!names.includes(c)) names.push(c);
+			}
+		}
+
+		if (names.length > 0) {
+			const row = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
+			for (const name of names) {
+				const chip = row.createEl("button", {
+					cls: "mermaid-flow-chip",
+					text: name,
+				});
+				chip.toggleClass("is-active", node.classes?.includes(name) ?? false);
+				chip.addEventListener("click", () => {
+					if (node.classes?.includes(name)) {
+						node.classes = node.classes.filter((c) => c !== name);
+						if (node.classes.length === 0) delete node.classes;
+					} else {
+						(node.classes ??= []).push(name);
+					}
+					this.ops.render();
+					this.ops.commit();
+					this.refresh();
+				});
+			}
+		} else {
+			this.panelEl.createDiv({
+				cls: "mermaid-flow-hint",
+				text: "No classes yet — add one to create a reusable style shared by several nodes.",
+			});
+		}
+
+		// Create a new class and assign it to this node.
+		const addRow = this.panelEl.createDiv({ cls: "mermaid-flow-field-inline" });
+		const input = addRow.createEl("input", {
+			type: "text",
+			cls: "mermaid-flow-input",
+			attr: { placeholder: "New class name", "aria-label": "New class name" },
+		});
+		const addBtn = addRow.createEl("button", {
+			text: "Add",
+			cls: "mermaid-flow-panel-btn",
+			attr: { "aria-label": "Create class and assign to this node" },
+		});
+		const addClass = () => {
+			const name = input.value.trim();
+			if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name)) return;
+			if (!model.classDefs.some((c) => c.name === name)) {
+				model.classDefs.push({ name, style: {} });
+			}
+			if (!node.classes?.includes(name)) (node.classes ??= []).push(name);
+			this.classEditName = name;
+			this.ops.render();
+			this.ops.commit();
+			this.refresh();
+		};
+		addBtn.addEventListener("click", addClass);
+		input.addEventListener("keydown", (e) => {
+			if (e.key === "Enter") addClass();
+		});
+
+		// Edit a classDef's colours (changes apply to every node using it).
+		const defNames = model.classDefs.map((c) => c.name);
+		if (defNames.length === 0) return;
+		const target =
+			this.classEditName && defNames.includes(this.classEditName)
+				? this.classEditName
+				: (node.classes?.find((c) => defNames.includes(c)) ?? defNames[0]);
+		if (!target) return;
+		this.classEditName = target;
+		const def = model.classDefs.find((c) => c.name === target);
+		if (!def) return;
+		this.selectField("Edit class", defNames, (n) => n, target, (v) => {
+			this.classEditName = v;
+			this.refresh();
+		});
+		this.colorField("Class fill", def.style.fillColor, "#ffffff", (v) => {
+			def.style.fillColor = v;
+			this.ops.render();
+			this.ops.commit();
+		});
+		this.colorField("Class border", def.style.strokeColor, "#888888", (v) => {
+			def.style.strokeColor = v;
+			this.ops.render();
+			this.ops.commit();
+		});
+		this.colorField("Class text", def.style.textColor, "#333333", (v) => {
+			def.style.textColor = v;
+			this.ops.render();
+			this.ops.commit();
+		});
+	}
+
 	// --- group panel --------------------------------------------------------
 
 	private buildGroupPanel(id: string, model: DiagramModel): void {
@@ -247,6 +352,7 @@ export class PropertiesPanel {
 
 		this.buildStyleAsRow();
 		this.buildNodeStyleSection(node);
+		this.buildNodeClassSection(node, model);
 		this.buildQuickAddRow();
 
 		// Lock toggle

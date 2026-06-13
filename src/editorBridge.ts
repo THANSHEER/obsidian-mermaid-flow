@@ -3,6 +3,7 @@
  */
 
 import { Editor } from "obsidian";
+import { OPEN_FENCE_RE } from "./diagramType";
 
 export interface MermaidBlock {
 	/** Line index of the opening fence (```mermaid). */
@@ -12,8 +13,6 @@ export interface MermaidBlock {
 	/** The Mermaid source between the fences (no fence lines). */
 	content: string;
 }
-
-const OPEN_FENCE_RE = /^(\s*)(`{3,}|~{3,})\s*mermaid\s*$/i;
 
 function fenceCloseRe(marker: string): RegExp {
 	const ch = marker[0] === "~" ? "~" : "`";

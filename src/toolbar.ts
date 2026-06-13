@@ -45,6 +45,8 @@ export interface ToolbarOps {
 	getMultiCount(): number;
 	getSaveLabel(): string;
 	hasActionsSlot(): boolean;
+	/** Present only when AI assistance is enabled for this editor session. */
+	showAiMenu?(e: MouseEvent): void;
 }
 
 export interface ToolbarRefs {
@@ -102,6 +104,13 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 	const codeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
 	iconButton(codeGroup, "code", "Toggle code view", () => ops.toggleCode());
 	iconButtonEv(codeGroup, "download", "Export diagram", (e) => ops.showExportMenu(e));
+
+	// AI assist (only when the host enabled AI for this session)
+	const showAiMenu = ops.showAiMenu?.bind(ops);
+	if (showAiMenu) {
+		const aiGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
+		iconButtonEv(aiGroup, "sparkles", "AI assist", (e) => showAiMenu(e));
+	}
 
 	// Help
 	const helpGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });

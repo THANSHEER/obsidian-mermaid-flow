@@ -21,8 +21,16 @@ describe('DEFAULT_SETTINGS', () => {
 		});
 	});
 
-	it('ships a prompt template containing the {{text}} placeholder', () => {
-		expect(DEFAULT_SETTINGS.promptTemplate).toContain('{{text}}');
+	it('ships AI defaults with all entry points enabled', () => {
+		expect(DEFAULT_SETTINGS.ai).toMatchObject({
+			enabled: true,
+			provider: 'anthropic',
+			showCommands: true,
+			showToolbarButton: true,
+			enableImageDrop: true,
+		});
+		expect(DEFAULT_SETTINGS.ai.openaiBaseUrl).toContain('https://');
+		expect(DEFAULT_SETTINGS.ai.cliTimeoutSec).toBeGreaterThan(0);
 	});
 
 	it('merges loaded data over defaults like loadSettings does', () => {
@@ -32,5 +40,15 @@ describe('DEFAULT_SETTINGS', () => {
 		expect(merged.autoSave).toBe(false);
 		expect(merged.defaultDirection).toBe('LR');
 		expect(merged.openMode).toBe('modal'); // untouched default
+	});
+
+	it('deep-merges a partial saved ai block without masking new keys', () => {
+		// mirrors the second merge line in loadSettings
+		const saved = { ai: { provider: 'gemini', geminiApiKey: 'k' } };
+		const ai = Object.assign({}, DEFAULT_SETTINGS.ai, saved.ai);
+		expect(ai.provider).toBe('gemini');
+		expect(ai.geminiApiKey).toBe('k');
+		expect(ai.anthropicModel).toBe(DEFAULT_SETTINGS.ai.anthropicModel); // untouched default
+		expect(ai.showCommands).toBe(true);
 	});
 });

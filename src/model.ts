@@ -109,6 +109,13 @@ export interface EdgeStyle {
 	extra?: string[];
 }
 
+/** A Mermaid classDef: a named, reusable node style (`classDef hot fill:#f96`). */
+export interface ClassDef {
+	name: string;
+	/** Unknown props are preserved verbatim in style.extra for round-trip. */
+	style: NodeStyle;
+}
+
 export interface DiagramNode {
 	id: string;
 	label: string;
@@ -119,6 +126,8 @@ export interface DiagramNode {
 	w?: number;
 	h?: number;
 	style?: NodeStyle;
+	/** classDef names assigned via `class A name` / `A:::name` — order matters. */
+	classes?: string[];
 	/** When true the node cannot be dragged on the canvas. */
 	locked?: boolean;
 }
@@ -192,16 +201,26 @@ export interface DiagramModel {
 	edges: DiagramEdge[];
 	groups: DiagramGroup[];
 	config: DiagramConfig;
+	/** Named reusable styles (`classDef`), in declaration order. */
+	classDefs: ClassDef[];
 	/**
 	 * Lines from the original Mermaid source that we do not understand
-	 * (classDef, click bindings, ...). We round-trip these untouched so the
-	 * visual editor never destroys advanced syntax.
+	 * (click bindings, malformed directives, ...). We round-trip these
+	 * untouched so the visual editor never destroys advanced syntax.
 	 */
 	extras: string[];
 }
 
 export function emptyModel(direction: Direction = "TB"): DiagramModel {
-	return { direction, nodes: [], edges: [], groups: [], config: {}, extras: [] };
+	return {
+		direction,
+		nodes: [],
+		edges: [],
+		groups: [],
+		config: {},
+		classDefs: [],
+		extras: [],
+	};
 }
 
 export function starterModel(direction: Direction = "TB"): DiagramModel {
@@ -211,8 +230,37 @@ export function starterModel(direction: Direction = "TB"): DiagramModel {
 		edges: [],
 		groups: [],
 		config: {},
+		classDefs: [],
 		extras: [],
 	};
+}
+
+/**
+ * Effective render style for a node. Per-property merge, lowest to highest
+ * precedence: theme CSS defaults (returned undefined keeps them) <
+ * `classDef default` < the node's classes in assignment order (later class
+ * wins per property) < the node's explicit `style` (style line / panel edits).
+ * `extra` props are round-trip-only and never merged.
+ */
+export function resolveNodeStyle(
+	model: DiagramModel,
+	node: DiagramNode,
+): NodeStyle | undefined {
+	const byName = new Map(model.classDefs.map((c) => [c.name, c.style]));
+	const layers: Array<NodeStyle | undefined> = [byName.get("default")];
+	for (const name of node.classes ?? []) layers.push(byName.get(name));
+	layers.push(node.style);
+
+	const merged: NodeStyle = {};
+	for (const layer of layers) {
+		if (!layer) continue;
+		if (layer.fillColor !== undefined) merged.fillColor = layer.fillColor;
+		if (layer.strokeColor !== undefined) merged.strokeColor = layer.strokeColor;
+		if (layer.textColor !== undefined) merged.textColor = layer.textColor;
+		if (layer.fontSize !== undefined) merged.fontSize = layer.fontSize;
+		if (layer.fontFamily !== undefined) merged.fontFamily = layer.fontFamily;
+	}
+	return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 export function findNode(
@@ -306,6 +354,7 @@ export function duplicateNode(
 		w: src.w,
 		h: src.h,
 		style: src.style ? { ...src.style, extra: src.style.extra ? [...src.style.extra] : undefined } : undefined,
+		classes: src.classes ? [...src.classes] : undefined,
 	});
 	return newId;
 }
@@ -335,6 +384,7 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 			style: n.style
 				? { ...n.style, extra: n.style.extra ? [...n.style.extra] : undefined }
 				: undefined,
+			classes: n.classes ? [...n.classes] : undefined,
 		})),
 		edges: model.edges.map((e) => ({
 			...e,
@@ -344,6 +394,10 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 				: undefined,
 		})),
 		groups: model.groups.map((g) => ({ ...g, nodeIds: [...g.nodeIds] })),
+		classDefs: model.classDefs.map((c) => ({
+			name: c.name,
+			style: { ...c.style, extra: c.style.extra ? [...c.style.extra] : undefined },
+		})),
 		config: {
 			...model.config,
 			themeVariables: model.config.themeVariables
