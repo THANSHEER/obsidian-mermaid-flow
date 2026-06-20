@@ -11,6 +11,15 @@
 /** Opening fence of a ```mermaid block. Shared by every entry point. */
 export const OPEN_FENCE_RE = /^(\s*)(`{3,}|~{3,})\s*mermaid\s*$/i;
 
+/**
+ * Closing fence matching an opening `marker` (Mermaid fences may use longer
+ * runs of backticks/tildes to close, but never a shorter or mixed run).
+ */
+export function closingFenceRe(marker: string): RegExp {
+	const ch = marker[0] === "~" ? "~" : "`";
+	return new RegExp(`^\\s*${ch}{${marker.length},}\\s*$`);
+}
+
 export type DiagramType =
 	| "flowchart"
 	| "sequence"

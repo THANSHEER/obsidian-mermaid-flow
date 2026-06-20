@@ -228,9 +228,25 @@ function normalizeInlineLabels(stmt: string): string {
 		.replace(/--\s*([^-|>][^-|]*?)\s*---/g, "---|$1|");
 }
 
-/** Parse `fill:#fff,stroke:#000,color:#111,font-size:18px,stroke-width:2px`. */
-function parseStyleProps(propStr: string): NodeStyle {
-	const style: NodeStyle = {};
+/** A `key: value` prop with no recognized handler is preserved verbatim. */
+type PropHandler<T> = (val: string, style: T) => void;
+
+/** Parses an integer pixel value (`"18px"` or `"18"`); ignored if not a number. */
+function parsePx(val: string, set: (n: number) => void): void {
+	const n = parseInt(val.replace(/px$/i, ""), 10);
+	if (!Number.isNaN(n)) set(n);
+}
+
+/**
+ * Shared engine behind `parseStyleProps`/`parseEdgeStyleProps`: splits a
+ * `key:value,key:value` string, dispatches each pair to its handler, and
+ * preserves anything unrecognized in `style.extra` so it round-trips.
+ */
+function parseProps<T extends { extra?: string[] }>(
+	propStr: string,
+	handlers: Record<string, PropHandler<T>>,
+): T {
+	const style = {} as T;
 	const extra: string[] = [];
 	for (const raw of propStr.split(",")) {
 		const part = raw.trim();
@@ -242,30 +258,23 @@ function parseStyleProps(propStr: string): NodeStyle {
 		}
 		const key = part.slice(0, idx).trim().toLowerCase();
 		const val = part.slice(idx + 1).trim();
-		switch (key) {
-			case "fill":
-				style.fillColor = val;
-				break;
-			case "stroke":
-				style.strokeColor = val;
-				break;
-			case "color":
-				style.textColor = val;
-				break;
-			case "font-size": {
-				const n = parseInt(val.replace(/px$/i, ""), 10);
-				if (!Number.isNaN(n)) style.fontSize = n;
-				break;
-			}
-			case "font-family":
-				style.fontFamily = val;
-				break;
-			default:
-				extra.push(part);
-		}
+		const handler = handlers[key];
+		if (handler) handler(val, style);
+		else extra.push(part);
 	}
 	if (extra.length > 0) style.extra = extra;
 	return style;
+}
+
+/** Parse `fill:#fff,stroke:#000,color:#111,font-size:18px,font-family:Arial`. */
+function parseStyleProps(propStr: string): NodeStyle {
+	return parseProps<NodeStyle>(propStr, {
+		fill: (v, s) => (s.fillColor = v),
+		stroke: (v, s) => (s.strokeColor = v),
+		color: (v, s) => (s.textColor = v),
+		"font-size": (v, s) => parsePx(v, (n) => (s.fontSize = n)),
+		"font-family": (v, s) => (s.fontFamily = v),
+	});
 }
 
 /** Merge a `style <id> ...` property string into the node's style. */
@@ -285,41 +294,12 @@ function applyStyleProps(node: DiagramNode, propStr: string): void {
 
 /** Parse a `linkStyle` property string into an EdgeStyle. */
 function parseEdgeStyleProps(propStr: string): EdgeStyle {
-	const style: EdgeStyle = {};
-	const extra: string[] = [];
-	for (const raw of propStr.split(",")) {
-		const part = raw.trim();
-		if (!part) continue;
-		const idx = part.indexOf(":");
-		if (idx === -1) {
-			extra.push(part);
-			continue;
-		}
-		const key = part.slice(0, idx).trim().toLowerCase();
-		const val = part.slice(idx + 1).trim();
-		switch (key) {
-			case "stroke":
-				style.strokeColor = val;
-				break;
-			case "stroke-width": {
-				const n = parseInt(val.replace(/px$/i, ""), 10);
-				if (!Number.isNaN(n)) style.strokeWidth = n;
-				break;
-			}
-			case "color":
-				style.textColor = val;
-				break;
-			case "font-size": {
-				const n = parseInt(val.replace(/px$/i, ""), 10);
-				if (!Number.isNaN(n)) style.fontSize = n;
-				break;
-			}
-			default:
-				extra.push(part);
-		}
-	}
-	if (extra.length > 0) style.extra = extra;
-	return style;
+	return parseProps<EdgeStyle>(propStr, {
+		stroke: (v, s) => (s.strokeColor = v),
+		"stroke-width": (v, s) => parsePx(v, (n) => (s.strokeWidth = n)),
+		color: (v, s) => (s.textColor = v),
+		"font-size": (v, s) => parsePx(v, (n) => (s.fontSize = n)),
+	});
 }
 
 /** Parse the JSON body of an `init` directive into model.config (best effort). */
@@ -622,10 +602,11 @@ function parseStatement(
 
 	if (!LINK_OP_RE.test(normalized)) {
 		// No link operator: standalone node declaration(s), possibly `A & B`.
-		const tokens = splitMultiNodes(normalized)
+		const segments = splitMultiNodes(normalized);
+		const tokens = segments
 			.map((t) => parseNodeToken(t))
 			.filter((t): t is ParsedToken => t !== null);
-		if (tokens.length > 0 && tokens.length === splitMultiNodes(normalized).length) {
+		if (tokens.length > 0 && tokens.length === segments.length) {
 			for (const token of tokens) ensureNode(token);
 		} else {
 			extras.push(stmt);

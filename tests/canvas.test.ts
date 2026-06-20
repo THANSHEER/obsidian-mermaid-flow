@@ -82,11 +82,33 @@ describe('DiagramCanvas rendering', () => {
 		const shape = svg.querySelector('.mermaid-flow-shape');
 		expect(shape).not.toBeNull();
 		// No-theme default: Obsidian fill + Mermaid's stock purple border, set via
-		// setAttribute (the base CSS fill/stroke was removed so these win).
-		expect(shape!.getAttribute('fill')).toBe('var(--background-primary-alt)');
+		// setAttribute (the base CSS fill/stroke was removed so these win). jsdom
+		// can't resolve CSS custom properties, so resolveColor() falls back to the
+		// concrete BUILTIN.default hex values — never the raw var() token, which
+		// would render as invisible black (see the blanket regression test below).
+		expect(shape!.getAttribute('fill')).toBe('#ececff');
 		expect(shape!.getAttribute('stroke')).toBe('#9370db');
 		const label = svg.querySelector('.mermaid-flow-node-label');
-		expect(label!.getAttribute('fill')).toBe('var(--text-normal)');
+		expect(label!.getAttribute('fill')).toBe('#333333');
+	});
+
+	it('never leaves an unresolved var(...) token in any rendered fill/stroke attribute', () => {
+		const model = emptyModel('LR');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60 });
+		model.nodes.push({ id: 'B', label: 'B', shape: 'diamond', x: 300, y: 60 });
+		model.edges.push({ id: 'e1', from: 'A', to: 'B', kind: 'arrow', label: 'go' });
+
+		const svg = render(model);
+		const offenders: string[] = [];
+		svg.querySelectorAll('*').forEach((el) => {
+			for (const attr of ['fill', 'stroke']) {
+				const v = el.getAttribute(attr);
+				if (v && v.includes('var(')) {
+					offenders.push(`${el.tagName}[${attr}]="${v}"`);
+				}
+			}
+		});
+		expect(offenders).toEqual([]);
 	});
 
 	it('lets an explicit node style override the theme palette', () => {
@@ -115,7 +137,7 @@ describe('DiagramCanvas rendering', () => {
 
 		const svg = render(model);
 		const line = svg.querySelector('.mermaid-flow-edge-line');
-		expect(line!.getAttribute('stroke')).toBe('var(--text-muted)');
+		expect(line!.getAttribute('stroke')).toBe('#333333');
 	});
 
 	it('uses a built-in Mermaid palette when the diagram sets a theme', () => {

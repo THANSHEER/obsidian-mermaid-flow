@@ -21,11 +21,10 @@ npm run validate  # assert manifest.json version === package.json version + requ
 npm version <v>   # runs version-bump.mjs → syncs manifest.json + versions.json, stages them
 ```
 
-CI (`.github/workflows/ci.yml`) runs exactly `validate` → `lint` → `build` on
-push/PR to `main`. There is **no test suite** — those three are the full check
-set; run them before considering a change done. Pushing a git **tag** triggers
-`release.yml`, which builds and attaches `main.js`, `manifest.json`, `styles.css`
-to a GitHub release.
+CI (`.github/workflows/ci.yml`) runs `validate` → `lint` → `test` → `build` on
+push/PR to `main` — run all four locally before considering a change done.
+Pushing a git **tag** triggers `release.yml`, which builds and attaches
+`main.js`, `manifest.json`, `styles.css` to a GitHub release.
 
 `@typescript-eslint/no-explicit-any` is off; `tsconfig.json` is otherwise
 `strict` (incl. `noUncheckedIndexedAccess`), so expect to guard array/Map access.
@@ -79,8 +78,9 @@ converge on `openEditor` → either a Modal or a pane:
    range via `posAtDOM`, and injects the same overlay. Line ranges come straight
    from editor state, so write-back is reliable.
 
-Note: the opening-fence regex (`OPEN_FENCE_RE`) is **duplicated** in `main.ts`,
-`editorBridge.ts`, and `editorExtension.ts` — keep them in sync if you change it.
+Note: `OPEN_FENCE_RE` and the matching closing-fence builder (`closingFenceRe`)
+live once in `diagramType.ts` and are imported by `main.ts`, `editorBridge.ts`,
+and `editorExtension.ts` — change the shared definition, not a local copy.
 
 ### The visual editor (host-agnostic)
 
@@ -117,6 +117,21 @@ onto Mermaid `theme`/`themeVariables`/direction/shape+style.
 - Settings persist to `data.json` via Obsidian's `loadData`/`saveData`.
 - Styling uses Obsidian CSS variables (e.g. `--text-normal`) so it follows the
   active theme; plugin styles live in `styles.css`.
+- **SVG color resolution invariant.** `themePalette.ts` may return `var(--x)`
+  tokens (meaning "follow Obsidian's active theme"). SVG presentation
+  attributes (`el.setAttribute("fill"/"stroke", ...)`) do **not** parse
+  `var()` — only real stylesheets do. Any code that resolves a theme color for
+  use via `setAttribute` (`canvas.ts`'s `resolveColor`/`resolvePalette`) must
+  **never** return the literal unresolved `var(...)` string when resolution
+  fails — always fall back to a concrete hex (see `VAR_FALLBACK` in
+  `canvas.ts`). An unresolved token silently renders as solid black (`fill`'s
+  SVG initial value), which looks exactly like a broken editor with invisible
+  text — this shipped once already because the test asserted the literal
+  broken value as "expected." When touching this path, prove correctness with
+  a test that walks the rendered SVG and asserts no `fill`/`stroke` attribute
+  anywhere contains `"var("` (see `canvas.test.ts`) — don't just assert
+  whatever the function currently returns; jsdom can't resolve CSS vars
+  either, so that kind of assertion can pass while encoding the bug.
 
 ## Obsidian coding standards (plugin review rules)
 
@@ -198,6 +213,13 @@ Tests live in `tests/` and run under Vitest with the `jsdom` environment.
 - New rendering paths (new shapes, new edge types) should add a test case.
 - The test file imports `DiagramCanvas` directly and calls `canvas.getSVG()` —
   you can assert on `.querySelector` results against the returned SVGSVGElement.
+- A passing test is not proof of correct rendered output. When changing
+  color/style resolution (`canvas.ts`, `themePalette.ts`), don't just assert
+  "whatever the function currently returns" — describe the *correct* visible
+  result. A test was once written that asserted an unresolved `var(...)`
+  token as the expected fill color; it passed in CI while the live editor
+  rendered solid black, invisible-text nodes. See the SVG color resolution
+  invariant above.
 
 ## Local AI tooling (`.claude/`)
 

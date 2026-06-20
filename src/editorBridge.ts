@@ -3,7 +3,7 @@
  */
 
 import { Editor } from "obsidian";
-import { OPEN_FENCE_RE } from "./diagramType";
+import { OPEN_FENCE_RE, closingFenceRe } from "./diagramType";
 
 export interface MermaidBlock {
 	/** Line index of the opening fence (```mermaid). */
@@ -12,12 +12,6 @@ export interface MermaidBlock {
 	fenceEnd: number;
 	/** The Mermaid source between the fences (no fence lines). */
 	content: string;
-}
-
-function fenceCloseRe(marker: string): RegExp {
-	const ch = marker[0] === "~" ? "~" : "`";
-	const len = marker.length;
-	return new RegExp(`^\\s*${ch}{${len},}\\s*$`);
 }
 
 /**
@@ -35,7 +29,7 @@ export function findMermaidBlockAtCursor(editor: Editor): MermaidBlock | null {
 		if (!open) continue;
 
 		const marker = open[2] ?? "```";
-		const closeRe = fenceCloseRe(marker);
+		const closeRe = closingFenceRe(marker);
 		for (let end = start + 1; end < lineCount; end++) {
 			if (closeRe.test(editor.getLine(end))) {
 				// Cursor anywhere from the opening fence through the closing fence.

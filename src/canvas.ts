@@ -22,6 +22,19 @@ import { resolveThemePalette, ThemePalette } from "./themePalette";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/**
+ * Concrete fallbacks for `resolveColor()` when live CSS custom-property
+ * resolution fails (jsdom, popout-window mismatches, or a theme that doesn't
+ * define the var). Mirrors `BUILTIN.default` in themePalette.ts (Mermaid's own
+ * stock palette), which reads fine on both light and dark Obsidian themes.
+ */
+const VAR_FALLBACK: Record<string, string> = {
+	"--background-primary-alt": "#ececff",
+	"--text-normal": "#333333",
+	"--text-muted": "#333333",
+};
+const VAR_FALLBACK_DEFAULT = "#333333";
+
 function clearChildren(el: Element): void {
 	while (el.firstChild) el.removeChild(el.firstChild);
 }
@@ -824,20 +837,27 @@ export class DiagramCanvas {
 	 * Resolve a CSS `var(--x)` colour to a concrete value. `var()` is not honoured
 	 * inside SVG presentation attributes (only in stylesheets), so for the default
 	 * theme — which uses Obsidian variables to follow the active theme — we read
-	 * the computed value here. Concrete colours pass through unchanged. Falls back
-	 * to the original string when unresolved (e.g. jsdom in tests).
+	 * the computed value here. Concrete colours pass through unchanged.
+	 *
+	 * Critical: never hand back the raw unresolved `var(...)` string — an invalid
+	 * `<paint>` value on a presentation attribute silently falls back to fill's
+	 * initial value (black), which is exactly how a previous version of this
+	 * function broke the editor (solid black nodes, invisible text) whenever
+	 * resolution failed (jsdom in tests, and apparently some live-app cases too).
+	 * Always fall back to a concrete hex instead.
 	 */
 	private resolveColor(c: string): string {
 		if (!c.startsWith("var(")) return c;
 		const name = c.slice(4, -1).split(",")[0]?.trim() ?? "";
+		const fallback = VAR_FALLBACK[name] ?? VAR_FALLBACK_DEFAULT;
 		try {
 			const v = activeWindow
-				.getComputedStyle(this.svg)
+				.getComputedStyle(activeDocument.body)
 				.getPropertyValue(name)
 				.trim();
-			return v || c;
+			return v || fallback;
 		} catch {
-			return c;
+			return fallback;
 		}
 	}
 

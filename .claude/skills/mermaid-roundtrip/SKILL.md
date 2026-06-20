@@ -36,8 +36,9 @@ A careless change here silently eats part of a user's diagram. Follow these rule
    `Direction` with parallel `*_LABELS` maps. Add an enum value ⇒ update its label
    map, the parser recognizer, the serializer emitter, and `shapes.ts` geometry.
 
-5. **`OPEN_FENCE_RE` is duplicated** in `main.ts`, `editorBridge.ts`,
-   `editorExtension.ts`. Change one ⇒ change all three.
+5. **`OPEN_FENCE_RE` / `closingFenceRe` live once in `diagramType.ts`**,
+   imported by `main.ts`, `editorBridge.ts`, `editorExtension.ts`. Edit the
+   shared definition, not a local copy.
 
 6. **Mobile/popout safe.** No Node/Electron APIs at runtime; use `activeDocument` /
    `activeWindow`, not `document` / `window`. (See CLAUDE.md audit rules.)
