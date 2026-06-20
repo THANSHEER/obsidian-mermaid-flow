@@ -17,6 +17,7 @@ import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import {
 	DiagramType,
 	OPEN_FENCE_RE,
+	closingFenceRe,
 	detectDiagramType,
 	isVisuallyEditable,
 } from "./diagramType";
@@ -35,11 +36,6 @@ export interface LivePreviewCallbacks {
 	viewCode: (range: MermaidBlockRange) => void;
 }
 
-function closeFenceRe(marker: string): RegExp {
-	const ch = marker[0] === "~" ? "~" : "`";
-	return new RegExp(`^\\s*${ch}{${marker.length},}\\s*$`);
-}
-
 /** Find every ```mermaid block in the document (line numbers are 0-based). */
 function scanMermaidBlocks(view: EditorView): MermaidBlockRange[] {
 	const doc = view.state.doc;
@@ -49,7 +45,7 @@ function scanMermaidBlocks(view: EditorView): MermaidBlockRange[] {
 		const open = doc.line(i).text.match(OPEN_FENCE_RE);
 		if (!open) continue;
 		const marker = open[2] ?? "```";
-		const cre = closeFenceRe(marker);
+		const cre = closingFenceRe(marker);
 		for (let j = i + 1; j <= total; j++) {
 			if (cre.test(doc.line(j).text)) {
 				const inner: string[] = [];

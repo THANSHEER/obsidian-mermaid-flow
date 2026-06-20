@@ -146,16 +146,9 @@ export function resolveOverlaps(model: DiagramModel, margin = 12): void {
 	}
 	const shiftX = minX < 20 ? 20 - minX : 0;
 	const shiftY = minY < 20 ? 20 - minY : 0;
-	if (shiftX || shiftY) {
-		for (const b of boxes) {
-			b.n.x = Math.round(b.n.x + shiftX);
-			b.n.y = Math.round(b.n.y + shiftY);
-		}
-	} else {
-		for (const b of boxes) {
-			b.n.x = Math.round(b.n.x);
-			b.n.y = Math.round(b.n.y);
-		}
+	for (const b of boxes) {
+		b.n.x = Math.round(b.n.x + shiftX);
+		b.n.y = Math.round(b.n.y + shiftY);
 	}
 }
 

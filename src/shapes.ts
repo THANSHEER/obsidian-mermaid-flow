@@ -38,6 +38,8 @@ export function createShapeElements(
 	const right = cx + hw;
 	const top = cy - hh;
 	const bottom = cy + hh;
+	// Shared slant offset for the parallelogram/trapezoid family below.
+	const slant = Math.min(hw * 0.5, 20);
 
 	switch (shape) {
 		case "round": {
@@ -113,46 +115,42 @@ export function createShapeElements(
 			];
 		}
 		case "parallelogram": {
-			const s = Math.min(hw * 0.5, 20);
 			return [
 				polygon([
-					[left + s, top],
+					[left + slant, top],
 					[right, top],
-					[right - s, bottom],
+					[right - slant, bottom],
 					[left, bottom],
 				]),
 			];
 		}
 		case "parallelogram-alt": {
-			const s = Math.min(hw * 0.5, 20);
 			return [
 				polygon([
 					[left, top],
-					[right - s, top],
+					[right - slant, top],
 					[right, bottom],
-					[left + s, bottom],
+					[left + slant, bottom],
 				]),
 			];
 		}
 		case "trapezoid": {
-			const s = Math.min(hw * 0.5, 20);
 			return [
 				polygon([
-					[left + s, top],
-					[right - s, top],
+					[left + slant, top],
+					[right - slant, top],
 					[right, bottom],
 					[left, bottom],
 				]),
 			];
 		}
 		case "trapezoid-alt": {
-			const s = Math.min(hw * 0.5, 20);
 			return [
 				polygon([
 					[left, top],
 					[right, top],
-					[right - s, bottom],
-					[left + s, bottom],
+					[right - slant, bottom],
+					[left + slant, bottom],
 				]),
 			];
 		}
