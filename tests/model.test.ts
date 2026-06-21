@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
 	emptyModel,
-	starterModel,
 	nextNodeId,
 	newGroupId,
 	findNode,
@@ -119,11 +118,6 @@ describe('model factories', () => {
 		expect(m.edges).toHaveLength(0);
 		expect(m.groups).toHaveLength(0);
 		expect(m.extras).toHaveLength(0);
-	});
-	it('starterModel has a single start node', () => {
-		const m = starterModel();
-		expect(m.nodes).toHaveLength(1);
-		expect(m.nodes[0]?.id).toBe('A');
 	});
 });
 

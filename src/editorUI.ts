@@ -31,7 +31,7 @@ import {
 import { LAYOUT_PRESETS, SPACING_PRESETS, THEME_PRESETS } from "./presets";
 import { PropertiesPanel } from "./propertiesPanel";
 import { modelToMermaid } from "./serializer";
-import { ToolbarRefs, ToolbarOps, buildSlottedActions, buildToolbar } from "./toolbar";
+import { ToolbarRefs, ToolbarOps, buildToolbar } from "./toolbar";
 import { mermaidToModel } from "./parser";
 import {
 	describeDiagramType,
@@ -57,9 +57,13 @@ export interface EditorHost {
 	exportFolder?: string;
 	/** Snap-to-grid cell size in pixels; 0 means no snap. */
 	snapSize?: number;
-	actionsSlot?: HTMLElement;
 	/** Present when AI assistance is enabled in settings. */
 	ai?: AiHostBridge;
+}
+
+/** Minimal shape of the Mermaid API returned by `loadMermaid()` (typed `any`). */
+interface MermaidApi {
+	parse(code: string): unknown;
 }
 
 export class DiagramEditorUI {
@@ -108,7 +112,7 @@ export class DiagramEditorUI {
 		this.root.addClass("mermaid-flow-editor");
 		this.root.toggleClass("is-toolbar-floating", floating);
 		this.root.toggleClass("is-toolbar-native", !floating);
-		this.root.toggleClass("is-actions-docked", !this.host.actionsSlot);
+		this.root.addClass("is-actions-docked");
 
 		const bar = this.root.createDiv({ cls: "mermaid-flow-toolbar" });
 		const body = this.root.createDiv({ cls: "mermaid-flow-body" });
@@ -122,7 +126,9 @@ export class DiagramEditorUI {
 			onContextMenu: (e, empty) => this.showContextMenu(e, empty),
 			onZoom: (z) => this.tbRefs?.updateZoomLabel(z),
 			onDblClickBackground: (x, y) => this.addNodeAt("rect", x, y),
-			onDblClickNode: (id) => { this.canvas.select({ type: "node", id }); this.refreshPanel(); this.focusLabel(); },
+			// Select + sync the panel; the canvas itself opens an in-place label
+			// editor on double-click (draw.io style), so don't grab the side panel.
+			onDblClickNode: (id) => { this.canvas.select({ type: "node", id }); this.refreshPanel(); },
 			onMultiChange: () => this.tbRefs?.updateAlignGroup(),
 			onImportFile: (text) => this.importMermaidText(text),
 			onImportImage: (file) => this.handleImportImage(file),
@@ -208,14 +214,11 @@ export class DiagramEditorUI {
 			getCanvas: () => this.canvas,
 			getMultiCount: () => this.canvas.getMultiSelection().length,
 			getSaveLabel: () => this.host.saveLabel ?? "Save",
-			hasActionsSlot: () => !!this.host.actionsSlot,
 		};
 		if (this.host.ai?.showToolbarButton) {
 			tbOps.showAiMenu = (e) => this.showAiMenu(e);
 		}
 		this.tbRefs = buildToolbar(bar, tbOps);
-
-		if (this.host.actionsSlot) buildSlottedActions(this.host.actionsSlot, tbOps);
 
 		const footer = this.root.createDiv({ cls: "mermaid-flow-footer" });
 		if (this.host.autoSave) {
@@ -353,6 +356,7 @@ export class DiagramEditorUI {
 		const jitter = (this.model.nodes.length % 6) * 24;
 		this.model.nodes.push({ id, label: id, shape, x: Math.round(x + jitter), y: Math.round(y + jitter) });
 		this.canvas.render();
+		this.panel?.focusLabelOnNextBuild();
 		this.canvas.select({ type: "node", id });
 		this.commit();
 	}
@@ -361,6 +365,7 @@ export class DiagramEditorUI {
 		const id = nextNodeId(this.model);
 		this.model.nodes.push({ id, label: id, shape, x: Math.round(svgX), y: Math.round(svgY) });
 		this.canvas.render();
+		this.panel?.focusLabelOnNextBuild();
 		this.canvas.select({ type: "node", id });
 		this.commit();
 	}
@@ -371,6 +376,7 @@ export class DiagramEditorUI {
 		const newId = duplicateNode(this.model, sel.id);
 		if (!newId) return;
 		this.canvas.render();
+		this.panel?.focusLabelOnNextBuild();
 		this.canvas.select({ type: "node", id: newId });
 		this.commit();
 	}
@@ -405,6 +411,7 @@ export class DiagramEditorUI {
 		this.canvas.render();
 		// Select all pasted nodes
 		if (newIds.length === 1 && newIds[0]) {
+			this.panel?.focusLabelOnNextBuild();
 			this.canvas.select({ type: "node", id: newIds[0] });
 		} else {
 			this.canvas.selectIds(newIds);
@@ -915,7 +922,7 @@ export class DiagramEditorUI {
 		// save, and a loader failure (e.g. test environment) is silently ignored.
 		const code = modelToMermaid(this.model);
 		loadMermaid()
-			.then((mermaid) =>
+			.then((mermaid: MermaidApi) =>
 				Promise.resolve(mermaid.parse(code)).catch((err: unknown) => {
 					const msg = err instanceof Error ? err.message : String(err);
 					new Notice(`Saved, but Mermaid reports a syntax error: ${msg}`);

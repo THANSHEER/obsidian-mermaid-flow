@@ -3,7 +3,10 @@ node_modules/
 
 # Compilation output
 main.js
-styles.css (if generated)
+# (styles.css is tracked/shipped, not generated — do not ignore it)
+
+# Per-user plugin runtime data (settings, API keys) — never commit
+data.json
 
 # OS generated files
 .DS_Store

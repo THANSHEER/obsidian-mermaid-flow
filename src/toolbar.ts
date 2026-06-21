@@ -44,7 +44,6 @@ export interface ToolbarOps {
 	getCanvas(): DiagramCanvas;
 	getMultiCount(): number;
 	getSaveLabel(): string;
-	hasActionsSlot(): boolean;
 	/** Present only when AI assistance is enabled for this editor session. */
 	showAiMenu?(e: MouseEvent): void;
 }
@@ -135,19 +134,6 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 	// Spacer
 	bar.createDiv({ cls: "mermaid-flow-spacer" });
 
-	// Theme dropdown
-	const themeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	themeGroup.createSpan({ cls: "mermaid-flow-tb-label", text: "Theme" });
-	const themeSelect = themeGroup.createEl("select", {
-		cls: "dropdown mermaid-flow-select",
-		attr: { "aria-label": "Select theme" },
-	});
-	for (const preset of THEME_PRESETS) {
-		const o = themeSelect.createEl("option", { text: preset.label, value: preset.id });
-		if (ops.matchesTheme(preset.id)) o.selected = true;
-	}
-	themeSelect.addEventListener("change", () => ops.applyTheme(themeSelect.value));
-
 	// Direction dropdown
 	const dirGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
 	dirGroup.createSpan({ cls: "mermaid-flow-tb-label", text: "Direction" });
@@ -161,10 +147,21 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 	}
 	dirSelect.addEventListener("change", () => ops.applyDirection(dirSelect.value as Direction));
 
-	// Save / Discard (docked text buttons when no actionsSlot)
-	if (!ops.hasActionsSlot()) {
-		buildDockedActions(bar, ops);
+	// Theme dropdown
+	const themeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
+	themeGroup.createSpan({ cls: "mermaid-flow-tb-label", text: "Theme" });
+	const themeSelect = themeGroup.createEl("select", {
+		cls: "dropdown mermaid-flow-select",
+		attr: { "aria-label": "Select theme" },
+	});
+	for (const preset of THEME_PRESETS) {
+		const o = themeSelect.createEl("option", { text: preset.label, value: preset.id });
+		if (ops.matchesTheme(preset.id)) o.selected = true;
 	}
+	themeSelect.addEventListener("change", () => ops.applyTheme(themeSelect.value));
+
+	// Save / Discard (docked text buttons)
+	buildDockedActions(bar, ops);
 
 	return { undoBtn, redoBtn, lockBtn, zoomLabel, updateModeButtons, updateZoomLabel, updateAlignGroup };
 }
@@ -182,6 +179,33 @@ function buildShapeMenu(bar: HTMLElement, ops: ToolbarOps): void {
 
 	const popup = menu.createDiv({ cls: "mermaid-flow-shape-popup" });
 	const grid = popup.createDiv({ cls: "mermaid-flow-palette-grid" });
+
+	// Click-toggled (not hover-only) so the palette also opens on touch/tap,
+	// and survives the mouse crossing the gap between the button and the
+	// popup below it (that gap sits outside menu's own layout box, so a
+	// mouseleave-based close used to fire before the pointer ever reached
+	// the popup).
+	let outsideMousedown: ((e: MouseEvent) => void) | null = null;
+	const closeMenu = () => {
+		menu.removeClass("is-open");
+		if (outsideMousedown) {
+			activeDocument.removeEventListener("mousedown", outsideMousedown, true);
+			outsideMousedown = null;
+		}
+	};
+	const openMenu = () => {
+		menu.addClass("is-open");
+		outsideMousedown = (e: MouseEvent) => {
+			if (!menu.contains(e.target as Node)) closeMenu();
+		};
+		activeDocument.addEventListener("mousedown", outsideMousedown, true);
+	};
+	btn.addEventListener("click", (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (menu.hasClass("is-open")) closeMenu(); else openMenu();
+	});
+
 	for (const shape of NODE_SHAPES) {
 		const item = grid.createEl("button", {
 			cls: "mermaid-flow-shape-btn",
@@ -192,8 +216,12 @@ function buildShapeMenu(bar: HTMLElement, ops: ToolbarOps): void {
 		});
 		item.appendChild(createShapeIcon(shape));
 
-		// Click: add at viewport centre
-		item.addEventListener("click", (e) => { e.preventDefault(); ops.addNode(shape); });
+		// Click: add at viewport centre, then close the popup
+		item.addEventListener("click", (e) => {
+			e.preventDefault();
+			ops.addNode(shape);
+			closeMenu();
+		});
 
 		// Drag-to-canvas: drop at the pointer position
 		item.addEventListener("dragstart", (e) => {
@@ -279,17 +307,4 @@ function iconButtonEv(
 	setIcon(btn, icon);
 	btn.addEventListener("click", (e) => { e.preventDefault(); onClick(e); });
 	return btn;
-}
-
-/** Build the icon-button actions for a host-provided slot (modal title bar). */
-export function buildSlottedActions(
-	slot: HTMLElement,
-	ops: ToolbarOps,
-): void {
-	const group = slot.createDiv({ cls: "mermaid-flow-title-actions" });
-	const discardBtn = iconButton(group, "x", "Discard", () => ops.discard());
-	const saveBtn = iconButton(group, "save", ops.getSaveLabel(), () => ops.save());
-	saveBtn.addClass("mod-cta");
-	discardBtn.removeAttribute("title");
-	saveBtn.removeAttribute("title");
 }

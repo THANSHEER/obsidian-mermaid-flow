@@ -16,8 +16,10 @@ identically — the parser/serializer round-trip, the model, and every existing 
 
 - **Toolbar (resolved):** the nav bar becomes a **user setting** — *Native (docked)* vs *Floating
   (low-chrome over the canvas)* — and we build **both**; the plugin user chooses. Default = **Native**.
-- **First-open & dead AI setting (flagged):** plan reuses `starterModel()` for first-open and removes
-  the dead `promptTemplate` setting. Either can be kept untouched on request.
+- **First-open (resolved):** kept the blank canvas (`emptyModel`) and added an **on-canvas
+  empty-state hint** for guidance; the unused `starterModel()` was **removed** rather than wired in.
+- **Dead AI setting (flagged):** plan removes the dead `promptTemplate` setting. Can be kept untouched
+  on request.
 
 ## Sequenced changes (one area each; build + regression check + separate commit per item)
 
@@ -27,8 +29,8 @@ Create `docs/ui-audit.md`, `docs/ux-research.md`, `docs/ui-ux-plan.md`.
 ### 1 — First-open & empty state — *High (canvas.ts + styles.css; optional main.ts)*
 - Render an on-canvas empty state when `nodes.length===0`: centered, muted, `pointer-events:none`
   hint ("Click ◆ Add shape to place your first node" + 2 key tips). Additive.
-- *(behavior-safe)* swap `emptyModel`→`starterModel` at `main.ts:145` so a "Start" node greets new
-  users — reuses the existing function.
+- *(decided against)* swapping `emptyModel`→`starterModel` — the on-canvas empty-state hint above was
+  chosen instead, and `starterModel` has been removed.
 - Tighten the no-selection panel hint hierarchy (`editorUI.ts:793-810`).
 - **Before:** blank grid + side hint. **After:** a canvas that tells you what to do.
 

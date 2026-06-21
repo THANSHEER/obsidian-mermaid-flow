@@ -1,25 +1,56 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/logo/logo.svg" alt="Mermaid Flow Logo" width="128" />
+
 # Mermaid Flow
 
-[![Obsidian Downloads](https://img.shields.io/badge/Obsidian-v1.7.2+-purple.svg)](https://obsidian.md/)
+**A visual, drag-and-drop editor for [Mermaid](https://mermaid.js.org/) flowcharts inside [Obsidian](https://obsidian.md/).**
+
+Build and rearrange diagrams by moving nodes and drawing connections — Mermaid Flow writes the underlying `mermaid` code for you, so no syntax knowledge is required.
+
+[![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7C3AED?logo=obsidian&logoColor=white)](https://community.obsidian.md/plugins/mermaid-flow)
+[![GitHub Repo stars](https://img.shields.io/github/stars/THANSHEER/obsidian-mermaid-flow?color=yellow)](https://github.com/THANSHEER/obsidian-mermaid-flow)
+[![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22mermaid-flow%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)](https://community.obsidian.md/plugins/mermaid-flow)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-A visual, drag-and-drop editor for **Mermaid flowcharts** inside Obsidian. Build and rearrange diagrams by moving nodes and drawing connections — Mermaid Flow writes the underlying ` ```mermaid ` code for you, so no syntax knowledge is required.
+<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/animated-webp/obsidian-meramaid-create-mermaid-daigram.webp" alt="Building a Mermaid flowchart visually in Obsidian" width="780" />
 
-Your edits round-trip safely: the plugin reads your existing Mermaid blocks, lets you edit them visually, and writes them back without losing custom syntax.
+</div>
 
-## Features
+Your edits **round-trip safely**: Mermaid Flow reads your existing Mermaid blocks, lets you edit them visually, and writes them back — without losing custom syntax.
 
-- **Drag-and-drop canvas** — move nodes, draw connections, resize, and select on an SVG editing surface.
+## ✨ Features
+
+- **Drag-and-drop canvas** — move nodes, draw connections, resize, and multi-select on an SVG editing surface.
 - **No syntax required** — the plugin generates and updates the Mermaid code as you work.
-- **Shapes & subgraphs** — multiple node shapes and grouping of nodes into subgraphs.
+- **Shapes & subgraphs** — multiple node shapes, plus grouping of nodes into subgraphs.
 - **Themes & direction** — switch diagram theme and flow direction (Top-Bottom, Left-Right, and more).
-- **Auto-layout & lock** — apply layout presets or let nodes arrange automatically, then lock the layout.
+- **Auto-layout & lock** — apply layout presets or arrange nodes automatically, then lock the layout.
+- **AI assist** *(optional)* — generate a flowchart from a text prompt using your own provider (OpenAI, Gemini, Anthropic, or a local CLI).
 - **Raw code view** — open the live Mermaid source side-by-side and edit it directly; changes sync both ways.
 - **Undo / redo, zoom & export** — full history, canvas zoom, and diagram export from the toolbar.
-- **Persistent layouts** — manual node positions are stored in hidden Mermaid comments, so your arrangement survives reloads (and the diagram still renders normally).
+- **Persistent layouts** — manual node positions are saved in hidden Mermaid comments, so your arrangement survives reloads (and the diagram still renders normally).
 - **Works everywhere** — edit from Reading mode, Live Preview, or Source mode.
 
-## Getting Started
+## 🎬 See it in action
+
+### Edit an existing diagram
+
+Click **Edit** on any rendered Mermaid block and rearrange it visually — your advanced syntax is preserved on save.
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/animated-webp/obsidian-meramaid-edit-mermadi-daigram.webp" alt="Editing an existing Mermaid diagram visually in Obsidian" width="780" />
+</div>
+
+### Generate with AI
+
+Describe what you want and let your configured AI provider draft the flowchart, then refine it on the canvas.
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/animated-webp/obsidian-meramaid-ai-mermadi-generater.webp" alt="Generating a Mermaid flowchart with AI in Obsidian" width="780" />
+</div>
+
+## 🚀 Getting started
 
 ### Install
 
@@ -29,30 +60,38 @@ Your edits round-trip safely: the plugin reads your existing Mermaid blocks, let
 ### Usage
 
 **Create a diagram**
-- Click the ribbon icon (workflow), or run the command **Mermaid Flow: Insert visual Mermaid diagram**.
+- Click the ribbon icon (workflow), or run **Mermaid Flow: Insert visual Mermaid diagram**.
 
 **Edit an existing diagram**
 - Click the **Edit** button on any rendered Mermaid block (Reading mode / Live Preview), or
 - Place your cursor inside a `mermaid` code block and run **Mermaid Flow: Edit Mermaid diagram visually**.
 
 **Save your changes**
-- Use the **Save** button to write the diagram back to your note, or **Discard** to close without saving.
+- Use **Save** to write the diagram back to your note, or **Discard** to close without saving.
 - In the embedded pane, enable **Auto-save** to persist changes automatically as you edit.
-
-## Settings
 
 ## 🔒 Advanced syntax & safety
 
 The editor focuses on flowchart structure. Advanced or unrecognized Mermaid syntax in an existing diagram (for example `click`, `classDef`, or `linkStyle` directives) is **preserved verbatim** when you edit and re-save, and is rendered by Obsidian's own Mermaid engine — Mermaid Flow never executes diagram code itself.
 
+## 🗺️ Roadmap
+
+Here's a look at what's already built and what's planned for the future of Mermaid Flow.
+
+- [x] ~~**Edit existing Mermaid flowcharts visually**~~
+- [x] ~~**Generate flowcharts from Text or Image prompts using AI**~~
+- [x] ~~**Two-way sync between raw code and visual canvas**~~
+- [x] ~~**Full round-trip safety to preserve advanced Mermaid syntax**~~
+- [ ] **Support for more diagram types**: Expanding visual editing beyond flowcharts to include Sequence Diagrams, Mindmaps, Entity-Relationship, and more.
+- [ ] **Custom Styling & Node Colors**: Ability to apply custom colors, strokes, and styling to individual nodes directly on the canvas.
+- [ ] **Icon Integrations**: Native support for dragging and dropping icons (like Lucide) directly into nodes.
+- [ ] **Component Library**: Save custom subgraphs and node combinations as reusable snippets to quickly drop into future diagrams.
+
 ## 🤝 Contributing
 
-## Contributing
+Contributions are welcome! See the [Contribution Guide](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/CONTRIBUTING.md) and [Architecture Overview](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/ARCHITECTURE.md) to get started.
 
-Contributions are welcome. See the [Contribution Guide](docs/CONTRIBUTING.md) and [Architecture Overview](docs/ARCHITECTURE.md) to get started.
+## 📄 License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+Licensed under the [GNU General Public License v3.0](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/LICENSE).
 
----
-
-Made by [Mohammed Thansheer](https://github.com/THANSHEER)

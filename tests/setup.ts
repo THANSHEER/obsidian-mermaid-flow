@@ -54,6 +54,10 @@ if (typeof document !== "undefined") {
 		this.classList.toggle(cls, value);
 	};
 
+	proto.hasClass = function (cls: string) {
+		return this.classList.contains(cls);
+	};
+
 	proto.empty = function () {
 		this.innerHTML = "";
 	};

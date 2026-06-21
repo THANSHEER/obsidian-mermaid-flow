@@ -32,6 +32,7 @@
 .mermaid-flow-toolbar {
 	display: flex;
 	flex-wrap: wrap;
+	row-gap: 6px;
 	align-items: center;
 	gap: 14px;
 	padding: 8px 4px;
@@ -55,29 +56,6 @@
 /* Reserve room so wrapped toolbar items never slide under the pinned actions. */
 .mermaid-flow-editor.is-actions-docked .mermaid-flow-toolbar {
 	padding-right: 200px;
-}
-
-/* Modal title-bar actions: sit where the native close X was. */
-.mermaid-flow-title-actions-slot {
-	position: absolute;
-	top: var(--size-4-2);
-	right: var(--size-4-2);
-	z-index: var(--layer-modal, 100);
-}
-
-.mermaid-flow-title-actions {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.mermaid-flow-title-actions .mermaid-flow-icon-btn.mod-cta {
-	background: var(--interactive-accent);
-	color: var(--text-on-accent);
-}
-
-.mermaid-flow-title-actions .mermaid-flow-icon-btn.mod-cta:hover {
-	background: var(--interactive-accent-hover);
 }
 
 .mermaid-flow-tb-label {
@@ -256,7 +234,7 @@
 	height: 320px;
 }
 
-/* --- shape menu (hover dropdown) --- */
+/* --- shape menu (click-toggled dropdown) --- */
 .mermaid-flow-shape-menu {
 	position: relative;
 }
@@ -282,8 +260,7 @@
 	box-shadow: var(--shadow-s);
 }
 
-.mermaid-flow-shape-menu:hover .mermaid-flow-shape-popup,
-.mermaid-flow-shape-popup:hover {
+.mermaid-flow-shape-menu.is-open .mermaid-flow-shape-popup {
 	display: block;
 }
 
@@ -359,6 +336,17 @@
 	min-height: 100%;
 	touch-action: none;
 	user-select: none;
+}
+
+/* Focused programmatically (see canvas.ts) so Delete/keyboard shortcuts reach
+   the editor after a canvas click; tabIndex=-1 keeps it out of Tab order, so
+   :focus-visible is purely defensive here. */
+.mermaid-flow-svg:focus {
+	outline: none;
+}
+
+.mermaid-flow-svg:focus-visible {
+	outline: 2px solid var(--interactive-accent);
 }
 
 /* Canvas interaction cursors (toggled via classList to avoid inline style assignments). */
@@ -496,9 +484,19 @@
 	margin-top: 10px;
 }
 
+.mermaid-flow-panel-buttons-row {
+	display: flex;
+	gap: 8px;
+}
+
 .mermaid-flow-panel-btn {
 	width: 100%;
 	cursor: pointer;
+}
+
+.mermaid-flow-panel-buttons-row .mermaid-flow-panel-btn {
+	width: auto;
+	flex: 1;
 }
 
 .mermaid-flow-hint {
@@ -566,12 +564,39 @@
 	stroke-dasharray: 5 4;
 }
 
+/* Valid drop target while drawing or reconnecting an edge (drag-to-connect). */
+.mermaid-flow-node.is-link-target .mermaid-flow-shape {
+	stroke: var(--interactive-accent);
+	stroke-width: 3px;
+	stroke-dasharray: 4 2;
+}
+
 .mermaid-flow-node-label {
 	/* Must match LABEL_FONT in textMetrics.ts (Mermaid's stock flowchart font) so
 	   the box we measure is the size of the text we draw, like the render. */
 	font-size: 16px;
 	font-family: "trebuchet ms", verdana, arial, sans-serif;
 	pointer-events: none;
+}
+
+/* --- in-place label editor (double-click a node/edge) --- */
+.mermaid-flow-label-input {
+	width: 100%;
+	height: 100%;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 2px 4px;
+	resize: none;
+	overflow: hidden;
+	border: 2px solid var(--interactive-accent);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: "trebuchet ms", verdana, arial, sans-serif;
+	font-size: 16px;
+	line-height: 1.2;
+	text-align: center;
+	outline: none;
 }
 
 /* --- locked node --- */
@@ -703,6 +728,22 @@
 	stroke: var(--interactive-accent);
 	stroke-width: 1.8px;
 	stroke-dasharray: 6 4;
+	pointer-events: none;
+}
+
+/* Endpoint drag handles on a selected edge (reconnect to another node). */
+.mermaid-flow-edge-handle {
+	fill: var(--interactive-accent);
+	stroke: var(--background-primary);
+	stroke-width: 1.5px;
+	cursor: crosshair;
+}
+
+/* Smart alignment guide line shown while dragging a single node. */
+.mermaid-flow-guide {
+	stroke: var(--interactive-accent);
+	stroke-width: 1px;
+	stroke-dasharray: 4 4;
 	pointer-events: none;
 }
 

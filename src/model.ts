@@ -223,18 +223,6 @@ export function emptyModel(direction: Direction = "TB"): DiagramModel {
 	};
 }
 
-export function starterModel(direction: Direction = "TB"): DiagramModel {
-	return {
-		direction,
-		nodes: [{ id: "A", label: "Start", shape: "round", x: 80, y: 60 }],
-		edges: [],
-		groups: [],
-		config: {},
-		classDefs: [],
-		extras: [],
-	};
-}
-
 /**
  * Effective render style for a node. Per-property merge, lowest to highest
  * precedence: theme CSS defaults (returned undefined keeps them) <
