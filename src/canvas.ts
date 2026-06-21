@@ -38,18 +38,7 @@ const VAR_FALLBACK: Record<string, string> = {
 };
 const VAR_FALLBACK_DEFAULT = "#333333";
 
-/**
- * Concrete fallbacks for `resolveColor()` when live CSS custom-property
- * resolution fails (jsdom, popout-window mismatches, or a theme that doesn't
- * define the var). Mirrors `BUILTIN.default` in themePalette.ts (Mermaid's own
- * stock palette), which reads fine on both light and dark Obsidian themes.
- */
-const VAR_FALLBACK: Record<string, string> = {
-	"--background-primary-alt": "#ececff",
-	"--text-normal": "#333333",
-	"--text-muted": "#333333",
-};
-const VAR_FALLBACK_DEFAULT = "#333333";
+
 
 function clearChildren(el: Element): void {
 	while (el.firstChild) el.removeChild(el.firstChild);
