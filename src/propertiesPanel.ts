@@ -41,7 +41,6 @@ export class PropertiesPanel {
 	private getCanvas: () => DiagramCanvas;
 	private ops: PanelOps;
 
-	private lastSelKey: string | null = null;
 	private focusLabelOnBuild = false;
 
 	constructor(
@@ -56,15 +55,23 @@ export class PropertiesPanel {
 		this.ops = ops;
 	}
 
+	/**
+	 * Opt in to auto-focusing the label field on the *next* refresh only.
+	 * Call before triggering a selection change that should invite an
+	 * immediate rename (new node, duplicate, paste) — plain re-selection of
+	 * an existing node must NOT steal focus into the input, or the keyboard
+	 * Delete/Backspace shortcut silently edits the label text instead of
+	 * removing the node.
+	 */
+	focusLabelOnNextBuild(): void {
+		this.focusLabelOnBuild = true;
+	}
+
 	refresh(): HTMLInputElement | null {
 		const canvas = this.getCanvas();
 		const model = this.getModel();
 		const sel = canvas.getSelection();
 		const multi = canvas.getMultiSelection();
-
-		const selKey = sel ? `${sel.type}:${sel.id}` : null;
-		this.focusLabelOnBuild = selKey !== this.lastSelKey;
-		this.lastSelKey = selKey;
 		this.panelEl.empty();
 
 		// Multi-selection batch style panel
@@ -125,7 +132,7 @@ export class PropertiesPanel {
 				cls: "mermaid-flow-chip",
 				text: preset.label,
 			});
-			chip.style.borderColor = preset.style.strokeColor ?? "";
+			chip.style.setProperty("border-color", preset.style.strokeColor ?? "");
 			chip.addEventListener("click", () => {
 				for (const n of nodes) {
 					n.shape = preset.shape;
@@ -366,13 +373,16 @@ export class PropertiesPanel {
 			this.ops.commit();
 		});
 
-		const dupRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons" });
-		dupRow.createEl("button", {
+		const actionsRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons mermaid-flow-panel-buttons-row" });
+		actionsRow.createEl("button", {
 			text: "Duplicate",
 			cls: "mermaid-flow-panel-btn",
 		}).addEventListener("click", () => this.ops.duplicateSelected());
+		actionsRow.createEl("button", {
+			text: "Delete node",
+			cls: "mermaid-flow-panel-btn mod-warning",
+		}).addEventListener("click", () => this.ops.deleteSelected());
 
-		this.dangerButton("Delete node", () => this.ops.deleteSelected());
 		return labelInput;
 	}
 
@@ -450,7 +460,7 @@ export class PropertiesPanel {
 		const row = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
 		for (const preset of STYLE_PRESETS) {
 			const chip = row.createEl("button", { cls: "mermaid-flow-chip", text: preset.label });
-			chip.style.borderColor = preset.style.strokeColor ?? "";
+			chip.style.setProperty("border-color", preset.style.strokeColor ?? "");
 			chip.addEventListener("click", () => this.ops.applyStylePreset(preset.id));
 		}
 	}

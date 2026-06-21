@@ -21,6 +21,9 @@ import { measureTextWidth } from "./textMetrics";
 import { resolveThemePalette, ThemePalette } from "./themePalette";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+// HTML elements embedded in an SVG <foreignObject> must be created in the XHTML
+// namespace (used by the in-place label editor).
+const XHTML_NS = "http://www.w3.org/1999/xhtml";
 
 /**
  * Concrete fallbacks for `resolveColor()` when live CSS custom-property
@@ -34,6 +37,8 @@ const VAR_FALLBACK: Record<string, string> = {
 	"--text-muted": "#333333",
 };
 const VAR_FALLBACK_DEFAULT = "#333333";
+
+
 
 function clearChildren(el: Element): void {
 	while (el.firstChild) el.removeChild(el.firstChild);
@@ -190,10 +195,35 @@ export class DiagramCanvas {
 
 	// drag-to-connect (from a hover anchor)
 	private linkFrom: string | null = null;
+	// node hovered as a valid drop target while linkFrom/reconnectEdge is active
+	private linkHoverTarget: string | null = null;
 
 	// group (subgraph) drag
 	private groupDragId: string | null = null;
 	private groupDragLast = { x: 0, y: 0 };
+
+	// group (subgraph) resize — scales member node positions/sizes proportionally
+	private groupResizeId: string | null = null;
+	private groupResizeOrigin: {
+		bx: number;
+		by: number;
+		bw: number;
+		bh: number;
+		nodes: Map<string, { x: number; y: number; w: number; h: number }>;
+	} | null = null;
+
+	// existing-edge endpoint reconnection (drag a selected edge's end to another node)
+	private reconnectEdge: { edgeId: string; end: "from" | "to" } | null = null;
+
+	// smart alignment guides shown while dragging a single node
+	private guideLines: SVGLineElement[] = [];
+
+	// in-place (draw.io-style) label editing — a <foreignObject> textarea drawn
+	// in SVG coordinate space so it tracks zoom/pan/scroll automatically.
+	private editingNodeId: string | null = null;
+	private editingEdgeId: string | null = null;
+	private labelEditor: SVGForeignObjectElement | null = null;
+	private labelInput: HTMLTextAreaElement | null = null;
 
 	// external drop callback (registered by toolbar)
 	private dropCallback: ((shape: string, svgX: number, svgY: number) => void) | null = null;
@@ -211,6 +241,7 @@ export class DiagramCanvas {
 		this.scroller = parent.createDiv({ cls: "mermaid-flow-canvas-scroll" });
 		this.svg = activeDocument.createElementNS(SVG_NS, "svg");
 		this.svg.classList.add("mermaid-flow-svg");
+		this.svg.tabIndex = -1;
 		this.scroller.appendChild(this.svg);
 
 		this.buildDefs();
@@ -226,6 +257,21 @@ export class DiagramCanvas {
 		this.svg.appendChild(this.nodeLayer);
 		this.svg.appendChild(this.overlayLayer);
 
+		// Keyboard shortcuts (Delete, arrows, ...) live on the editor's root
+		// container; without this, focus never moves into the canvas on a plain
+		// node/edge click (SVG children aren't focusable), so those keydowns
+		// never bubble to the listener. Capture phase fires before any
+		// node/edge/handle-specific pointerdown that calls stopPropagation().
+		this.svg.addEventListener(
+			"pointerdown",
+			(e) => {
+				// Don't steal focus from the in-place label editor — that would
+				// blur the textarea and immediately close it on the first click.
+				if (this.labelEditor && this.labelEditor.contains(e.target as Node)) return;
+				this.svg.focus({ preventScroll: true });
+			},
+			{ capture: true },
+		);
 		this.svg.addEventListener("pointerdown", (e) => this.onBackgroundDown(e));
 		this.svg.addEventListener("pointermove", (e) => this.onPointerMove(e));
 		this.svg.addEventListener("pointerup", (e) => this.onPointerUp(e));
@@ -251,6 +297,7 @@ export class DiagramCanvas {
 	}
 
 	setModel(model: DiagramModel): void {
+		this.teardownLabelEditor();
 		this.model = model;
 		this.selection = null;
 		this.connectFrom = null;
@@ -510,13 +557,13 @@ export class DiagramCanvas {
 				if (tryFit()) this.stopFitObserver();
 			});
 			this.fitObserver.observe(this.scroller);
-			activeWindow.setTimeout(() => this.stopFitObserver(), 5000);
+			window.setTimeout(() => this.stopFitObserver(), 5000);
 		} else {
 			let attempts = 0;
 			const step = () => {
-				if (!tryFit() && attempts++ < 30) activeWindow.requestAnimationFrame(step);
+				if (!tryFit() && attempts++ < 30) window.requestAnimationFrame(step);
 			};
-			activeWindow.requestAnimationFrame(step);
+			window.requestAnimationFrame(step);
 		}
 	}
 
@@ -567,6 +614,7 @@ export class DiagramCanvas {
 	}
 
 	destroy(): void {
+		this.teardownLabelEditor();
 		this.stopFitObserver();
 		this.scroller.remove();
 		this.emptyState?.remove();
@@ -604,7 +652,7 @@ export class DiagramCanvas {
 			".mermaid-flow-canvas-empty-inner",
 		);
 		if (!inner) return;
-		clearChildren(inner as Element);
+		clearChildren(inner);
 		const glyph = activeDocument.createElement("div");
 		glyph.className = "mermaid-flow-canvas-empty-glyph";
 		glyph.textContent = "◆";
@@ -701,9 +749,9 @@ export class DiagramCanvas {
 
 			const g = activeDocument.createElementNS(SVG_NS, "g");
 			g.classList.add("mermaid-flow-group");
-			if (this.selection?.type === "group" && this.selection.id === grp.id) {
-				g.classList.add("is-selected");
-			}
+			const isSelected =
+				this.selection?.type === "group" && this.selection.id === grp.id;
+			if (isSelected) g.classList.add("is-selected");
 
 			const box = activeDocument.createElementNS(SVG_NS, "rect");
 			box.setAttribute("x", String(bx));
@@ -741,6 +789,21 @@ export class DiagramCanvas {
 			header.addEventListener("contextmenu", (e) =>
 				this.onGroupContext(e, grp.id),
 			);
+
+			if (isSelected) {
+				const handle = activeDocument.createElementNS(SVG_NS, "rect");
+				const hs = 9;
+				handle.setAttribute("x", String(bx + bw - hs / 2));
+				handle.setAttribute("y", String(by + bh - hs / 2));
+				handle.setAttribute("width", String(hs));
+				handle.setAttribute("height", String(hs));
+				handle.classList.add("mermaid-flow-resize");
+				handle.addEventListener("pointerdown", (e) =>
+					this.onGroupResizeDown(e, grp.id),
+				);
+				g.appendChild(handle);
+			}
+
 			this.groupLayer.appendChild(g);
 		}
 	}
@@ -792,6 +855,7 @@ export class DiagramCanvas {
 			if (isSelected) group.classList.add("is-selected");
 			if (this.multi.has(node.id)) group.classList.add("is-multi");
 			if (this.connectFrom === node.id) group.classList.add("is-connect-source");
+			if (this.linkHoverTarget === node.id) group.classList.add("is-link-target");
 			if (node.locked) group.classList.add("is-locked");
 
 			// Effective style: classDef layers resolved beneath the node's own.
@@ -801,7 +865,11 @@ export class DiagramCanvas {
 				this.applyShapeStyle(el, eff, palette);
 				group.appendChild(el);
 			}
-			group.appendChild(this.nodeLabel(node, eff, palette));
+			// While editing this node's label in place, hide the baked-in SVG
+			// text so it doesn't show through the editor textarea.
+			if (this.editingNodeId !== node.id) {
+				group.appendChild(this.nodeLabel(node, eff, palette));
+			}
 			this.appendAnchors(group, node, g);
 
 			// Resize handle on the single-selected node.
@@ -827,7 +895,9 @@ export class DiagramCanvas {
 			);
 			group.addEventListener("dblclick", (e) => {
 				e.stopPropagation();
+				e.preventDefault();
 				this.callbacks.onDblClickNode?.(node.id);
+				this.beginNodeLabelEdit(node.id);
 			});
 			this.nodeLayer.appendChild(group);
 		}
@@ -986,9 +1056,9 @@ export class DiagramCanvas {
 
 			const group = activeDocument.createElementNS(SVG_NS, "g");
 			group.classList.add("mermaid-flow-edge");
-			if (this.selection?.type === "edge" && this.selection.id === edge.id) {
-				group.classList.add("is-selected");
-			}
+			const isSelected =
+				this.selection?.type === "edge" && this.selection.id === edge.id;
+			if (isSelected) group.classList.add("is-selected");
 
 			// Wide invisible hit path for easy clicking.
 			const hit = activeDocument.createElementNS(SVG_NS, "path");
@@ -1013,7 +1083,8 @@ export class DiagramCanvas {
 			if (
 				edge.kind !== "invisible" &&
 				edge.label &&
-				edge.label.trim() !== ""
+				edge.label.trim() !== "" &&
+				this.editingEdgeId !== edge.id
 			) {
 				group.appendChild(
 					this.edgeLabel(edge.label, geo.mid.x, geo.mid.y, edge),
@@ -1026,6 +1097,30 @@ export class DiagramCanvas {
 			group.addEventListener("contextmenu", (e) =>
 				this.onEdgeContext(e, edge.id),
 			);
+			const labelPoint = geo.mid;
+			group.addEventListener("dblclick", (e) => {
+				e.stopPropagation();
+				e.preventDefault();
+				this.beginEdgeLabelEdit(edge.id, labelPoint.x, labelPoint.y);
+			});
+
+			if (isSelected) {
+				for (const [point, end] of [
+					[geo.start, "from"],
+					[geo.end, "to"],
+				] as const) {
+					const handle = activeDocument.createElementNS(SVG_NS, "circle");
+					handle.setAttribute("cx", String(point.x));
+					handle.setAttribute("cy", String(point.y));
+					handle.setAttribute("r", "5");
+					handle.classList.add("mermaid-flow-edge-handle");
+					handle.addEventListener("pointerdown", (e) =>
+						this.onEdgeHandleDown(e, edge.id, end),
+					);
+					group.appendChild(handle);
+				}
+			}
+
 			this.edgeLayer.appendChild(group);
 		}
 	}
@@ -1039,7 +1134,12 @@ export class DiagramCanvas {
 		from: DiagramNode,
 		to: DiagramNode,
 		offset: number,
-	): { d: string; mid: { x: number; y: number } } {
+	): {
+		d: string;
+		mid: { x: number; y: number };
+		start: { x: number; y: number };
+		end: { x: number; y: number };
+	} {
 		const dx = to.x - from.x;
 		const dy = to.y - from.y;
 		// Flow axis from the diagram direction; fall back to the dominant axis
@@ -1076,13 +1176,15 @@ export class DiagramCanvas {
 			x: (start.x + 3 * c1.x + 3 * c2.x + end.x) / 8,
 			y: (start.y + 3 * c1.y + 3 * c2.y + end.y) / 8,
 		};
-		return { d, mid };
+		return { d, mid, start, end };
 	}
 
 	/** Self-loop (`A --> A`): an arc out the right side (TB/BT) or below (LR/RL). */
 	private selfLoopPathD(node: DiagramNode): {
 		d: string;
 		mid: { x: number; y: number };
+		start: { x: number; y: number };
+		end: { x: number; y: number };
 	} {
 		const g = this.geomCache.get(node.id) ?? this.geom(node);
 		const horizontal =
@@ -1113,7 +1215,7 @@ export class DiagramCanvas {
 			x: (p1.x + 3 * c1.x + 3 * c2.x + p2.x) / 8,
 			y: (p1.y + 3 * c1.y + 3 * c2.y + p2.y) / 8,
 		};
-		return { d, mid };
+		return { d, mid, start: p1, end: p2 };
 	}
 
 	private styleEdgeLine(line: SVGPathElement, kind: EdgeKind): void {
@@ -1278,6 +1380,24 @@ export class DiagramCanvas {
 		this.select({ type: "edge", id });
 	}
 
+	/** Drag a selected edge's "from" or "to" endpoint onto a different node. */
+	private onEdgeHandleDown(e: PointerEvent, edgeId: string, end: "from" | "to"): void {
+		if (e.button !== 0) return;
+		e.stopPropagation();
+		e.preventDefault();
+		this.reconnectEdge = { edgeId, end };
+		const edge = this.model.edges.find((ed) => ed.id === edgeId);
+		if (edge) {
+			const fixedId = end === "from" ? edge.to : edge.from;
+			this.updateGhostFrom(fixedId, e);
+		}
+		try {
+			this.svg.setPointerCapture(e.pointerId);
+		} catch {
+			/* ignore */
+		}
+	}
+
 	private onNodeContext(e: MouseEvent, id: string): void {
 		e.preventDefault();
 		e.stopPropagation();
@@ -1299,6 +1419,63 @@ export class DiagramCanvas {
 		this.select({ type: "group", id });
 		this.groupDragId = id;
 		this.groupDragLast = this.toSvgPoint(e);
+		try {
+			this.svg.setPointerCapture(e.pointerId);
+		} catch {
+			/* ignore */
+		}
+	}
+
+	/** Snapshot the group's current derived bbox + member geometry for resize. */
+	private groupBBox(grp: { nodeIds: string[] }): {
+		bx: number;
+		by: number;
+		bw: number;
+		bh: number;
+	} | null {
+		const byId = new Map(this.model.nodes.map((n) => [n.id, n]));
+		const members = grp.nodeIds
+			.map((id) => byId.get(id))
+			.filter((n): n is DiagramNode => !!n);
+		if (members.length === 0) return null;
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for (const node of members) {
+			const g = this.geomCache.get(node.id) ?? this.geom(node);
+			minX = Math.min(minX, node.x - g.w / 2);
+			minY = Math.min(minY, node.y - g.h / 2);
+			maxX = Math.max(maxX, node.x + g.w / 2);
+			maxY = Math.max(maxY, node.y + g.h / 2);
+		}
+		const pad = DiagramCanvas.GROUP_PAD;
+		const titleH = DiagramCanvas.GROUP_TITLE_H;
+		return {
+			bx: minX - pad,
+			by: minY - pad - titleH,
+			bw: maxX - minX + pad * 2,
+			bh: maxY - minY + pad * 2 + titleH,
+		};
+	}
+
+	private onGroupResizeDown(e: PointerEvent, id: string): void {
+		if (e.button !== 0) return;
+		e.stopPropagation();
+		e.preventDefault();
+		const grp = this.model.groups.find((g) => g.id === id);
+		const bbox = grp ? this.groupBBox(grp) : null;
+		if (!grp || !bbox) return;
+		const nodes = new Map<string, { x: number; y: number; w: number; h: number }>();
+		const byId = new Map(this.model.nodes.map((n) => [n.id, n]));
+		for (const nodeId of grp.nodeIds) {
+			const node = byId.get(nodeId);
+			if (!node) continue;
+			const g = this.geomCache.get(node.id) ?? this.geom(node);
+			nodes.set(nodeId, { x: node.x, y: node.y, w: g.w, h: g.h });
+		}
+		this.groupResizeId = id;
+		this.groupResizeOrigin = { ...bbox, nodes };
 		try {
 			this.svg.setPointerCapture(e.pointerId);
 		} catch {
@@ -1370,6 +1547,126 @@ export class DiagramCanvas {
 			const p = this.toSvgPoint(e as unknown as PointerEvent);
 			this.callbacks.onDblClickBackground?.(p.x, p.y);
 		}
+	}
+
+	// --- in-place label editing (draw.io style) -----------------------------
+
+	/** Double-click a node to edit its label directly on the canvas. */
+	beginNodeLabelEdit(nodeId: string): void {
+		const node = this.model.nodes.find((n) => n.id === nodeId);
+		if (!node || node.locked) return;
+		const g = this.geomCache.get(node.id) ?? this.geom(node);
+		const w = Math.max(60, g.w);
+		const h = Math.max(28, g.h);
+		this.editingNodeId = nodeId;
+		this.editingEdgeId = null;
+		this.renderNodes(); // hide the baked-in label underneath
+		this.openLabelEditor(
+			{ x: node.x - w / 2, y: node.y - h / 2, w, h },
+			node.label,
+			(value) => {
+				node.label = value;
+				this.geomCache.delete(node.id);
+				this.callbacks.onChange();
+			},
+		);
+	}
+
+	/** Double-click an edge to edit its label directly on the canvas. */
+	beginEdgeLabelEdit(edgeId: string, midX: number, midY: number): void {
+		const edge = this.model.edges.find((ed) => ed.id === edgeId);
+		if (!edge) return;
+		const w = 120;
+		const h = 30;
+		this.editingEdgeId = edgeId;
+		this.editingNodeId = null;
+		this.renderEdges(); // hide the baked-in label underneath
+		this.openLabelEditor(
+			{ x: midX - w / 2, y: midY - h / 2, w, h },
+			edge.label,
+			(value) => {
+				edge.label = value;
+				this.callbacks.onChange();
+			},
+		);
+	}
+
+	/**
+	 * Open a <foreignObject> textarea over the given SVG-space rect. Because it
+	 * lives in the SVG, it tracks zoom/pan/scroll for free. Enter commits,
+	 * Shift+Enter inserts a newline, Escape/blur-elsewhere cancels.
+	 */
+	private openLabelEditor(
+		rect: { x: number; y: number; w: number; h: number },
+		value: string,
+		commit: (value: string) => void,
+	): void {
+		this.cancelLabelEdit(); // never stack two editors
+
+		const fo = activeDocument.createElementNS(SVG_NS, "foreignObject");
+		fo.setAttribute("x", String(rect.x));
+		fo.setAttribute("y", String(rect.y));
+		fo.setAttribute("width", String(rect.w));
+		fo.setAttribute("height", String(rect.h));
+		fo.classList.add("mermaid-flow-label-editor");
+
+		const input = activeDocument.createElementNS(XHTML_NS, "textarea") as HTMLTextAreaElement;
+		input.className = "mermaid-flow-label-input";
+		input.value = value;
+		input.rows = 1;
+		fo.appendChild(input);
+		this.overlayLayer.appendChild(fo);
+		this.labelEditor = fo;
+		this.labelInput = input;
+
+		let done = false;
+		const finish = (save: boolean) => {
+			if (done) return;
+			done = true;
+			const text = save ? input.value : null;
+			this.teardownLabelEditor();
+			if (save && text !== null) commit(text);
+			// Re-render either way so the previously-hidden label reappears
+			// (the host's onChange handler doesn't itself re-render the canvas).
+			this.render();
+		};
+
+		// Stop canvas pointer handlers (select/rubber-band/pan) firing underneath.
+		fo.addEventListener("pointerdown", (e) => e.stopPropagation());
+		input.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" && !e.shiftKey) {
+				e.preventDefault();
+				e.stopPropagation();
+				finish(true);
+			} else if (e.key === "Escape") {
+				e.preventDefault();
+				e.stopPropagation();
+				finish(false);
+			}
+		});
+		input.addEventListener("blur", () => finish(true));
+
+		// Focus after the current event settles so the dblclick doesn't re-blur it.
+		window.setTimeout(() => {
+			input.focus();
+			input.select();
+		}, 0);
+	}
+
+	/** Public/cancel entry point — discard any open editor without saving. */
+	cancelLabelEdit(): void {
+		if (!this.labelEditor) return;
+		this.teardownLabelEditor();
+	}
+
+	private teardownLabelEditor(): void {
+		this.editingNodeId = null;
+		this.editingEdgeId = null;
+		if (this.labelEditor) {
+			this.labelEditor.remove();
+			this.labelEditor = null;
+		}
+		this.labelInput = null;
 	}
 
 	private onDrop(e: DragEvent): void {
@@ -1448,6 +1745,11 @@ export class DiagramCanvas {
 					? [...this.multi]
 					: [this.dragId];
 			this.moveNodes(moveIds, dx, dy);
+			this.clearGuides();
+			if (moveIds.length === 1) {
+				const dragged = this.model.nodes.find((n) => n.id === moveIds[0]);
+				if (dragged) this.updateAlignmentGuides(dragged);
+			}
 			this.resizeCanvas();
 			this.renderGroups();
 			this.renderEdges();
@@ -1455,8 +1757,52 @@ export class DiagramCanvas {
 			return;
 		}
 
+		if (this.groupResizeId && this.groupResizeOrigin) {
+			const p = this.toSvgPoint(e);
+			const origin = this.groupResizeOrigin;
+			const minW = 80;
+			const minH = 60 + DiagramCanvas.GROUP_TITLE_H;
+			const newW = Math.max(minW, p.x - origin.bx);
+			const newH = Math.max(minH, p.y - origin.by);
+			const scaleX = newW / origin.bw;
+			const scaleY = newH / origin.bh;
+			for (const [nodeId, orig] of origin.nodes) {
+				const node = this.model.nodes.find((n) => n.id === nodeId);
+				if (!node) continue;
+				node.x = origin.bx + (orig.x - origin.bx) * scaleX;
+				node.y = origin.by + (orig.y - origin.by) * scaleY;
+				if (node.w && node.h) {
+					node.w = Math.max(48, orig.w * scaleX);
+					node.h = Math.max(32, orig.h * scaleY);
+				}
+				this.geomCache.delete(nodeId);
+			}
+			this.resizeCanvas();
+			this.renderGroups();
+			this.renderEdges();
+			this.renderNodes();
+			return;
+		}
+
+		if (this.reconnectEdge) {
+			const p = this.toSvgPoint(e);
+			const edge = this.model.edges.find((ed) => ed.id === this.reconnectEdge?.edgeId);
+			if (edge) {
+				const fixedId = this.reconnectEdge.end === "from" ? edge.to : edge.from;
+				const hit = this.nodeAt(p.x, p.y);
+				this.linkHoverTarget = hit && hit.id !== fixedId ? hit.id : null;
+				this.updateGhostFrom(fixedId, e);
+				this.renderNodes();
+			}
+			return;
+		}
+
 		if (this.linkFrom) {
+			const p = this.toSvgPoint(e);
+			const hit = this.nodeAt(p.x, p.y);
+			this.linkHoverTarget = hit && hit.id !== this.linkFrom ? hit.id : null;
 			this.updateGhostFrom(this.linkFrom, e);
+			this.renderNodes();
 			return;
 		}
 
@@ -1500,6 +1846,90 @@ export class DiagramCanvas {
 			if (!set.has(node.id)) continue;
 			node.x = Math.max(40, this.snap(node.x + dx));
 			node.y = Math.max(30, this.snap(node.y + dy));
+		}
+	}
+
+	private clearGuides(): void {
+		for (const line of this.guideLines) line.remove();
+		this.guideLines = [];
+	}
+
+	/**
+	 * Draw.io-style smart guides: while dragging a single node, snap its edges/
+	 * centre to any other node's matching edge/centre within a small on-screen
+	 * threshold and draw a dashed line through the match. Runs once per axis
+	 * (vertical for X matches, horizontal for Y matches), not combinatorially.
+	 */
+	private updateAlignmentGuides(node: DiagramNode): void {
+		const g = this.geomCache.get(node.id) ?? this.geom(node);
+		const threshold = 6 / this.zoom;
+		const xCandidates = [node.x - g.w / 2, node.x, node.x + g.w / 2];
+		const yCandidates = [node.y - g.h / 2, node.y, node.y + g.h / 2];
+
+		let snappedX: number | null = null;
+		let snappedY: number | null = null;
+		let guideX: { at: number; y0: number; y1: number } | null = null;
+		let guideY: { at: number; x0: number; x1: number } | null = null;
+
+		for (const other of this.model.nodes) {
+			if (other.id === node.id) continue;
+			const og = this.geomCache.get(other.id) ?? this.geom(other);
+			const oxs = [other.x - og.w / 2, other.x, other.x + og.w / 2];
+			const oys = [other.y - og.h / 2, other.y, other.y + og.h / 2];
+
+			if (snappedX === null) {
+				for (const xc of xCandidates) {
+					const match = oxs.find((ox) => Math.abs(xc - ox) <= threshold);
+					if (match !== undefined) {
+						snappedX = node.x + (match - xc);
+						guideX = {
+							at: match,
+							y0: Math.min(node.y, other.y),
+							y1: Math.max(node.y, other.y),
+						};
+						break;
+					}
+				}
+			}
+			if (snappedY === null) {
+				for (const yc of yCandidates) {
+					const match = oys.find((oy) => Math.abs(yc - oy) <= threshold);
+					if (match !== undefined) {
+						snappedY = node.y + (match - yc);
+						guideY = {
+							at: match,
+							x0: Math.min(node.x, other.x),
+							x1: Math.max(node.x, other.x),
+						};
+						break;
+					}
+				}
+			}
+			if (snappedX !== null && snappedY !== null) break;
+		}
+
+		if (snappedX !== null) node.x = snappedX;
+		if (snappedY !== null) node.y = snappedY;
+
+		if (guideX) {
+			const line = activeDocument.createElementNS(SVG_NS, "line");
+			line.classList.add("mermaid-flow-guide");
+			line.setAttribute("x1", String(guideX.at));
+			line.setAttribute("y1", String(guideX.y0 - 20));
+			line.setAttribute("x2", String(guideX.at));
+			line.setAttribute("y2", String(guideX.y1 + 20));
+			this.overlayLayer.appendChild(line);
+			this.guideLines.push(line);
+		}
+		if (guideY) {
+			const line = activeDocument.createElementNS(SVG_NS, "line");
+			line.classList.add("mermaid-flow-guide");
+			line.setAttribute("x1", String(guideY.x0 - 20));
+			line.setAttribute("y1", String(guideY.at));
+			line.setAttribute("x2", String(guideY.x1 + 20));
+			line.setAttribute("y2", String(guideY.at));
+			this.overlayLayer.appendChild(line);
+			this.guideLines.push(line);
 		}
 	}
 
@@ -1576,6 +2006,7 @@ export class DiagramCanvas {
 
 		if (this.dragId) {
 			this.dragId = null;
+			this.clearGuides();
 			try {
 				this.svg.releasePointerCapture(e.pointerId);
 			} catch {
@@ -1606,11 +2037,46 @@ export class DiagramCanvas {
 			return;
 		}
 
+		if (this.groupResizeId) {
+			this.groupResizeId = null;
+			this.groupResizeOrigin = null;
+			try {
+				this.svg.releasePointerCapture(e.pointerId);
+			} catch {
+				/* ignore */
+			}
+			this.callbacks.onChange();
+			return;
+		}
+
+		if (this.reconnectEdge) {
+			const p = this.toSvgPoint(e);
+			const target = this.nodeAt(p.x, p.y);
+			const { edgeId, end } = this.reconnectEdge;
+			this.reconnectEdge = null;
+			this.linkHoverTarget = null;
+			this.clearGhost();
+			try {
+				this.svg.releasePointerCapture(e.pointerId);
+			} catch {
+				/* ignore */
+			}
+			const edge = this.model.edges.find((ed) => ed.id === edgeId);
+			if (edge && target) {
+				if (end === "from") edge.from = target.id;
+				else edge.to = target.id;
+				this.callbacks.onChange();
+			}
+			this.render();
+			return;
+		}
+
 		if (this.linkFrom) {
 			const p = this.toSvgPoint(e);
 			const target = this.nodeAt(p.x, p.y);
 			const from = this.linkFrom;
 			this.linkFrom = null;
+			this.linkHoverTarget = null;
 			this.clearGhost();
 			try {
 				this.svg.releasePointerCapture(e.pointerId);
@@ -1668,10 +2134,18 @@ export class DiagramCanvas {
 			this.overlayLayer.appendChild(this.ghostLine);
 		}
 		const start = this.borderPoint(from, p.x, p.y);
+		// Snap the free end to the hovered target's border (facing the source)
+		// instead of the raw cursor, like draw.io's connection-point feedback.
+		const hoverNode = this.linkHoverTarget
+			? this.model.nodes.find((n) => n.id === this.linkHoverTarget)
+			: undefined;
+		const endPoint = hoverNode
+			? this.borderPoint(hoverNode, from.x, from.y)
+			: p;
 		this.ghostLine.setAttribute("x1", String(start.x));
 		this.ghostLine.setAttribute("y1", String(start.y));
-		this.ghostLine.setAttribute("x2", String(p.x));
-		this.ghostLine.setAttribute("y2", String(p.y));
+		this.ghostLine.setAttribute("x2", String(endPoint.x));
+		this.ghostLine.setAttribute("y2", String(endPoint.y));
 	}
 
 	private handleConnectClick(id: string): void {

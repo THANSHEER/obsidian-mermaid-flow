@@ -36,12 +36,9 @@ export class MermaidEditorModal extends Modal {
 	onOpen(): void {
 		this.modalEl.addClass("mermaid-flow-modal");
 		this.titleEl.setText("Visual Mermaid Editor");
-		// Replace the native close X with our own Discard/Save icon actions, sat
-		// at the title-bar level. Esc still closes (acts as Discard).
-		this.modalEl.querySelector(".modal-close-button")?.remove();
-		const actionsSlot = this.modalEl.createDiv({
-			cls: "mermaid-flow-title-actions-slot",
-		});
+		// Same docked "Discard" / "Save" toolbar buttons as the embedded pane
+		// (omitting actionsSlot keeps the toolbar off title-bar icon mode).
+		// The native close X stays — Esc and the X both act as Discard.
 		this.ui = new DiagramEditorUI(this.app, this.contentEl, this.model, {
 			persist: (m) => this.onSave(m),
 			close: () => this.close(),
@@ -49,7 +46,6 @@ export class MermaidEditorModal extends Modal {
 			toolbarStyle: this.toolbarStyle,
 			exportFolder: this.exportFolder,
 			snapSize: this.snapSize,
-			actionsSlot,
 			ai: this.ai,
 		});
 		this.ui.build();

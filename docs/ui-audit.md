@@ -16,9 +16,10 @@ honest copy, interaction polish), not a rescue.
 - **Host**: the `openMode` setting routes to a popup `Modal` (`editorModal.ts`) or an embedded
   `ItemView` pane (`editorView.ts`). Both mount the same host-agnostic `DiagramEditorUI`
   (`editorUI.ts`).
-- **First insert is a blank canvas.** `openInsert` calls `emptyModel()` (`main.ts:145`) → zero nodes.
-  A ready-made `starterModel()` with a "Start" node exists (`model.ts:200`) but is **never used**
-  (verified: no imports). There is **no on-canvas guidance** when `nodes.length === 0` — just a grid.
+- **First insert is an intentional blank canvas.** `openInsert` calls `emptyModel()` → zero nodes,
+  paired with an **on-canvas empty-state hint** (◆ glyph + title + "Use the Add shape button…"
+  guidance) rendered when `nodes.length === 0` (`canvas.ts`). Blank-with-hint was chosen over a
+  pre-seeded node, so the legacy `starterModel()` has been **removed**.
 - **Embedded-pane empty state** (`editorView.ts:63-69`, `.mermaid-flow-empty`): the only empty-state
   copy, and it is procedural ("Open a Mermaid diagram with the 'Edit Mermaid diagram visually'
   command…").
@@ -69,7 +70,7 @@ collapse control on desktop.
 
 | # | Severity | Problem | Where |
 |---|----------|---------|-------|
-| 1 | High | First insert = blank grid, **zero on-canvas guidance**; `starterModel` exists but unused | `main.ts:145`, `model.ts:200`, `canvas.ts` render |
+| 1 | Resolved | First insert is an intentional blank canvas **with an on-canvas empty-state hint** (◆ + "Add shape" guidance); legacy unused `starterModel` removed | `main.ts` (`emptyModel`), `canvas.ts` empty-state |
 | 2 | High | Help modal **documents pan/zoom that don't exist**; "📝 button" reference wrong; missing multi-select/rubber-band tips | `editorUI.ts:1486-1494` |
 | 3 | High | **Dead "AI Prompt Template" setting** promises a non-existent AI feature (clutter + false promise) | `settings.ts:20,29,113-128`; `styles.css:742-773` |
 | 4 | High | Toolbar = ~15 flat icons + 2 selects, **no group dividers**, wraps awkwardly at mid widths; Theme/Direction shoved past a spacer | `editorUI.ts:218-344`, `styles.css:30-43` |

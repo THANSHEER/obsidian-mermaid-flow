@@ -260,8 +260,11 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		}
 
 		if (ai.provider !== "cli") {
+			// configDir is usually ".obsidian" but the user can rename it, so read
+			// the live value rather than hardcoding it.
+			const dataPath = `${this.app.vault.configDir}/plugins/${this.plugin.manifest.id}/data.json`;
 			new Setting(containerEl).setDesc(
-				"API keys are stored unencrypted in this vault's .obsidian/plugins/obsidian-mermaid-flow/data.json. Don't sync that file to untrusted locations.",
+				`API keys are stored unencrypted in this vault's ${dataPath}. Don't sync that file to untrusted locations.`,
 			);
 		}
 

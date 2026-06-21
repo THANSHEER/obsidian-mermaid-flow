@@ -9,6 +9,7 @@
  */
 
 import * as dagre from "@dagrejs/dagre";
+import type { EdgeLabel, GraphLabel, NodeLabel } from "@dagrejs/dagre";
 import { DiagramModel } from "./model";
 import { estimateNodeSize } from "./nodeGeometry";
 
@@ -27,7 +28,9 @@ export function autoLayout(model: DiagramModel): void {
 }
 
 function dagreLayout(model: DiagramModel): void {
-	const g = new dagre.graphlib.Graph({ compound: true });
+	const g = new dagre.graphlib.Graph<GraphLabel, NodeLabel, EdgeLabel>({
+		compound: true,
+	});
 	g.setGraph({
 		rankdir: model.direction,
 		// Defaults match Mermaid's flowchart defaults (nodeSpacing/rankSpacing 50)
@@ -53,7 +56,9 @@ function dagreLayout(model: DiagramModel): void {
 			(id) => nodeIds.has(id) && !claimed.has(id),
 		);
 		if (members.length === 0) continue;
-		g.setNode(grp.id, {});
+		// Compound-parent size is recomputed by dagre from its children, so the
+		// initial 0×0 is a placeholder only (NodeLabel requires width/height).
+		g.setNode(grp.id, { width: 0, height: 0 });
 		for (const id of members) {
 			g.setParent(id, grp.id);
 			claimed.add(id);
@@ -72,11 +77,18 @@ function dagreLayout(model: DiagramModel): void {
 	// dagre x/y are node centres — the same convention as DiagramNode.x/y.
 	for (const node of model.nodes) {
 		const p = g.node(node.id);
-		if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+		const px = p?.x;
+		const py = p?.y;
+		if (
+			px === undefined ||
+			py === undefined ||
+			!Number.isFinite(px) ||
+			!Number.isFinite(py)
+		) {
 			throw new Error(`dagre produced no position for "${node.id}"`);
 		}
-		node.x = Math.max(40, Math.round(p.x));
-		node.y = Math.max(30, Math.round(p.y));
+		node.x = Math.max(40, Math.round(px));
+		node.y = Math.max(30, Math.round(py));
 	}
 }
 
