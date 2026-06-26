@@ -260,6 +260,15 @@ export function modelToMermaid(
 		lines.push(INDENT + cl);
 	}
 
+	// Node hyperlinks as `click <id> "<target>"`. Quotes are entity-encoded so a
+	// target can never break out of the string (mirrors quoteLabel).
+	for (const node of model.nodes) {
+		if (node.link && node.link.trim() !== "") {
+			const target = node.link.replace(/"/g, "&quot;");
+			lines.push(INDENT + `click ${sanitizeId(node.id)} "${target}"`);
+		}
+	}
+
 	model.edges.forEach((edge, i) => {
 		const ls = linkStyleLine(edge, i);
 		if (ls) lines.push(INDENT + ls);

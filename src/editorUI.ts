@@ -6,7 +6,7 @@
  * handles the change pipeline (undo/redo, auto-save) and keyboard shortcuts.
  */
 
-import { App, Menu, Modal, Notice, loadMermaid, setIcon } from "obsidian";
+import { App, FuzzySuggestModal, Menu, Modal, Notice, TFile, loadMermaid, setIcon } from "obsidian";
 import type { AlignDir, DistributeDir } from "./alignTools";
 import { alignNodes, distributeNodes } from "./alignTools";
 import { STYLE_PRESETS } from "./presets";
@@ -33,6 +33,7 @@ import { PropertiesPanel } from "./propertiesPanel";
 import { modelToMermaid } from "./serializer";
 import { ToolbarRefs, ToolbarOps, buildToolbar } from "./toolbar";
 import { mermaidToModel } from "./parser";
+import { navigateNodeLink } from "./linkNav";
 import {
 	describeDiagramType,
 	detectDiagramType,
@@ -164,6 +165,8 @@ export class DiagramEditorUI {
 				ungroupSelected: () => this.ungroupSelected(),
 				reverseSelectedEdge: () => this.reverseSelectedEdge(),
 				focusLabel: () => this.focusLabel(),
+				pickLink: () => this.pickNoteLink(),
+				openLink: (target) => this.openNodeLink(target),
 			},
 		);
 
@@ -268,6 +271,17 @@ export class DiagramEditorUI {
 	}
 
 	// --- change pipeline ----------------------------------------------------
+
+	/** Open a fuzzy note picker; resolves to a `[[wiki link]]` or null if dismissed. */
+	private pickNoteLink(): Promise<string | null> {
+		return new Promise((resolve) => {
+			new LinkPickerModal(this.app, resolve).open();
+		});
+	}
+
+	private openNodeLink(target: string): void {
+		navigateNodeLink(this.app, target);
+	}
 
 	private commit(): void {
 		this.codeView.sync();
@@ -1090,4 +1104,35 @@ export class DiagramEditorUI {
 		modal.open();
 	}
 
+}
+
+/** Fuzzy picker over the vault's markdown files; returns a `[[basename]]` link. */
+class LinkPickerModal extends FuzzySuggestModal<TFile> {
+	private chosen = false;
+
+	constructor(
+		app: App,
+		private onResolve: (value: string | null) => void,
+	) {
+		super(app);
+		this.setPlaceholder("Link this node to a note…");
+	}
+
+	getItems(): TFile[] {
+		return this.app.vault.getMarkdownFiles();
+	}
+
+	getItemText(file: TFile): string {
+		return file.path;
+	}
+
+	onChooseItem(file: TFile): void {
+		this.chosen = true;
+		this.onResolve(`[[${file.basename}]]`);
+	}
+
+	onClose(): void {
+		super.onClose();
+		if (!this.chosen) this.onResolve(null);
+	}
 }

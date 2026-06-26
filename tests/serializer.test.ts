@@ -179,6 +179,52 @@ describe('modelToMermaid', () => {
 			model.extras.push('click A "https://example.com"');
 			expect(modelToMermaid(model)).toContain('click A "https://example.com"');
 		});
+
+		it('emits a click line for a node with a link', () => {
+			const model = emptyModel('LR');
+			model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0, link: '[[Note#Phase 2]]' });
+			expect(modelToMermaid(model)).toContain('click A "[[Note#Phase 2]]"');
+		});
+
+		it('entity-encodes quotes in a link target so it cannot break out', () => {
+			const model = emptyModel('LR');
+			model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0, link: 'a"b' });
+			const out = modelToMermaid(model);
+			expect(out).toContain('click A "a&quot;b"');
+			expect(out).not.toContain('"a"b"');
+		});
+
+		it('round-trips a node link (no quotes) to identity', () => {
+			const src = 'flowchart LR\n  A[Start]\n  click A "[[Plan#Phase 2]]"';
+			const first = mermaidToModel(src).model;
+			const second = mermaidToModel(modelToMermaid(first)).model;
+			expect(second.nodes.find((n) => n.id === 'A')?.link).toBe('[[Plan#Phase 2]]');
+		});
+
+		it('round-trips a link alongside extras, classDef and a comment with no loss or dupes', () => {
+			const src = [
+				'flowchart TB',
+				'  A[Start]',
+				'  B[Stop]',
+				'  A --> B',
+				'  classDef hot fill:#f96',
+				'  class A hot',
+				'  click A "[[Plan#Phase 2]]"',
+				'  click B call doThing()',
+				'  %% a stray comment',
+			].join('\n');
+			const out = modelToMermaid(mermaidToModel(src).model);
+			// The link is emitted exactly once (not duplicated into extras).
+			expect(out.match(/click A "\[\[Plan#Phase 2\]\]"/g)).toHaveLength(1);
+			// The unsupported callback click and the comment survive verbatim.
+			expect(out).toContain('click B call doThing()');
+			expect(out).toContain('%% a stray comment');
+			// A second round-trip is stable and preserves link + class + non-link.
+			const second = mermaidToModel(out).model;
+			expect(second.nodes.find((n) => n.id === 'A')?.link).toBe('[[Plan#Phase 2]]');
+			expect(second.nodes.find((n) => n.id === 'A')?.classes).toContain('hot');
+			expect(second.nodes.find((n) => n.id === 'B')?.link).toBeUndefined();
+		});
 	});
 
 	describe('classDef / class emission', () => {

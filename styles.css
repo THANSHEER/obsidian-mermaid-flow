@@ -499,6 +499,26 @@
 	flex: 1;
 }
 
+.mermaid-flow-link-buttons {
+	display: flex;
+	gap: 8px;
+	margin-top: 2px;
+}
+
+.mermaid-flow-link-buttons .mermaid-flow-panel-btn {
+	width: auto;
+	flex: 1;
+}
+
+/* Clickable nodes in a rendered diagram (node → note / URL links). */
+.mermaid-flow-linked {
+	cursor: pointer;
+}
+
+.mermaid-flow-linked:hover .nodeLabel {
+	text-decoration: underline;
+}
+
 .mermaid-flow-hint {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);

@@ -21,6 +21,7 @@ import {
 	detectDiagramType,
 	isVisuallyEditable,
 } from "./diagramType";
+import { collectNodeLinks, wireDiagramLinks } from "./linkNav";
 
 export interface MermaidBlockRange {
 	/** 0-based line of the opening ```mermaid fence. */
@@ -29,11 +30,14 @@ export interface MermaidBlockRange {
 	endLine: number;
 	/** Diagram type detected from the block's first meaningful line. */
 	type: DiagramType;
+	/** Raw inner source between the fences, used to wire link navigation. */
+	inner: string;
 }
 
 export interface LivePreviewCallbacks {
 	edit: (range: MermaidBlockRange) => void;
 	viewCode: (range: MermaidBlockRange) => void;
+	navigate: (target: string) => void;
 }
 
 /** Find every ```mermaid block in the document (line numbers are 0-based). */
@@ -50,10 +54,12 @@ function scanMermaidBlocks(view: EditorView): MermaidBlockRange[] {
 			if (cre.test(doc.line(j).text)) {
 				const inner: string[] = [];
 				for (let k = i + 1; k < j; k++) inner.push(doc.line(k).text);
+				const innerText = inner.join("\n");
 				blocks.push({
 					startLine: i - 1,
 					endLine: j - 1,
-					type: detectDiagramType(inner.join("\n")),
+					type: detectDiagramType(innerText),
+					inner: innerText,
 				});
 				i = j;
 				break;
@@ -103,8 +109,6 @@ export function mermaidLivePreviewExtension(cb: LivePreviewCallbacks) {
 						".cm-embed-block",
 					);
 				embeds.forEach((embed) => {
-					if (embed.querySelector(":scope > .mermaid-flow-overlay")) return;
-
 					let pos: number;
 					try {
 						pos = this.view.posAtDOM(embed);
@@ -118,7 +122,19 @@ export function mermaidLivePreviewExtension(cb: LivePreviewCallbacks) {
 						) ?? blocks.find((b) => Math.abs(b.startLine - lineNo) <= 1);
 					if (!block) return; // not a mermaid embed
 
-					this.addOverlay(embed, block);
+					if (!embed.querySelector(":scope > .mermaid-flow-overlay")) {
+						this.addOverlay(embed, block);
+					}
+
+					// Wire node-link navigation onto the rendered SVG (idempotent;
+					// re-runs as Mermaid swaps in its async render). Only parse when
+					// there is an unwired node, so steady-state typing stays cheap.
+					if (embed.querySelector("g.node:not([data-mermaid-flow-link])")) {
+						const links = collectNodeLinks(block.inner);
+						if (links.length > 0) {
+							wireDiagramLinks(embed, links, cb.navigate);
+						}
+					}
 				});
 			}
 

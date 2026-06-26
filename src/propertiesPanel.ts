@@ -33,6 +33,10 @@ export interface PanelOps {
 	ungroupSelected(): void;
 	reverseSelectedEdge(): void;
 	focusLabel(): void;
+	/** Prompt for a note to link the selected node to; resolves to a wiki link or null. */
+	pickLink(): Promise<string | null>;
+	/** Open a node's link target (Obsidian note or external URL). */
+	openLink(target: string): void;
 }
 
 export class PropertiesPanel {
@@ -347,6 +351,7 @@ export class PropertiesPanel {
 			this.ops.render();
 			this.ops.commit();
 		});
+		this.linkField(node);
 
 		this.sectionHead("Shape & size");
 		this.selectField("Shape", NODE_SHAPES, (s) => SHAPE_LABELS[s], node.shape, (value) => {
@@ -612,6 +617,50 @@ export class PropertiesPanel {
 			window.setTimeout(() => { input.focus(); input.select(); }, 0);
 		}
 		return input;
+	}
+
+	/** Node hyperlink: a free-text target plus a note picker and an open button. */
+	private linkField(node: DiagramNode): void {
+		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
+		field.createEl("label", { text: "Link" });
+		const input = field.createEl("input", {
+			type: "text",
+			cls: "mermaid-flow-input",
+			attr: { placeholder: "[[Note]] or https://…" },
+		});
+		input.value = node.link ?? "";
+
+		const btnRow = field.createDiv({ cls: "mermaid-flow-link-buttons" });
+		const pickBtn = btnRow.createEl("button", { text: "Pick note", cls: "mermaid-flow-panel-btn" });
+		const openBtn = btnRow.createEl("button", { text: "Open", cls: "mermaid-flow-panel-btn" });
+		openBtn.disabled = input.value.trim() === "";
+
+		input.addEventListener("input", () => {
+			const v = input.value.trim();
+			if (v) node.link = v;
+			else delete node.link;
+			openBtn.disabled = v === "";
+			this.ops.render();
+			this.ops.commit();
+		});
+
+		pickBtn.addEventListener("click", () => {
+			this.ops.pickLink()
+				.then((picked) => {
+					if (picked == null) return;
+					node.link = picked;
+					input.value = picked;
+					openBtn.disabled = false;
+					this.ops.render();
+					this.ops.commit();
+				})
+				.catch((e) => console.error("[mermaid-flow]", e));
+		});
+
+		openBtn.addEventListener("click", () => {
+			const v = input.value.trim();
+			if (v) this.ops.openLink(v);
+		});
 	}
 
 	private numberField(

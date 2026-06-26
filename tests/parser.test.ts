@@ -95,6 +95,50 @@ describe('mermaidToModel', () => {
 		expect(model.extras.some(e => e.includes('click'))).toBe(true);
 	});
 
+	describe('click / node links', () => {
+		it('promotes a click binding to node.link and out of extras', () => {
+			const { model } = mermaidToModel(
+				'flowchart LR\n  A --> B\n  click A "[[Note#Phase 2]]"',
+			);
+			expect(model.nodes.find(n => n.id === 'A')?.link).toBe('[[Note#Phase 2]]');
+			expect(model.extras.some(e => e.includes('click'))).toBe(false);
+		});
+
+		it('accepts the href form and an external URL', () => {
+			const { model } = mermaidToModel(
+				'flowchart LR\n  A\n  click A href "https://obsidian.md"',
+			);
+			expect(model.nodes.find(n => n.id === 'A')?.link).toBe('https://obsidian.md');
+		});
+
+		it('keeps callbacks and tooltip variants in extras (lossless-only)', () => {
+			const input = [
+				'flowchart LR',
+				'  A --> B',
+				'  click A call doThing()',
+				'  click B "https://x.test" "tooltip"',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.nodes.find(n => n.id === 'A')?.link).toBeUndefined();
+			expect(model.nodes.find(n => n.id === 'B')?.link).toBeUndefined();
+			expect(model.extras).toContain('click A call doThing()');
+			expect(model.extras).toContain('click B "https://x.test" "tooltip"');
+		});
+
+		it('preserves a click for an unknown node in extras', () => {
+			const { model } = mermaidToModel(
+				'flowchart LR\n  A --> B\n  click Z "https://x.test"',
+			);
+			expect(model.extras).toContain('click Z "https://x.test"');
+		});
+
+		it('keeps an empty-target click in extras (cannot round-trip an empty link)', () => {
+			const { model } = mermaidToModel('flowchart LR\n  A\n  click A ""');
+			expect(model.nodes.find(n => n.id === 'A')?.link).toBeUndefined();
+			expect(model.extras).toContain('click A ""');
+		});
+	});
+
 	describe('& multi-node syntax', () => {
 		it('fans out A & B --> C into two edges', () => {
 			const { model, warnings } = mermaidToModel('flowchart LR\n  A & B --> C');

@@ -25,6 +25,7 @@ import { layoutMissing, resolveOverlaps } from "./layout";
 import { DiagramModel, cloneModel, emptyModel } from "./model";
 import { DIAGRAM_TEMPLATES } from "./templates";
 import { mermaidToModel } from "./parser";
+import { collectNodeLinks, navigateNodeLink, wireDiagramLinks } from "./linkNav";
 import { modelToFencedBlock, modelToMermaid } from "./serializer";
 import {
 	DEFAULT_SETTINGS,
@@ -121,6 +122,7 @@ export default class MermaidFlowPlugin extends Plugin {
 			mermaidLivePreviewExtension({
 				edit: (range) => this.editFromLines(range),
 				viewCode: (range) => this.viewCodeFromLines(range),
+				navigate: (target) => navigateNodeLink(this.app, target),
 			}),
 		);
 	}
@@ -389,20 +391,45 @@ export default class MermaidFlowPlugin extends Plugin {
 		if (!OPEN_FENCE_RE.test(first)) return;
 
 		this.attachOverlay(el, ctx);
+		this.wireLinksFromCtx(el, ctx);
 
 		// Mermaid renders asynchronously and may replace the block's content
-		// after we run, wiping the overlay. Re-attach for a short window.
+		// after we run, wiping the overlay (and our link handlers). Re-attach for
+		// a short window.
 		if (!this.observedBlocks.has(el)) {
 			this.observedBlocks.add(el);
 			const observer = new MutationObserver(() => {
-				if (el.isConnected && !el.querySelector(":scope > .mermaid-flow-overlay")) {
+				if (!el.isConnected) return;
+				if (!el.querySelector(":scope > .mermaid-flow-overlay")) {
 					this.attachOverlay(el, ctx);
 				}
+				this.wireLinksFromCtx(el, ctx);
 			});
 			observer.observe(el, { childList: true });
 			this.blockObservers.push(observer);
 			window.setTimeout(() => observer.disconnect(), 3000);
 		}
+	}
+
+	/** Build the node→link map from the block source and wire click navigation
+	 *  onto the rendered SVG. Idempotent, so it is safe to call as Mermaid renders. */
+	private wireLinksFromCtx(
+		el: HTMLElement,
+		ctx: MarkdownPostProcessorContext,
+	): void {
+		// Skip the parse once every rendered node already carries a handler (or
+		// before the SVG exists). Mermaid re-renders produce fresh, unwired nodes,
+		// so edits still get re-wired.
+		if (!el.querySelector("g.node:not([data-mermaid-flow-link])")) return;
+		const info = ctx.getSectionInfo(el);
+		if (!info) return;
+		const content = info.text
+			.split("\n")
+			.slice(info.lineStart + 1, info.lineEnd)
+			.join("\n");
+		const links = collectNodeLinks(content);
+		if (links.length === 0) return;
+		wireDiagramLinks(el, links, (target) => navigateNodeLink(this.app, target));
 	}
 
 	private attachOverlay(
