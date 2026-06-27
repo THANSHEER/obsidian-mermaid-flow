@@ -364,6 +364,7 @@ export function mermaidToModel(text: string): ParseResult {
 	const groupStack: DiagramGroup[] = [];
 	const groupedNodes = new Set<string>();
 	const linkStyleDirectives: Array<{ index: number; props: string }> = [];
+	const clickBindings: Array<{ id: string; target: string; raw: string }> = [];
 
 	const ensureNode = (token: ParsedToken): DiagramNode => {
 		let node = nodeMap.get(token.id);
@@ -537,6 +538,24 @@ export function mermaidToModel(text: string): ParseResult {
 			continue;
 		}
 
+		// `click <id> "<target>"` / `click <id> href "<target>"` — a node hyperlink.
+		// Only the clean, fully reproducible forms become node.link; callbacks,
+		// tooltips and target-window variants fall through to extras untouched so
+		// nothing we cannot re-emit is ever dropped.
+		if (/^click\b/i.test(trimmed)) {
+			const m = trimmed.match(
+				/^click\s+([A-Za-z0-9_]+)\s+(?:href\s+)?"([^"]*)"\s*;?\s*$/i,
+			);
+			// A non-empty target only: an empty link cannot be re-emitted (the
+			// serializer skips blank links), so preserve it verbatim instead.
+			if (m && m[1] && m[2]) {
+				clickBindings.push({ id: m[1], target: m[2], raw: trimmed });
+			} else {
+				model.extras.push(trimmed);
+			}
+			continue;
+		}
+
 		if (isStructuralLine(line)) {
 			model.extras.push(trimmed);
 			warnings.push(`Unsupported line kept as-is: "${trimmed}"`);
@@ -586,6 +605,14 @@ export function mermaidToModel(text: string): ParseResult {
 				node.h = hint.h;
 			}
 		}
+	}
+
+	// Apply collected click bindings as node hyperlinks. A binding whose target
+	// node never appeared keeps its original line in extras (never dropped).
+	for (const { id, target, raw } of clickBindings) {
+		const node = nodeMap.get(id);
+		if (node) node.link = target;
+		else model.extras.push(raw);
 	}
 
 	return { model, warnings };

@@ -130,6 +130,9 @@ export interface DiagramNode {
 	classes?: string[];
 	/** When true the node cannot be dragged on the canvas. */
 	locked?: boolean;
+	/** Optional hyperlink target: an Obsidian link (`[[Note#Heading]]`) or an
+	 *  external URL. Persisted as a Mermaid `click <id> "<target>"` line. */
+	link?: string;
 }
 
 /** A Mermaid `subgraph` — a labelled container grouping member nodes. */
@@ -343,6 +346,7 @@ export function duplicateNode(
 		h: src.h,
 		style: src.style ? { ...src.style, extra: src.style.extra ? [...src.style.extra] : undefined } : undefined,
 		classes: src.classes ? [...src.classes] : undefined,
+		link: src.link,
 	});
 	return newId;
 }
