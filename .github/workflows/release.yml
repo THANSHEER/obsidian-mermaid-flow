@@ -1,22 +1,32 @@
 name: Release
 
+# Auto-create a GitHub release when a new plugin version lands on main.
+# Runs only after CI succeeds on main; if the manifest version has not been
+# released yet, it builds the plugin and publishes a release with the three
+# distributable files attached (main.js, manifest.json, styles.css).
 on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
     branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
-    # Only run when CI passed on a push to main.
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only on a green CI run on main, or a manual dispatch.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Check out exactly the commit CI validated (falls back to the ref for
+          # a manual workflow_dispatch run).
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -24,13 +34,32 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Read plugin version from manifest.json
+        id: meta
+        run: echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version is already released
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.meta.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Release ${{ steps.meta.outputs.version }} already exists — nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
+        if: steps.check.outputs.exists == 'false'
         run: npm install
 
       - name: Build
+        if: steps.check.outputs.exists == 'false'
         run: npm run build
 
-      - name: Attest release assets
+      - name: Attest build provenance
+        if: steps.check.outputs.exists == 'false'
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
@@ -38,12 +67,12 @@ jobs:
             manifest.json
             styles.css
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            main.js
-            manifest.json
-            styles.css
+      - name: Create GitHub release
+        if: steps.check.outputs.exists == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.meta.outputs.version }}" \
+            --title "${{ steps.meta.outputs.version }}" \
+            --generate-notes \
+            main.js manifest.json styles.css
