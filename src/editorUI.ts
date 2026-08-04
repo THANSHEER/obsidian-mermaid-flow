@@ -17,9 +17,11 @@ import { autoLayout, layoutMissing } from "./layout";
 import {
 	DiagramModel,
 	NodeShape,
+	assignNodeToGroup,
 	bringToFront,
 	cloneModel,
 	duplicateNode,
+	groupOf,
 	newEdgeId,
 	newGroupId,
 	nextNodeId,
@@ -42,6 +44,12 @@ import {
 import { AiGenerateModal, AiModalMode } from "./ai/aiModal";
 import type { AiService } from "./ai/service";
 
+import type { LibraryComponent } from "./componentLibrary";
+import {
+	componentFromSelection,
+	insertComponent,
+} from "./componentLibrary";
+
 export interface AiHostBridge {
 	service: AiService;
 	showToolbarButton: boolean;
@@ -58,13 +66,27 @@ export interface EditorHost {
 	exportFolder?: string;
 	/** Snap-to-grid cell size in pixels; 0 means no snap. */
 	snapSize?: number;
+	/** Shape used when adding a node via dbl-click / empty-canvas context menu. */
+	defaultShape?: NodeShape;
 	/** Present when AI assistance is enabled in settings. */
 	ai?: AiHostBridge;
+	/** User component library (persisted in plugin settings). */
+	getComponentLibrary?: () => LibraryComponent[];
+	saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void;
 }
 
 /** Minimal shape of the Mermaid API returned by `loadMermaid()` (typed `any`). */
 interface MermaidApi {
 	parse(code: string): unknown;
+}
+
+interface CanvasContextMenuEvent extends MouseEvent {
+	svgX?: number;
+	svgY?: number;
+}
+
+function hasCanvasPoint(e: MouseEvent): e is CanvasContextMenuEvent {
+	return "svgX" in e || "svgY" in e;
 }
 
 export class DiagramEditorUI {
@@ -118,6 +140,27 @@ export class DiagramEditorUI {
 		const bar = this.root.createDiv({ cls: "mermaid-flow-toolbar" });
 		const body = this.root.createDiv({ cls: "mermaid-flow-body" });
 		const canvasHost = body.createDiv({ cls: "mermaid-flow-canvas-host" });
+		const collapseBtn = body.createEl("button", {
+			cls: "mermaid-flow-panel-collapse",
+			attr: {
+				"aria-label": "Collapse properties panel",
+				title: "Collapse properties panel",
+			},
+		});
+		setIcon(collapseBtn, "chevrons-right");
+		collapseBtn.addEventListener("click", () => {
+			const next = !this.root.hasClass("is-panel-collapsed");
+			this.root.toggleClass("is-panel-collapsed", next);
+			collapseBtn.setAttribute(
+				"aria-label",
+				next ? "Expand properties panel" : "Collapse properties panel",
+			);
+			collapseBtn.setAttribute(
+				"title",
+				next ? "Expand properties panel" : "Collapse properties panel",
+			);
+			setIcon(collapseBtn, next ? "chevrons-left" : "chevrons-right");
+		});
 		this.panelEl = body.createDiv({ cls: "mermaid-flow-panel" });
 
 		// Canvas
@@ -126,7 +169,7 @@ export class DiagramEditorUI {
 			onChange: () => { this.refreshPanel(); this.commit(); },
 			onContextMenu: (e, empty) => this.showContextMenu(e, empty),
 			onZoom: (z) => this.tbRefs?.updateZoomLabel(z),
-			onDblClickBackground: (x, y) => this.addNodeAt("rect", x, y),
+			onDblClickBackground: (x, y) => this.addNodeAt(this.defaultNodeShape(), x, y),
 			// Select + sync the panel; the canvas itself opens an in-place label
 			// editor on double-click (draw.io style), so don't grab the side panel.
 			onDblClickNode: (id) => { this.canvas.select({ type: "node", id }); this.refreshPanel(); },
@@ -154,17 +197,14 @@ export class DiagramEditorUI {
 			{
 				commit: () => this.commit(),
 				render: () => this.canvas.render(),
-				refresh: () => this.refreshPanel(),
 				quickAddStep: () => this.quickAddStep(),
 				quickAddBranch: () => this.quickAddBranch(),
 				quickAddChild: () => this.quickAddChild(),
 				applyStylePreset: (id) => this.applyStylePreset(id),
 				duplicateSelected: () => this.duplicateSelected(),
 				deleteSelected: () => this.deleteSelected(),
-				addSubgraph: () => this.addSubgraph(),
 				ungroupSelected: () => this.ungroupSelected(),
 				reverseSelectedEdge: () => this.reverseSelectedEdge(),
-				focusLabel: () => this.focusLabel(),
 				pickLink: () => this.pickNoteLink(),
 				openLink: (target) => this.openNodeLink(target),
 			},
@@ -173,7 +213,6 @@ export class DiagramEditorUI {
 		// Code view
 		this.codeView = new CodeView({
 			getModel: () => this.model,
-			setModel: (m) => { this.model = m; },
 			getCanvas: () => this.canvas,
 			commit: () => this.commit(),
 			refresh: () => this.refreshPanel(),
@@ -199,12 +238,14 @@ export class DiagramEditorUI {
 			addNodeAt: (s, x, y) => this.addNodeAt(s, x, y),
 			showLayoutMenu: (e) => this.showLayoutMenu(e),
 			toggleLock: () => this.toggleLock(),
-			isLocked: () => this.lockLayout,
 			addSubgraph: () => this.addSubgraph(),
 			deleteSelected: () => this.deleteSelected(),
 			toggleCode: () => this.codeView.toggle(),
 			showExportMenu: (e) => this.exporter.showMenu(e),
 			showHelpDialog: () => this.showHelpDialog(),
+			showComponentMenu: this.host.getComponentLibrary
+				? (e) => this.showComponentMenu(e)
+				: undefined,
 			zoomToFit: () => this.canvas.zoomToFit(),
 			applyTheme: (id) => this.applyTheme(id),
 			matchesTheme: (id) => this.matchesTheme(id),
@@ -256,6 +297,11 @@ export class DiagramEditorUI {
 					onAction: () => this.codeView.toggle(),
 				});
 			}
+		} else if (this.model.extras.length > 0) {
+			new Notice(
+				`${this.model.extras.length} advanced Mermaid line(s) preserved but not shown on the canvas.`,
+				5000,
+			);
 		}
 	}
 
@@ -358,6 +404,10 @@ export class DiagramEditorUI {
 	}
 
 	// --- node operations ----------------------------------------------------
+
+	private defaultNodeShape(): NodeShape {
+		return this.host.defaultShape ?? "rect";
+	}
 
 	private addNode(shape: NodeShape): void {
 		const id = nextNodeId(this.model);
@@ -463,7 +513,21 @@ export class DiagramEditorUI {
 		}
 		const id = newGroupId(this.model);
 		const num = this.model.groups.length + 1;
-		this.model.groups.push({ id, title: `Subgraph ${num}`, nodeIds: [...members] });
+		// Nest under a shared parent when every selected node already lives in
+		// the same outer group (or the same nested group).
+		const parents = members.map((nid) => groupOf(this.model, nid)?.id ?? null);
+		const sharedParent =
+			parents.length > 0 && parents.every((p) => p === parents[0])
+				? parents[0]
+				: null;
+		for (const nid of members) assignNodeToGroup(this.model, nid, null);
+		const group = {
+			id,
+			title: `Subgraph ${num}`,
+			nodeIds: [...members],
+			...(sharedParent ? { parentId: sharedParent } : {}),
+		};
+		this.model.groups.push(group);
 		this.canvas.render();
 		this.canvas.select({ type: "group", id });
 		this.commit();
@@ -827,6 +891,83 @@ export class DiagramEditorUI {
 		this.commit();
 	}
 
+	private showComponentMenu(e: MouseEvent): void {
+		const menu = new Menu();
+		const lib = this.host.getComponentLibrary?.() ?? [];
+		menu.addItem((item) =>
+			item.setTitle("Save selection as component…").setIcon("plus").onClick(() => {
+				this.saveSelectionAsComponent().catch((err) =>
+					console.error("[mermaid-flow]", err),
+				);
+			}),
+		);
+		if (lib.length > 0) {
+			menu.addSeparator();
+			for (const comp of lib) {
+				menu.addItem((item) =>
+					item.setTitle(`Insert: ${comp.name}`).setIcon("box").onClick(() => {
+						const placed = insertComponent(this.model, comp);
+						this.canvas.render();
+						if (placed.length > 0) this.canvas.selectIds(placed);
+						this.refreshPanel();
+						this.commit();
+						new Notice(`Inserted “${comp.name}”`);
+					}),
+				);
+			}
+			menu.addSeparator();
+			for (const comp of lib) {
+				menu.addItem((item) =>
+					item.setTitle(`Delete “${comp.name}”`).setIcon("trash-2").onClick(() => {
+						const next = lib.filter((c) => c.id !== comp.id);
+						this.persistComponentLibrary(next)
+							.then(() => new Notice(`Removed “${comp.name}”`))
+							.catch((err) => {
+								console.error("[mermaid-flow]", err);
+								new Notice(`Failed to remove “${comp.name}”.`);
+							});
+					}),
+				);
+			}
+		} else {
+			menu.addItem((item) =>
+				item.setTitle("No saved components yet").setDisabled(true),
+			);
+		}
+		menu.showAtMouseEvent(e);
+	}
+
+	private async persistComponentLibrary(next: LibraryComponent[]): Promise<void> {
+		const saver = this.host.saveComponentLibrary;
+		if (!saver) throw new Error("Component library is not available.");
+		await Promise.resolve(saver(next));
+	}
+
+	private async saveSelectionAsComponent(): Promise<void> {
+		if (!this.host.saveComponentLibrary || !this.host.getComponentLibrary) {
+			new Notice("Component library is not available.");
+			return;
+		}
+		const multi = this.canvas.getMultiSelection();
+		const sel = this.canvas.getSelection();
+		const members =
+			multi.length > 0 ? multi : sel?.type === "node" ? [sel.id] : [];
+		if (members.length === 0) {
+			new Notice("Select one or more nodes to save as a component.");
+			return;
+		}
+		const name = activeWindow.prompt("Component name", `Component ${members.length}`);
+		if (name === null) return;
+		const comp = componentFromSelection(this.model, members, name);
+		if (!comp) {
+			new Notice("Could not build component from selection.");
+			return;
+		}
+		const next = [...this.host.getComponentLibrary(), comp];
+		await this.persistComponentLibrary(next);
+		new Notice(`Saved “${comp.name}” to the component library.`);
+	}
+
 	private showLayoutMenu(e: MouseEvent): void {
 		const menu = new Menu();
 		for (const preset of LAYOUT_PRESETS) {
@@ -872,12 +1013,11 @@ export class DiagramEditorUI {
 
 		if (empty || !sel) {
 			// Right-click on empty canvas
-			const p = (e as { svgX?: number; svgY?: number });
-			const svgX = p.svgX ?? 200;
-			const svgY = p.svgY ?? 200;
+			const svgX = hasCanvasPoint(e) ? e.svgX ?? 200 : 200;
+			const svgY = hasCanvasPoint(e) ? e.svgY ?? 200 : 200;
 			const menu = new Menu();
 			menu.addItem((item) =>
-				item.setTitle("Add node here").setIcon("plus-circle").onClick(() => this.addNodeAt("rect", svgX, svgY)),
+				item.setTitle("Add node here").setIcon("plus-circle").onClick(() => this.addNodeAt(this.defaultNodeShape(), svgX, svgY)),
 			);
 			menu.addItem((item) =>
 				item.setTitle("Select all (Ctrl+A)").setIcon("square-dashed").onClick(() => {
@@ -911,6 +1051,15 @@ export class DiagramEditorUI {
 			menu.addItem((item) => item.setTitle("Add step after").setIcon("plus").onClick(() => this.quickAddStep()));
 			menu.addItem((item) => item.setTitle("Add Yes/No branch").setIcon("git-branch").onClick(() => this.quickAddBranch()));
 			menu.addItem((item) => item.setTitle("Group into new subgraph").setIcon("group").onClick(() => this.addSubgraph()));
+			if (this.host.getComponentLibrary && this.host.saveComponentLibrary) {
+				menu.addItem((item) =>
+					item.setTitle("Save selection as component…").setIcon("library").onClick(() => {
+						this.saveSelectionAsComponent().catch((err) =>
+							console.error("[mermaid-flow]", err),
+						);
+					}),
+				);
+			}
 			menu.addSeparator();
 			menu.addItem((item) => item.setTitle("Bring to front").setIcon("layers").onClick(() => this.bringToFront()));
 			menu.addItem((item) => item.setTitle("Send to back").setIcon("layers").onClick(() => this.sendToBack()));
@@ -952,8 +1101,8 @@ export class DiagramEditorUI {
 	private registerKeys(): void {
 		this.keyHandler = (e: KeyboardEvent) => {
 			const mod = e.ctrlKey || e.metaKey;
-			const target = e.target as HTMLElement | null;
-			const tag = target?.tagName?.toLowerCase();
+			const target = e.target;
+			const tag = target instanceof HTMLElement ? target.tagName.toLowerCase() : undefined;
 			const inInput = tag === "input" || tag === "textarea" || tag === "select";
 
 			// Undo / redo

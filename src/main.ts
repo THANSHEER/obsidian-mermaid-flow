@@ -39,8 +39,10 @@ import {
 	OPEN_FENCE_RE,
 	describeDiagramType,
 	detectDiagramType,
+	isAltDiagramType,
 	isVisuallyEditable,
 } from "./diagramType";
+import { AltDiagramModal } from "./altDiagrams";
 
 export default class MermaidFlowPlugin extends Plugin {
 	settings!: MermaidFlowSettings;
@@ -182,6 +184,12 @@ export default class MermaidFlowPlugin extends Plugin {
 				this.settings.exportFolder,
 				this.settings.snapToGrid ? this.settings.snapSize : 0,
 				this.buildAiBridge(),
+				() => this.settings.componentLibrary ?? [],
+				async (lib) => {
+					this.settings.componentLibrary = lib;
+					await this.saveSettings();
+				},
+				this.settings.defaultShape,
 			).open();
 		}
 	}
@@ -208,6 +216,12 @@ export default class MermaidFlowPlugin extends Plugin {
 			new AiGenerateModal(this.app, this.aiService, "improve", {
 				currentCode: block.content,
 				onResult: (code) => {
+					const type = detectDiagramType(code);
+					if (isAltDiagramType(type)) {
+						const fresh = this.relocateBlock(editor, block);
+						replaceBlockContent(editor, fresh ?? block, code);
+						return;
+					}
 					const model = this.parseOrEmpty(code);
 					this.openEditor(
 						model,
@@ -226,6 +240,11 @@ export default class MermaidFlowPlugin extends Plugin {
 		}
 		new AiGenerateModal(this.app, this.aiService, mode, {
 			onResult: (code) => {
+				const type = detectDiagramType(code);
+				if (isAltDiagramType(type)) {
+					insertBlockAtCursor(editor, "```mermaid\n" + code + "\n```");
+					return;
+				}
 				const model = this.parseOrEmpty(code);
 				this.openEditor(model, (result) => {
 					const block = modelToFencedBlock(result, {
@@ -255,6 +274,12 @@ export default class MermaidFlowPlugin extends Plugin {
 				this.settings.exportFolder,
 				this.settings.snapToGrid ? this.settings.snapSize : 0,
 				this.buildAiBridge(),
+				() => this.settings.componentLibrary ?? [],
+				async (lib) => {
+					this.settings.componentLibrary = lib;
+					await this.saveSettings();
+				},
+				this.settings.defaultShape,
 			);
 		}
 	}
@@ -265,6 +290,9 @@ export default class MermaidFlowPlugin extends Plugin {
 		// Nested objects need their own merge: a saved partial `ai` block would
 		// otherwise mask any keys added in later versions.
 		this.settings.ai = Object.assign({}, DEFAULT_SETTINGS.ai, saved?.ai);
+		if (!Array.isArray(this.settings.componentLibrary)) {
+			this.settings.componentLibrary = [];
+		}
 	}
 
 	async saveSettings(): Promise<void> {
@@ -313,9 +341,17 @@ export default class MermaidFlowPlugin extends Plugin {
 
 	private openEditBlock(editor: Editor, block: MermaidBlock): void {
 		const type = detectDiagramType(block.content);
+		if (isAltDiagramType(type)) {
+			new AltDiagramModal(this.app, type, block.content, (code) => {
+				const fresh = this.relocateBlock(editor, block);
+				replaceBlockContent(editor, fresh ?? block, code);
+				return Promise.resolve();
+			}).open();
+			return;
+		}
 		if (!isVisuallyEditable(type)) {
 			new Notice(
-				`This is a ${describeDiagramType(type)} — the visual editor supports flowcharts only. Opening code view.`,
+				`This is a ${describeDiagramType(type)} — opening code view.`,
 			);
 			this.viewCodeForBlock(editor, block);
 			return;
@@ -560,17 +596,31 @@ export default class MermaidFlowPlugin extends Plugin {
 		const lines = info.text.split("\n");
 		const content = lines.slice(info.lineStart + 1, info.lineEnd).join("\n");
 		const type = detectDiagramType(content);
+		const lineStart = info.lineStart;
+		const lineEnd = info.lineEnd;
+
+		const writeBack = (code: string) =>
+			this.app.vault.process(file, (data) => {
+				const dl = data.split("\n");
+				const before = dl.slice(0, lineStart + 1);
+				const after = dl.slice(lineEnd);
+				return [...before, ...code.split("\n"), ...after].join("\n");
+			});
+
+		if (isAltDiagramType(type)) {
+			new AltDiagramModal(this.app, type, content, (code) =>
+				writeBack(code).then(() => undefined),
+			).open();
+			return;
+		}
 		if (!isVisuallyEditable(type)) {
 			new Notice(
-				`This is a ${describeDiagramType(type)} — the visual editor supports flowcharts only. Opening code view.`,
+				`This is a ${describeDiagramType(type)} — opening code view.`,
 			);
 			this.viewCodeFromReading(el, ctx);
 			return;
 		}
 		const model = this.parseOrEmpty(content);
-
-		const lineStart = info.lineStart;
-		const lineEnd = info.lineEnd;
 
 		this.openEditor(
 			model,
@@ -578,12 +628,9 @@ export default class MermaidFlowPlugin extends Plugin {
 				const code = modelToMermaid(result, {
 					includePositions: this.settings.savePositions,
 				});
-				this.app.vault.process(file, (data) => {
-					const dl = data.split("\n");
-					const before = dl.slice(0, lineStart + 1);
-					const after = dl.slice(lineEnd);
-					return [...before, ...code.split("\n"), ...after].join("\n");
-				}).catch((e) => console.error("[mermaid-flow] Failed to save diagram:", e));
+				writeBack(code).catch((e) =>
+					console.error("[mermaid-flow] Failed to save diagram:", e),
+				);
 			},
 			true,
 		);

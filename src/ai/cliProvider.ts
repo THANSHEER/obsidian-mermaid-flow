@@ -18,7 +18,7 @@ export const CLI_PRESETS: Record<Exclude<CliPresetId, "custom">, string> = {
 	"gemini-cli": "gemini -p {{prompt}}",
 };
 
-export function presetTemplate(preset: CliPresetId, customTemplate: string): string {
+function presetTemplate(preset: CliPresetId, customTemplate: string): string {
 	return preset === "custom" ? customTemplate : CLI_PRESETS[preset];
 }
 

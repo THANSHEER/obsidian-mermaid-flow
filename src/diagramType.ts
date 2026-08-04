@@ -133,7 +133,20 @@ export function detectDiagramType(source: string): DiagramType {
  * parser preserves anything else in extras.
  */
 export function isVisuallyEditable(type: DiagramType): boolean {
-	return type === "flowchart" || type === "unknown";
+	return (
+		type === "flowchart" ||
+		type === "unknown" ||
+		type === "sequence" ||
+		type === "mindmap" ||
+		type === "er"
+	);
+}
+
+/** True when the diagram uses the alternate (non-flowchart) visual editor. */
+export function isAltDiagramType(
+	type: DiagramType,
+): type is "sequence" | "mindmap" | "er" {
+	return type === "sequence" || type === "mindmap" || type === "er";
 }
 
 /** Human-readable name for notices and empty-state messages. */

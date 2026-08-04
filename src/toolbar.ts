@@ -26,12 +26,12 @@ export interface ToolbarOps {
 	addNodeAt(shape: NodeShape, svgX: number, svgY: number): void;
 	showLayoutMenu(e: MouseEvent): void;
 	toggleLock(): void;
-	isLocked(): boolean;
 	addSubgraph(): void;
 	deleteSelected(): void;
 	toggleCode(): void;
 	showExportMenu(e: MouseEvent): void;
 	showHelpDialog(): void;
+	showComponentMenu?(e: MouseEvent): void;
 	zoomToFit(): void;
 	applyTheme(id: string): void;
 	matchesTheme(id: string): boolean;
@@ -103,6 +103,9 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 	const codeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
 	iconButton(codeGroup, "code", "Toggle code view", () => ops.toggleCode());
 	iconButtonEv(codeGroup, "download", "Export diagram", (e) => ops.showExportMenu(e));
+	if (ops.showComponentMenu) {
+		iconButtonEv(codeGroup, "library", "Component library", (e) => ops.showComponentMenu!(e));
+	}
 
 	// AI assist (only when the host enabled AI for this session)
 	const showAiMenu = ops.showAiMenu?.bind(ops);

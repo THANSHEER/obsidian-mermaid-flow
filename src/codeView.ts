@@ -2,7 +2,7 @@
  * The raw-Mermaid code view panel (toggle with the toolbar Code button).
  */
 
-import { Notice } from "obsidian";
+import { Notice, setIcon } from "obsidian";
 import { layoutMissing } from "./layout";
 import type { DiagramCanvas } from "./canvas";
 import type { DiagramModel } from "./model";
@@ -11,7 +11,6 @@ import { modelToMermaid } from "./serializer";
 
 export interface CodeViewOps {
 	getModel: () => DiagramModel;
-	setModel: (model: DiagramModel) => void;
 	getCanvas: () => DiagramCanvas;
 	commit: () => void;
 	refresh: () => void;
@@ -64,7 +63,7 @@ export class CodeView {
 		});
 		copyBtn.addEventListener("click", () => {
 			const code = modelToMermaid(this.ops.getModel());
-			void navigator.clipboard
+			navigator.clipboard
 				.writeText(code)
 				.then(() => new Notice("Diagram code copied to clipboard"))
 				.catch(() => new Notice("Failed to copy code"));
@@ -131,8 +130,9 @@ export class CodeView {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : "Unknown parsing error";
 			this.errorEl.empty();
-			this.errorEl.createEl("span", { cls: "mermaid-flow-error-icon", text: "⚠️ " });
-			this.errorEl.createEl("span", { text: `Syntax Error: ${msg}` });
+			const icon = this.errorEl.createSpan({ cls: "mermaid-flow-error-icon" });
+			setIcon(icon, "alert-triangle");
+			this.errorEl.createEl("span", { text: ` Syntax Error: ${msg}` });
 			this.errorEl.show();
 			if (!isAuto) new Notice("Invalid Mermaid code. Check the error below.");
 		}

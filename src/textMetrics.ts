@@ -31,7 +31,7 @@ function isWide(cp: number): boolean {
 
 export function measureTextWidth(text: string, font: string = LABEL_FONT): number {
 	if (ctx === undefined) {
-		ctx = activeDocument.createElement("canvas").getContext("2d");
+		ctx = createEl("canvas").getContext("2d");
 	}
 	if (ctx) {
 		ctx.font = font;

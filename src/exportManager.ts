@@ -40,7 +40,9 @@ export class ExportManager {
 			item
 				.setTitle("Copy PNG to clipboard")
 				.setIcon("clipboard-copy")
-				.onClick(() => void this.copyPNG()),
+				.onClick(() => {
+					this.copyPNG().catch((e) => console.error("[mermaid-flow]", e));
+				}),
 		);
 		menu.addItem((item) =>
 			item
@@ -95,13 +97,13 @@ export class ExportManager {
 		cancelBtn.addEventListener("click", () => modal.close());
 		exportBtn.addEventListener("click", () => {
 			modal.close();
-			void this.exportDiagramWithOptions(
+			this.exportDiagramWithOptions(
 				format,
 				(fnInput.value.trim() || fnInput.placeholder).replace(/\.(svg|png)$/i, ""),
 				folderInput.value.trim() || this.opts.getExportFolder(),
 				scale,
 				transparent,
-			);
+			).catch((e) => console.error("[mermaid-flow]", e));
 		});
 		modal.open();
 		fnInput.focus();
@@ -159,7 +161,7 @@ export class ExportManager {
 		scale = 2,
 	): Promise<ArrayBuffer> {
 		return new Promise((resolve, reject) => {
-			const canvasEl = activeDocument.createElement("canvas");
+			const canvasEl = createEl("canvas");
 			const ctx = canvasEl.getContext("2d");
 			if (!ctx) { reject(new Error("Canvas context unavailable")); return; }
 			canvasEl.width  = Math.max(1, Math.round(width  * scale));
@@ -176,7 +178,7 @@ export class ExportManager {
 				}
 				ctx.drawImage(img, 0, 0, canvasEl.width, canvasEl.height);
 				URL.revokeObjectURL(url);
-				canvasEl.toBlob((pngBlob) => {
+				canvasEl.toBlob((pngBlob: Blob | null) => {
 					if (!pngBlob) { reject(new Error("Failed to render PNG")); return; }
 					pngBlob.arrayBuffer().then(resolve, reject);
 				}, "image/png");
@@ -201,9 +203,9 @@ export class ExportManager {
 		}
 	}
 
-	copyCode(): void {
+	private copyCode(): void {
 		const code = modelToMermaid(this.opts.getModel());
-		void navigator.clipboard
+		navigator.clipboard
 			.writeText(code)
 			.then(() => new Notice("Diagram code copied to clipboard"))
 			.catch(() => new Notice("Failed to copy code"));

@@ -10,7 +10,7 @@
 
 import * as dagre from "@dagrejs/dagre";
 import type { EdgeLabel, GraphLabel, NodeLabel } from "@dagrejs/dagre";
-import { DiagramModel } from "./model";
+import { DiagramModel, childGroups } from "./model";
 import { estimateNodeSize } from "./nodeGeometry";
 
 const DEFAULT_RANK_GAP = 200; // distance between successive ranks (grid fallback)
@@ -49,20 +49,32 @@ function dagreLayout(model: DiagramModel): void {
 	}
 
 	// Subgraphs become compound clusters so members stay together.
+	// Nested subgraphs nest via setParent(childGroup, parentGroup).
 	const claimed = new Set<string>();
-	for (const grp of model.groups) {
-		if (nodeIds.has(grp.id)) continue; // id collision with a node — skip
-		const members = grp.nodeIds.filter(
-			(id) => nodeIds.has(id) && !claimed.has(id),
-		);
-		if (members.length === 0) continue;
-		// Compound-parent size is recomputed by dagre from its children, so the
-		// initial 0×0 is a placeholder only (NodeLabel requires width/height).
-		g.setNode(grp.id, { width: 0, height: 0 });
-		for (const id of members) {
-			g.setParent(id, grp.id);
+	const ensureCluster = (grpId: string): void => {
+		if (nodeIds.has(grpId)) return; // id collision with a node — skip
+		if (g.hasNode(grpId)) return;
+		g.setNode(grpId, { width: 0, height: 0 });
+	};
+	const placeGroup = (grpId: string): void => {
+		const grp = model.groups.find((x) => x.id === grpId);
+		if (!grp) return;
+		ensureCluster(grpId);
+		if (grp.parentId && !nodeIds.has(grp.parentId)) {
+			ensureCluster(grp.parentId);
+			g.setParent(grpId, grp.parentId);
+		}
+		for (const id of grp.nodeIds) {
+			if (!nodeIds.has(id) || claimed.has(id)) continue;
+			g.setParent(id, grpId);
 			claimed.add(id);
 		}
+		for (const child of childGroups(model, grpId)) {
+			placeGroup(child.id);
+		}
+	};
+	for (const root of childGroups(model, null)) {
+		placeGroup(root.id);
 	}
 
 	for (const e of model.edges) {

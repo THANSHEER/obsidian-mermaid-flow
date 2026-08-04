@@ -7,7 +7,7 @@
  * user's advanced syntax.
  */
 
-import {
+	import {
 	DiagramEdge,
 	DiagramGroup,
 	DiagramModel,
@@ -18,6 +18,7 @@ import {
 	NodeShape,
 	NodeStyle,
 	emptyModel,
+	groupSubtreeHasNodes,
 	newEdgeId,
 	newGroupId,
 } from "./model";
@@ -416,7 +417,13 @@ export function mermaidToModel(text: string): ParseResult {
 			id = newGroupId(model);
 			title = rest;
 		}
+		if (model.groups.some((g) => g.id === id) || groupStack.some((g) => g.id === id)) {
+			id = newGroupId(model);
+			title = rest || title;
+		}
+		const parent = groupStack[groupStack.length - 1];
 		const group: DiagramGroup = { id, title, nodeIds: [] };
+		if (parent) group.parentId = parent.id;
 		model.groups.push(group);
 		groupStack.push(group);
 	};
@@ -591,8 +598,9 @@ export function mermaidToModel(text: string): ParseResult {
 		edge.style = { ...edge.style, ...parsed };
 	}
 
-	// Drop groups that ended up empty.
-	model.groups = model.groups.filter((g) => g.nodeIds.length > 0);
+	// Drop groups with no nodes in their entire subtree (keeps outer shells
+	// that only contain nested subgraphs).
+	model.groups = model.groups.filter((g) => groupSubtreeHasNodes(model, g.id));
 
 	// Apply saved position hints; everything else gets laid out by the caller.
 	for (const node of model.nodes) {

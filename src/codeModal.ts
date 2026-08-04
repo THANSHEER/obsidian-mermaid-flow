@@ -31,10 +31,10 @@ export class CodeViewModal extends Modal {
 
 		const copy = footer.createEl("button", { text: "Copy" });
 		copy.addEventListener("click", () => {
-			void navigator.clipboard.writeText(area.value).then(
+			navigator.clipboard.writeText(area.value).then(
 				() => new Notice("Mermaid code copied."),
 				() => new Notice("Copy failed."),
-			);
+			).catch(() => new Notice("Copy failed."));
 		});
 
 		if (this.onSave) {

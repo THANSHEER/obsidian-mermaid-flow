@@ -7,6 +7,7 @@ import {
 	NodeShape,
 	SHAPE_LABELS,
 } from "./model";
+import type { LibraryComponent } from "./componentLibrary";
 import type MermaidFlowPlugin from "./main";
 import { AiProviderId, AiSettings, CliPresetId, DEFAULT_AI_SETTINGS } from "./ai/types";
 import { CLI_PRESETS } from "./ai/cliProvider";
@@ -25,6 +26,8 @@ export interface MermaidFlowSettings {
 	snapToGrid: boolean;
 	snapSize: number;
 	ai: AiSettings;
+	/** User-saved reusable diagram snippets. */
+	componentLibrary: LibraryComponent[];
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
@@ -38,6 +41,7 @@ export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	snapToGrid: false,
 	snapSize: 10,
 	ai: DEFAULT_AI_SETTINGS,
+	componentLibrary: [],
 };
 
 export class MermaidFlowSettingTab extends PluginSettingTab {
@@ -46,6 +50,111 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: MermaidFlowPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	/**
+	 * 1.13+ declarative definitions for settings search. We keep `display()` as
+	 * the runtime fallback for older Obsidian versions and for the richer AI UI.
+	 */
+	getSettingDefinitions(): Array<Record<string, unknown>> {
+		const directionOptions: Record<string, string> = {};
+		for (const dir of DIRECTIONS) directionOptions[dir] = DIRECTION_LABELS[dir];
+		const shapeOptions: Record<string, string> = {};
+		for (const shape of NODE_SHAPES) shapeOptions[shape] = SHAPE_LABELS[shape];
+		return [
+			{
+				name: "Open editor as",
+				desc: "Popup opens the editor in a centered dialog. Embedded pane opens it in a workspace tab beside your note.",
+				control: {
+					type: "dropdown",
+					key: "openMode",
+					defaultValue: DEFAULT_SETTINGS.openMode,
+					options: {
+						modal: "Popup (dialog)",
+						pane: "Embedded pane",
+					},
+				},
+			},
+			{
+				name: "Toolbar style",
+				desc: "Native docks the toolbar at the top. Floating shows it as a compact bar over the canvas.",
+				control: {
+					type: "dropdown",
+					key: "toolbarStyle",
+					defaultValue: DEFAULT_SETTINGS.toolbarStyle,
+					options: {
+						native: "Native (docked)",
+						floating: "Floating",
+					},
+				},
+			},
+			{
+				name: "Default direction",
+				desc: "Direction used for new diagrams.",
+				control: {
+					type: "dropdown",
+					key: "defaultDirection",
+					defaultValue: DEFAULT_SETTINGS.defaultDirection,
+					options: directionOptions,
+				},
+			},
+			{
+				name: "Default node shape",
+				desc: "Shape applied to newly added nodes.",
+				control: {
+					type: "dropdown",
+					key: "defaultShape",
+					defaultValue: DEFAULT_SETTINGS.defaultShape,
+					options: shapeOptions,
+				},
+			},
+			{
+				name: "Export folder",
+				desc: "Vault folder where PNG/SVG exports are saved. Created automatically if it doesn't exist.",
+				control: {
+					type: "text",
+					key: "exportFolder",
+					defaultValue: DEFAULT_SETTINGS.exportFolder,
+					placeholder: "mermaid flow",
+				},
+			},
+			{
+				name: "Snap nodes to grid",
+				desc: "Snap nodes to a fixed grid while dragging for cleaner alignment.",
+				control: {
+					type: "toggle",
+					key: "snapToGrid",
+				},
+			},
+			{
+				name: "Grid size (px)",
+				desc: "Snap grid cell size in pixels (applies when Snap to grid is on).",
+				control: {
+					type: "slider",
+					key: "snapSize",
+					min: 5,
+					max: 40,
+					step: 5,
+					defaultValue: DEFAULT_SETTINGS.snapSize,
+				},
+			},
+			{
+				name: "Auto-save (embedded pane)",
+				desc: "When editing an existing diagram in an embedded pane, write changes back to the note automatically. Does not apply to the popup or to inserting new diagrams.",
+				control: {
+					type: "toggle",
+					key: "autoSave",
+				},
+			},
+			{
+				name: "Remember node positions",
+				desc: "Store manual node positions in a Mermaid comment so your layout survives edits. The comment is ignored by Mermaid when rendering.",
+				control: {
+					type: "toggle",
+					key: "savePositions",
+				},
+			},
+		];
 	}
 
 	display(): void {
@@ -181,6 +290,25 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		this.displayAiSection(containerEl);
+
+		new Setting(containerEl).setName("Component library").setHeading();
+		const count = this.plugin.settings.componentLibrary?.length ?? 0;
+		new Setting(containerEl)
+			.setName("Saved components")
+			.setDesc(
+				count === 0
+					? "No components yet. In the visual editor, select nodes and use the library button (or context menu) to save a reusable snippet."
+					: `${count} component(s) saved. Insert or delete them from the library button in the visual editor.`,
+			)
+			.addButton((btn) => {
+				btn.setButtonText("Clear all");
+				btn.setDisabled(count === 0);
+				btn.onClick(async () => {
+					this.plugin.settings.componentLibrary = [];
+					await this.plugin.saveSettings();
+					this.display();
+				});
+			});
 	}
 
 	private displayAiSection(containerEl: HTMLElement): void {

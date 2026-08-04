@@ -518,7 +518,7 @@ describe('DiagramCanvas in-place label editing', () => {
 });
 
 describe('DiagramCanvas alignment guides', () => {
-	it('snaps a dragged node into vertical-centre alignment with another node and shows a guide line', () => {
+	it('shows a guide near alignment but does not snap the dragged node', () => {
 		const model = emptyModel('TB');
 		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60, w: 80, h: 40 });
 		model.nodes.push({ id: 'B', label: 'B', shape: 'rect', x: 400, y: 300, w: 80, h: 40 });
@@ -528,12 +528,12 @@ describe('DiagramCanvas alignment guides', () => {
 			n.querySelector('.mermaid-flow-node-label')?.textContent === 'A',
 		)!;
 		nodeAGroup.dispatchEvent(pointer('pointerdown', 100, 60));
-		// Drag A so its centre X lands a couple of px from B's centre X (400) —
-		// inside the snap threshold (6 / zoom, zoom defaults to 1).
+		// Drag A near B's centre X (400) — within the guide threshold, but free.
 		svg.dispatchEvent(pointer('pointermove', 403, 200));
 
 		const a = model.nodes.find((n) => n.id === 'A')!;
-		expect(a.x).toBe(400); // snapped exactly onto B's centre X
+		expect(a.x).toBe(403); // free position — not snapped to 400
+		expect(a.y).toBe(200);
 		expect(svg.querySelector('.mermaid-flow-guide')).not.toBeNull();
 
 		svg.dispatchEvent(pointer('pointerup', 403, 200));

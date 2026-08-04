@@ -64,6 +64,27 @@ describe('mermaidToModel', () => {
 		expect(model.groups[0]?.nodeIds).toContain('B');
 	});
 
+	it('parses nested subgraphs with parentId', () => {
+		const input = [
+			'flowchart TB',
+			'  subgraph Outer',
+			'    subgraph Inner',
+			'      A --> B',
+			'    end',
+			'  end',
+		].join('\n');
+		const { model } = mermaidToModel(input);
+		expect(model.groups).toHaveLength(2);
+		const outer = model.groups.find((g) => g.id === 'Outer' || g.title === 'Outer');
+		const inner = model.groups.find((g) => g.id === 'Inner' || g.title === 'Inner');
+		expect(outer).toBeDefined();
+		expect(inner).toBeDefined();
+		expect(outer?.parentId).toBeUndefined();
+		expect(inner?.parentId).toBe(outer?.id);
+		expect(outer?.nodeIds).toEqual([]);
+		expect(inner?.nodeIds).toEqual(expect.arrayContaining(['A', 'B']));
+	});
+
 	it('preserves position hints across a round-trip', () => {
 		const input = [
 			'flowchart LR',

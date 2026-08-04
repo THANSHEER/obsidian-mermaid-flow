@@ -79,16 +79,18 @@ describe("detectDiagramType", () => {
 });
 
 describe("isVisuallyEditable", () => {
-	it("allows flowcharts and unknown snippets", () => {
+	it("allows flowcharts, unknown snippets, and alt diagram kinds", () => {
 		expect(isVisuallyEditable("flowchart")).toBe(true);
 		expect(isVisuallyEditable("unknown")).toBe(true);
+		expect(isVisuallyEditable("sequence")).toBe(true);
+		expect(isVisuallyEditable("mindmap")).toBe(true);
+		expect(isVisuallyEditable("er")).toBe(true);
 	});
 
-	it("blocks known non-flowchart types", () => {
-		expect(isVisuallyEditable("sequence")).toBe(false);
+	it("blocks other known non-flowchart types", () => {
 		expect(isVisuallyEditable("gantt")).toBe(false);
 		expect(isVisuallyEditable("class")).toBe(false);
-		expect(isVisuallyEditable("mindmap")).toBe(false);
+		expect(isVisuallyEditable("state")).toBe(false);
 	});
 });
 

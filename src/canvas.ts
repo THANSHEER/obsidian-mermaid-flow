@@ -12,11 +12,12 @@ import {
 	DiagramNode,
 	EdgeKind,
 	NodeStyle,
+	descendantNodeIds,
 	newEdgeId,
 	resolveNodeStyle,
 } from "./model";
 import { createShapeElements } from "./shapes";
-import { estimateNodeSize } from "./nodeGeometry";
+import { estimateNodeSize, MIN_W, NODE_H } from "./nodeGeometry";
 import { measureTextWidth } from "./textMetrics";
 import { resolveThemePalette, ThemePalette } from "./themePalette";
 
@@ -315,7 +316,7 @@ export class DiagramCanvas {
 	/** The current rendered size of a node (manual override or auto-computed). */
 	effectiveSize(id: string): { w: number; h: number } {
 		const node = this.model.nodes.find((n) => n.id === id);
-		if (!node) return { w: 80, h: 44 };
+		if (!node) return { w: MIN_W, h: NODE_H };
 		const g = this.geom(node);
 		return { w: Math.round(g.w), h: Math.round(g.h) };
 	}
@@ -324,11 +325,8 @@ export class DiagramCanvas {
 		this.mode = mode;
 		this.connectFrom = null;
 		this.clearGhost();
+		this.scroller.classList.toggle("mermaid-flow-mode-connect", mode === "connect");
 		this.render();
-	}
-
-	getMode(): EditorMode {
-		return this.mode;
 	}
 
 	getZoom(): number {
@@ -625,17 +623,14 @@ export class DiagramCanvas {
 			cls: "mermaid-flow-canvas-empty-inner",
 		});
 		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
-		// Use standard DOM so this method works in the test environment (jsdom),
-		// which does not polyfill Obsidian's createEl helper.
-		const title = activeDocument.createElement("p");
-		title.className = "mermaid-flow-canvas-empty-title";
-		title.textContent = "Start your diagram";
-		inner.appendChild(title);
-		const hint = activeDocument.createElement("p");
-		hint.className = "mermaid-flow-canvas-empty-hint";
-		hint.textContent =
-			"Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.";
-		inner.appendChild(hint);
+		inner.createEl("p", {
+			cls: "mermaid-flow-canvas-empty-title",
+			text: "Start your diagram",
+		});
+		inner.createEl("p", {
+			cls: "mermaid-flow-canvas-empty-hint",
+			text: "Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.",
+		});
 	}
 
 	/**
@@ -653,27 +648,18 @@ export class DiagramCanvas {
 		);
 		if (!inner) return;
 		clearChildren(inner);
-		const glyph = activeDocument.createElement("div");
-		glyph.className = "mermaid-flow-canvas-empty-glyph";
-		glyph.textContent = "◆";
-		inner.appendChild(glyph);
-		const title = activeDocument.createElement("p");
-		title.className = "mermaid-flow-canvas-empty-title";
-		title.textContent = opts.title;
-		inner.appendChild(title);
-		const hint = activeDocument.createElement("p");
-		hint.className = "mermaid-flow-canvas-empty-hint";
-		hint.textContent = opts.hint;
-		inner.appendChild(hint);
+		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
+		inner.createEl("p", { cls: "mermaid-flow-canvas-empty-title", text: opts.title });
+		inner.createEl("p", { cls: "mermaid-flow-canvas-empty-hint", text: opts.hint });
 		if (opts.actionLabel && opts.onAction) {
-			const btn = activeDocument.createElement("button");
-			btn.className = "mermaid-flow-canvas-empty-action";
-			btn.textContent = opts.actionLabel;
+			const btn = inner.createEl("button", {
+				cls: "mermaid-flow-canvas-empty-action",
+				text: opts.actionLabel,
+			});
 			btn.addEventListener("click", (e) => {
 				e.preventDefault();
 				opts.onAction?.();
 			});
-			inner.appendChild(btn);
 		}
 	}
 
@@ -723,8 +709,20 @@ export class DiagramCanvas {
 	private renderGroups(): void {
 		clearChildren(this.groupLayer);
 		const byId = new Map(this.model.nodes.map((n) => [n.id, n]));
-		for (const grp of this.model.groups) {
-			const members = grp.nodeIds
+		// Deepest groups first so nested boxes paint above their parents.
+		const depth = (id: string, seen = new Set<string>()): number => {
+			if (seen.has(id)) return 0;
+			seen.add(id);
+			const g = this.model.groups.find((x) => x.id === id);
+			if (!g?.parentId) return 0;
+			return 1 + depth(g.parentId, seen);
+		};
+		const ordered = [...this.model.groups].sort(
+			(a, b) => depth(a.id) - depth(b.id),
+		);
+		for (const grp of ordered) {
+			const memberIds = descendantNodeIds(this.model, grp.id);
+			const members = memberIds
 				.map((id) => byId.get(id))
 				.filter((n): n is DiagramNode => !!n);
 			if (members.length === 0) continue;
@@ -1427,14 +1425,14 @@ export class DiagramCanvas {
 	}
 
 	/** Snapshot the group's current derived bbox + member geometry for resize. */
-	private groupBBox(grp: { nodeIds: string[] }): {
+	private groupBBox(groupId: string): {
 		bx: number;
 		by: number;
 		bw: number;
 		bh: number;
 	} | null {
 		const byId = new Map(this.model.nodes.map((n) => [n.id, n]));
-		const members = grp.nodeIds
+		const members = descendantNodeIds(this.model, groupId)
 			.map((id) => byId.get(id))
 			.filter((n): n is DiagramNode => !!n);
 		if (members.length === 0) return null;
@@ -1464,11 +1462,11 @@ export class DiagramCanvas {
 		e.stopPropagation();
 		e.preventDefault();
 		const grp = this.model.groups.find((g) => g.id === id);
-		const bbox = grp ? this.groupBBox(grp) : null;
+		const bbox = grp ? this.groupBBox(id) : null;
 		if (!grp || !bbox) return;
 		const nodes = new Map<string, { x: number; y: number; w: number; h: number }>();
 		const byId = new Map(this.model.nodes.map((n) => [n.id, n]));
-		for (const nodeId of grp.nodeIds) {
+		for (const nodeId of descendantNodeIds(this.model, id)) {
 			const node = byId.get(nodeId);
 			if (!node) continue;
 			const g = this.geomCache.get(node.id) ?? this.geom(node);
@@ -1552,7 +1550,7 @@ export class DiagramCanvas {
 	// --- in-place label editing (draw.io style) -----------------------------
 
 	/** Double-click a node to edit its label directly on the canvas. */
-	beginNodeLabelEdit(nodeId: string): void {
+	private beginNodeLabelEdit(nodeId: string): void {
 		const node = this.model.nodes.find((n) => n.id === nodeId);
 		if (!node || node.locked) return;
 		const g = this.geomCache.get(node.id) ?? this.geom(node);
@@ -1573,7 +1571,7 @@ export class DiagramCanvas {
 	}
 
 	/** Double-click an edge to edit its label directly on the canvas. */
-	beginEdgeLabelEdit(edgeId: string, midX: number, midY: number): void {
+	private beginEdgeLabelEdit(edgeId: string, midX: number, midY: number): void {
 		const edge = this.model.edges.find((ed) => ed.id === edgeId);
 		if (!edge) return;
 		const w = 120;
@@ -1654,7 +1652,7 @@ export class DiagramCanvas {
 	}
 
 	/** Public/cancel entry point — discard any open editor without saving. */
-	cancelLabelEdit(): void {
+	private cancelLabelEdit(): void {
 		if (!this.labelEditor) return;
 		this.teardownLabelEditor();
 	}
@@ -1830,9 +1828,9 @@ export class DiagramCanvas {
 	}
 
 	private moveGroup(groupId: string, dx: number, dy: number): void {
-		const grp = this.model.groups.find((g) => g.id === groupId);
-		if (!grp) return;
-		this.moveNodes(grp.nodeIds, dx, dy);
+		const ids = descendantNodeIds(this.model, groupId);
+		if (ids.length === 0) return;
+		this.moveNodes(ids, dx, dy);
 	}
 
 	private snap(val: number): number {
@@ -1844,8 +1842,9 @@ export class DiagramCanvas {
 		const set = new Set(ids);
 		for (const node of this.model.nodes) {
 			if (!set.has(node.id)) continue;
-			node.x = Math.max(40, this.snap(node.x + dx));
-			node.y = Math.max(30, this.snap(node.y + dy));
+			// Free canvas movement — no hard min clamp. Optional grid snap only.
+			node.x = this.snap(node.x + dx);
+			node.y = this.snap(node.y + dy);
 		}
 	}
 
@@ -1855,19 +1854,16 @@ export class DiagramCanvas {
 	}
 
 	/**
-	 * Draw.io-style smart guides: while dragging a single node, snap its edges/
-	 * centre to any other node's matching edge/centre within a small on-screen
-	 * threshold and draw a dashed line through the match. Runs once per axis
-	 * (vertical for X matches, horizontal for Y matches), not combinatorially.
+	 * Draw.io-style smart guides: while dragging a single node, show dashed
+	 * lines when edges/centres line up with another node. Guides are visual
+	 * only — they must not mutate position (that felt like sticky anchoring).
 	 */
 	private updateAlignmentGuides(node: DiagramNode): void {
 		const g = this.geomCache.get(node.id) ?? this.geom(node);
-		const threshold = 6 / this.zoom;
+		const threshold = 4 / this.zoom;
 		const xCandidates = [node.x - g.w / 2, node.x, node.x + g.w / 2];
 		const yCandidates = [node.y - g.h / 2, node.y, node.y + g.h / 2];
 
-		let snappedX: number | null = null;
-		let snappedY: number | null = null;
 		let guideX: { at: number; y0: number; y1: number } | null = null;
 		let guideY: { at: number; x0: number; x1: number } | null = null;
 
@@ -1877,11 +1873,10 @@ export class DiagramCanvas {
 			const oxs = [other.x - og.w / 2, other.x, other.x + og.w / 2];
 			const oys = [other.y - og.h / 2, other.y, other.y + og.h / 2];
 
-			if (snappedX === null) {
+			if (guideX === null) {
 				for (const xc of xCandidates) {
 					const match = oxs.find((ox) => Math.abs(xc - ox) <= threshold);
 					if (match !== undefined) {
-						snappedX = node.x + (match - xc);
 						guideX = {
 							at: match,
 							y0: Math.min(node.y, other.y),
@@ -1891,11 +1886,10 @@ export class DiagramCanvas {
 					}
 				}
 			}
-			if (snappedY === null) {
+			if (guideY === null) {
 				for (const yc of yCandidates) {
 					const match = oys.find((oy) => Math.abs(yc - oy) <= threshold);
 					if (match !== undefined) {
-						snappedY = node.y + (match - yc);
 						guideY = {
 							at: match,
 							x0: Math.min(node.x, other.x),
@@ -1905,11 +1899,8 @@ export class DiagramCanvas {
 					}
 				}
 			}
-			if (snappedX !== null && snappedY !== null) break;
+			if (guideX !== null && guideY !== null) break;
 		}
-
-		if (snappedX !== null) node.x = snappedX;
-		if (snappedY !== null) node.y = snappedY;
 
 		if (guideX) {
 			const line = activeDocument.createElementNS(SVG_NS, "line");
@@ -2176,19 +2167,8 @@ export class DiagramCanvas {
 	}
 
 	private updateGhost(e: PointerEvent): void {
-		const from = this.model.nodes.find((n) => n.id === this.connectFrom);
-		if (!from) return;
-		const p = this.toSvgPoint(e);
-		if (!this.ghostLine) {
-			this.ghostLine = activeDocument.createElementNS(SVG_NS, "line");
-			this.ghostLine.classList.add("mermaid-flow-ghost-line");
-			this.overlayLayer.appendChild(this.ghostLine);
-		}
-		const start = this.borderPoint(from, p.x, p.y);
-		this.ghostLine.setAttribute("x1", String(start.x));
-		this.ghostLine.setAttribute("y1", String(start.y));
-		this.ghostLine.setAttribute("x2", String(p.x));
-		this.ghostLine.setAttribute("y2", String(p.y));
+		if (!this.connectFrom) return;
+		this.updateGhostFrom(this.connectFrom, e);
 	}
 
 	private clearGhost(): void {

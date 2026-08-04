@@ -316,6 +316,31 @@
 	position: relative;
 }
 
+.mermaid-flow-panel-collapse {
+	flex: 0 0 auto;
+	align-self: stretch;
+	width: 22px;
+	padding: 0;
+	margin: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.mermaid-flow-panel-collapse:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.mermaid-flow-editor.is-panel-collapsed .mermaid-flow-panel {
+	display: none;
+}
+
 .mermaid-flow-canvas-scroll {
 	flex: 1;
 	overflow: auto;
@@ -352,6 +377,17 @@
 /* Canvas interaction cursors (toggled via classList to avoid inline style assignments). */
 .mermaid-flow-cursor-grab { cursor: grab; }
 .mermaid-flow-cursor-grabbing { cursor: grabbing; }
+.mermaid-flow-mode-connect,
+.mermaid-flow-mode-connect .mermaid-flow-node {
+	cursor: crosshair;
+}
+
+/* Connection anchors are more visible in Connect mode */
+.mermaid-flow-mode-connect .mermaid-flow-anchor {
+	opacity: 0.7;
+	pointer-events: auto;
+	r: 6;
+}
 
 /* Background rect hidden state (no background color set). */
 .mermaid-flow-bg-hidden { display: none; }
@@ -466,6 +502,38 @@
 	color: var(--text-muted);
 	border-top: 1px solid var(--background-modifier-border);
 	padding-top: 10px;
+}
+
+.mermaid-flow-section {
+	margin: 4px 0 8px;
+	border: none;
+}
+
+.mermaid-flow-section > summary.mermaid-flow-subhead {
+	cursor: pointer;
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	user-select: none;
+}
+
+.mermaid-flow-section > summary.mermaid-flow-subhead::-webkit-details-marker {
+	display: none;
+}
+
+.mermaid-flow-section > summary.mermaid-flow-subhead::before {
+	content: "▾";
+	font-size: 10px;
+	opacity: 0.7;
+}
+
+.mermaid-flow-section:not([open]) > summary.mermaid-flow-subhead::before {
+	content: "▸";
+}
+
+.mermaid-flow-section-body {
+	padding-left: 2px;
 }
 
 .mermaid-flow-input {
@@ -647,7 +715,8 @@
 	transition: opacity 100ms ease-in-out;
 }
 
-.mermaid-flow-node:hover .mermaid-flow-anchor {
+.mermaid-flow-node:hover .mermaid-flow-anchor,
+.mermaid-flow-node.is-selected .mermaid-flow-anchor {
 	opacity: 0.95;
 	pointer-events: auto;
 }
@@ -786,10 +855,6 @@
 	gap: 6px;
 }
 
-.mermaid-flow-code-error.is-hidden {
-	display: none;
-}
-
 .mermaid-flow-code-header {
 	display: flex;
 	align-items: center;
@@ -859,9 +924,56 @@
 	font-family: var(--font-monospace);
 }
 
-.mermaid-flow-error-icon {
-	margin-right: 4px;
-	font-weight: bold;
+.mermaid-flow-code-error.is-hidden {
+	display: none;
+}
+
+.mermaid-flow-alt-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-height: 420px;
+}
+
+.mermaid-flow-alt-toolbar {
+	display: flex;
+	gap: 6px;
+}
+
+.mermaid-flow-alt-body {
+	display: flex;
+	gap: 12px;
+	flex: 1;
+	min-height: 320px;
+}
+
+.mermaid-flow-alt-list {
+	width: 260px;
+	flex-shrink: 0;
+	overflow: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: 8px;
+}
+
+.mermaid-flow-alt-canvas {
+	flex: 1;
+	overflow: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+}
+
+.mermaid-flow-alt-svg {
+	display: block;
+}
+
+.mermaid-flow-alt-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 6px;
+	font-size: var(--font-ui-small);
 }
 
 /* --- find bar --- */
@@ -1017,7 +1129,7 @@
 	z-index: 5;
 	display: flex;
 	gap: 4px;
-	opacity: 0.6;
+	opacity: 0.85;
 	transition: opacity 120ms ease-in-out;
 }
 
