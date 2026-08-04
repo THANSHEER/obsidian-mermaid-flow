@@ -628,7 +628,9 @@ export default class MermaidFlowPlugin extends Plugin {
 				const code = modelToMermaid(result, {
 					includePositions: this.settings.savePositions,
 				});
-				writeBack(code);
+				writeBack(code).catch((e) =>
+					console.error("[mermaid-flow] Failed to save diagram:", e),
+				);
 			},
 			true,
 		);
