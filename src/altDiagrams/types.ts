@@ -9,9 +9,18 @@ export type AltDiagramKind = "sequence" | "mindmap" | "er";
 export interface SequenceParticipant {
 	id: string;
 	alias?: string;
+	kind?: "participant" | "actor";
 }
 
-export type SequenceArrow = "solid" | "dotted" | "solid-cross" | "dotted-cross" | "open";
+export type SequenceArrow =
+	| "->>"
+	| "-->>"
+	| "-x"
+	| "--x"
+	| "->"
+	| "-->"
+	| "-)"
+	| "--)";
 
 export interface SequenceMessage {
 	from: string;
@@ -20,11 +29,16 @@ export interface SequenceMessage {
 	arrow: SequenceArrow;
 }
 
+export interface SequenceRawLine {
+	text: string;
+	index: number;
+}
+
 export interface SequenceModel {
 	kind: "sequence";
 	participants: SequenceParticipant[];
 	messages: SequenceMessage[];
-	extras: string[];
+	extras: SequenceRawLine[];
 }
 
 export interface MindmapNode {
@@ -36,18 +50,23 @@ export interface MindmapNode {
 export interface MindmapModel {
 	kind: "mindmap";
 	root: MindmapNode;
-	extras: string[];
+	extrasBeforeRoot: string[];
+	extrasAfterRoot: string[];
 }
 
 export interface ErAttribute {
 	name: string;
 	type: string;
 	pk?: boolean;
+	fk?: boolean;
+	uk?: boolean;
+	comment?: string;
 }
 
 export interface ErEntity {
 	id: string;
 	attributes: ErAttribute[];
+	extras: string[];
 }
 
 export interface ErRelation {
@@ -75,7 +94,8 @@ export function emptyMindmap(): MindmapModel {
 	return {
 		kind: "mindmap",
 		root: { id: "root", label: "Root", children: [] },
-		extras: [],
+		extrasBeforeRoot: [],
+		extrasAfterRoot: [],
 	};
 }
 

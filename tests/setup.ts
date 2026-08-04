@@ -10,6 +10,16 @@ if (typeof document !== "undefined") {
 	// In tests there is only one window, so both equal the jsdom document/window.
 	(globalThis as unknown as Record<string, unknown>).activeDocument = document;
 	(globalThis as unknown as Record<string, unknown>).activeWindow = window;
+	(globalThis as unknown as Record<string, unknown>).createEl = function <K extends keyof HTMLElementTagNameMap>(
+		tag: K,
+		o?: { cls?: string; text?: string; attr?: Record<string, string> },
+	) {
+		const el = document.createElement(tag);
+		if (o?.cls) el.className = o.cls;
+		if (o?.text) el.textContent = o.text;
+		if (o?.attr) Object.entries(o.attr).forEach(([k, v]) => el.setAttribute(k, v));
+		return el;
+	};
 
 	// Obsidian's HTMLElement helpers used by src/ at runtime.
 	const proto = HTMLElement.prototype as HTMLElement & Record<string, unknown>;

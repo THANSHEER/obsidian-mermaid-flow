@@ -2,29 +2,7 @@
  * Sequence diagram parse ↔ serialize.
  */
 
-import {
-	SequenceArrow,
-	SequenceMessage,
-	SequenceModel,
-	SequenceParticipant,
-	emptySequence,
-} from "./types";
-
-const ARROW_TO_OP: Record<SequenceArrow, string> = {
-	solid: "->>",
-	dotted: "-->>",
-	"solid-cross": "-x",
-	"dotted-cross": "--x",
-	open: "->",
-};
-
-function opToArrow(op: string): SequenceArrow {
-	if (op === "-->>" || op === "--)") return "dotted";
-	if (op === "-x") return "solid-cross";
-	if (op === "--x") return "dotted-cross";
-	if (op === "->" || op === "-->") return "open";
-	return "solid";
-}
+import { SequenceMessage, SequenceModel, SequenceParticipant, emptySequence } from "./types";
 
 export function parseSequence(text: string): SequenceModel {
 	const model = emptySequence();
@@ -46,7 +24,7 @@ export function parseSequence(text: string): SequenceModel {
 			continue;
 		}
 		if (!headerSeen && trimmed.startsWith("%%")) {
-			model.extras.push(trimmed);
+			model.extras.push({ text: trimmed, index: model.messages.length });
 			continue;
 		}
 
@@ -58,7 +36,7 @@ export function parseSequence(text: string): SequenceModel {
 			const alias = part[2]?.trim();
 			if (!seen.has(id)) {
 				seen.add(id);
-				model.participants.push({ id, alias: alias || undefined });
+				model.participants.push({ id, alias: alias || undefined, kind: "participant" });
 			} else if (alias) {
 				const existing = model.participants.find((p) => p.id === id);
 				if (existing) existing.alias = alias;
@@ -71,13 +49,13 @@ export function parseSequence(text: string): SequenceModel {
 			const id = actor[1];
 			if (!seen.has(id)) {
 				seen.add(id);
-				model.participants.push({ id, alias: actor[2]?.trim() || undefined });
+				model.participants.push({ id, alias: actor[2]?.trim() || undefined, kind: "actor" });
 			}
 			continue;
 		}
 
 		const msg = trimmed.match(
-			/^([A-Za-z0-9_]+)\s*(->>|-->>|->|-->|-x|--x|-->>\)|-\))\s*([A-Za-z0-9_]+)\s*:\s*(.*)$/,
+			/^([A-Za-z0-9_]+)\s*(->>|-->>|->|-->|-x|--x|--\)|-\))\s*([A-Za-z0-9_]+)\s*:\s*(.*)$/,
 		);
 		if (msg && msg[1] && msg[2] && msg[3]) {
 			ensureParticipant(msg[1]);
@@ -86,12 +64,12 @@ export function parseSequence(text: string): SequenceModel {
 				from: msg[1],
 				to: msg[3],
 				text: (msg[4] ?? "").trim(),
-				arrow: opToArrow(msg[2]),
+				arrow: msg[2] as SequenceMessage["arrow"],
 			});
 			continue;
 		}
 
-		model.extras.push(trimmed);
+		model.extras.push({ text: trimmed, index: model.messages.length });
 	}
 
 	return model;
@@ -100,18 +78,29 @@ export function parseSequence(text: string): SequenceModel {
 export function serializeSequence(model: SequenceModel): string {
 	const lines: string[] = ["sequenceDiagram"];
 	for (const p of model.participants) {
+		const decl = p.kind === "actor" ? "actor" : "participant";
 		if (p.alias && p.alias !== p.id) {
-			lines.push(`    participant ${p.id} as ${p.alias}`);
+			lines.push(`    ${decl} ${p.id} as ${p.alias}`);
 		} else {
-			lines.push(`    participant ${p.id}`);
+			lines.push(`    ${decl} ${p.id}`);
 		}
 	}
-	for (const m of model.messages) {
-		const op = ARROW_TO_OP[m.arrow] ?? "->>";
-		lines.push(`    ${m.from}${op}${m.to}: ${m.text}`);
-	}
+	const extrasByIndex = new Map<number, string[]>();
 	for (const extra of model.extras) {
+		const list = extrasByIndex.get(extra.index) ?? [];
+		list.push(extra.text);
+		extrasByIndex.set(extra.index, list);
+	}
+	for (const extra of extrasByIndex.get(0) ?? []) {
 		lines.push(`    ${extra}`);
+	}
+	for (let i = 0; i < model.messages.length; i++) {
+		const m = model.messages[i];
+		if (!m) continue;
+		lines.push(`    ${m.from}${m.arrow}${m.to}: ${m.text}`);
+		for (const extra of extrasByIndex.get(i + 1) ?? []) {
+			lines.push(`    ${extra}`);
+		}
 	}
 	return lines.join("\n");
 }
@@ -122,7 +111,7 @@ export function addSequenceParticipant(
 	alias?: string,
 ): void {
 	if (model.participants.some((p) => p.id === id)) return;
-	model.participants.push({ id, alias });
+	model.participants.push({ id, alias, kind: "participant" });
 }
 
 export function addSequenceMessage(

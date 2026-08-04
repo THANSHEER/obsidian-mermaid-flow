@@ -417,6 +417,10 @@ export function mermaidToModel(text: string): ParseResult {
 			id = newGroupId(model);
 			title = rest;
 		}
+		if (model.groups.some((g) => g.id === id) || groupStack.some((g) => g.id === id)) {
+			id = newGroupId(model);
+			title = rest || title;
+		}
 		const parent = groupStack[groupStack.length - 1];
 		const group: DiagramGroup = { id, title, nodeIds: [] };
 		if (parent) group.parentId = parent.id;

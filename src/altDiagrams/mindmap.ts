@@ -24,16 +24,16 @@ export function parseMindmap(text: string): MindmapModel {
 			continue;
 		}
 		if (!headerSeen && trimmed.startsWith("%%")) {
-			model.extras.push(trimmed);
+			model.extrasBeforeRoot.push(trimmed);
 			continue;
 		}
 		if (!headerSeen) {
-			model.extras.push(trimmed);
+			model.extrasBeforeRoot.push(trimmed);
 			continue;
 		}
 
 		const indent = raw.match(/^(\s*)/)?.[1]?.length ?? 0;
-		const depth = Math.floor(indent / 2);
+		const depth = indent;
 		const label = trimmed.replace(/^root\s*\(\((.*)\)\)$/i, "$1").replace(/^root\s+/i, "");
 
 		const node: MindmapNode = { id: nextId(), label, children: [] };
@@ -71,8 +71,11 @@ function emitNode(node: MindmapNode, depth: number, lines: string[]): void {
 
 export function serializeMindmap(model: MindmapModel): string {
 	const lines: string[] = ["mindmap"];
+	for (const extra of model.extrasBeforeRoot) {
+		lines.push(`  ${extra}`);
+	}
 	emitNode(model.root, 0, lines);
-	for (const extra of model.extras) {
+	for (const extra of model.extrasAfterRoot) {
 		lines.push(`  ${extra}`);
 	}
 	return lines.join("\n");

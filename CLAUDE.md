@@ -28,7 +28,7 @@ CI on `main`: `validate` → `lint` → `test` → `build`. Tag push → release
 
 ## Architecture (essentials)
 
-```
+```mermaid
 Mermaid text ──parser.ts──▶ DiagramModel ──serializer.ts──▶ Mermaid text
                             (editor mutates in place)
 ```

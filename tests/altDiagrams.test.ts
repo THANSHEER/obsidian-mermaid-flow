@@ -7,27 +7,32 @@ describe('alt diagrams', () => {
 	it('round-trips a sequence diagram', () => {
 		const src = [
 			'sequenceDiagram',
-			'  participant A as Alice',
+			'  actor A as Alice',
 			'  participant B',
 			'  A->>B: hello',
-			'  B-->>A: hi',
+			'  B-->A: hi',
+			'  A--)B: callback',
 		].join('\n');
 		const model = parseSequence(src);
 		expect(model.participants).toHaveLength(2);
-		expect(model.messages).toHaveLength(2);
+		expect(model.participants[0]?.kind).toBe('actor');
+		expect(model.messages).toHaveLength(3);
 		const out = serializeSequence(model);
 		const again = parseSequence(out);
 		expect(again.participants.map((p) => p.id)).toEqual(['A', 'B']);
+		expect(out).toContain('actor A as Alice');
+		expect(out).toContain('B-->A: hi');
+		expect(out).toContain('A--)B: callback');
 		expect(again.messages[0]?.text).toBe('hello');
 	});
 
 	it('round-trips a mindmap', () => {
 		const src = [
 			'mindmap',
-			'  root((Topics))',
-			'    Ideas',
-			'      Sketch',
-			'    Notes',
+			' root((Topics))',
+			'  Ideas',
+			'   Sketch',
+			'  Notes',
 		].join('\n');
 		const model = parseMindmap(src);
 		expect(model.root.label).toBe('Topics');
@@ -43,19 +48,22 @@ describe('alt diagrams', () => {
 			'erDiagram',
 			'  CUSTOMER {',
 			'    string name',
-			'    int id PK',
+			'    int id PK, FK "primary id"',
 			'  }',
 			'  ORDER {',
 			'    int id PK',
 			'  }',
-			'  CUSTOMER ||--o{ ORDER : places',
+			'  CUSTOMER ||--|{ ORDER : places',
+			'  ORDER }|..|{ CUSTOMER : relates',
 		].join('\n');
 		const model = parseEr(src);
 		expect(model.entities).toHaveLength(2);
-		expect(model.relations).toHaveLength(1);
+		expect(model.relations).toHaveLength(2);
 		const out = serializeEr(model);
 		const again = parseEr(out);
 		expect(again.entities.find((e) => e.id === 'CUSTOMER')?.attributes.length).toBe(2);
+		expect(again.entities.find((e) => e.id === 'CUSTOMER')?.attributes[1]?.fk).toBe(true);
+		expect(again.entities.find((e) => e.id === 'CUSTOMER')?.attributes[1]?.comment).toBe('primary id');
 		expect(again.relations[0]?.label).toBe('places');
 	});
 });

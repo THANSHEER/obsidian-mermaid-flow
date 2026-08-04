@@ -32,4 +32,27 @@ describe('componentLibrary', () => {
 		expect(target.nodes.length).toBe(3);
 		expect(target.edges.length).toBe(1);
 	});
+
+	it('preserves nested groups and extras when inserting a component', () => {
+		const model = emptyModel('TB');
+		model.nodes.push(
+			{ id: 'A', label: 'A', shape: 'rect', x: 100, y: 100 },
+			{ id: 'B', label: 'B', shape: 'rect', x: 180, y: 100 },
+		);
+		model.groups.push(
+			{ id: 'outer', title: 'Outer', nodeIds: ['A'], parentId: undefined },
+			{ id: 'inner', title: 'Inner', nodeIds: ['B'], parentId: 'outer' },
+		);
+		model.extras.push('%% keep me');
+
+		const comp = componentFromSelection(model, ['A', 'B'], 'Nested');
+		expect(comp).not.toBeNull();
+
+		const target = emptyModel('TB');
+		const placed = insertComponent(target, comp!);
+		expect(placed).toHaveLength(2);
+		expect(target.groups).toHaveLength(2);
+		expect(target.groups.some((g) => g.parentId)).toBe(true);
+		expect(target.extras).toContain('%% keep me');
+	});
 });

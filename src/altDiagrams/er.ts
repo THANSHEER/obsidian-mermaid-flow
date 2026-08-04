@@ -5,7 +5,7 @@
 import { ErAttribute, ErEntity, ErModel, ErRelation, emptyEr } from "./types";
 
 const REL_RE =
-	/^([A-Za-z0-9_]+)\s+(\|\|--o\{|\|\|--\|\||\}\|--\|\||\|\|--o\||\}o--o\{|}\|..\|\||\|\|--\{)\s+([A-Za-z0-9_]+)\s*(?::\s*(.*))?$/;
+	/^([A-Za-z0-9_]+)\s+(\|\|--o\{|\|\|--\|\||\}\|--\|\||\|\|--o\||\}o--o\{|\}\|..\|\||\|\|--\|\{|\}\|..\|\{)\s+([A-Za-z0-9_]+)\s*(?::\s*(.*))?$/;
 
 export function parseEr(text: string): ErModel {
 	const model = emptyEr();
@@ -16,7 +16,7 @@ export function parseEr(text: string): ErModel {
 	const ensureEntity = (id: string): ErEntity => {
 		let e = model.entities.find((x) => x.id === id);
 		if (!e) {
-			e = { id, attributes: [] };
+			e = { id, attributes: [], extras: [] };
 			model.entities.push(e);
 		}
 		return e;
@@ -40,17 +40,30 @@ export function parseEr(text: string): ErModel {
 		}
 
 		if (current) {
-			const attr = trimmed.match(/^([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)(?:\s+(PK|FK|UK))?$/i);
+			const inlineComment = trimmed.match(/^(.*?)(?:\s+%%\s*(.*))?$/);
+			const attrText = inlineComment?.[1]?.trim() ?? trimmed;
+			const attr = attrText.match(/^([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)(?:\s+(.+))?$/i);
 			if (attr && attr[1] && attr[2]) {
+				const meta = (attr[3] ?? "").trim();
+				const quoted = meta.match(/^(.*?)(?:\s+"(.*)")?$/);
+				const flags = new Set(
+					(quoted?.[1] ?? "")
+						.split(",")
+						.map((part) => part.trim().toUpperCase())
+						.filter(Boolean),
+				);
 				const a: ErAttribute = {
 					type: attr[1],
 					name: attr[2],
-					pk: (attr[3] ?? "").toUpperCase() === "PK",
+					pk: flags.has("PK"),
+					fk: flags.has("FK"),
+					uk: flags.has("UK"),
+					comment: inlineComment?.[2]?.trim() || quoted?.[2]?.trim() || undefined,
 				};
 				current.attributes.push(a);
 				continue;
 			}
-			model.extras.push(trimmed);
+			current.extras.push(trimmed);
 			continue;
 		}
 
@@ -96,8 +109,17 @@ export function serializeEr(model: ErModel): string {
 		}
 		lines.push(`    ${e.id} {`);
 		for (const a of e.attributes) {
-			const pk = a.pk ? " PK" : "";
-			lines.push(`        ${a.type} ${a.name}${pk}`);
+			const flags = [
+				a.pk ? "PK" : null,
+				a.fk ? "FK" : null,
+				a.uk ? "UK" : null,
+			].filter((v): v is string => v !== null);
+			const meta = flags.length > 0 ? ` ${flags.join(", ")}` : "";
+			const comment = a.comment ? ` "${a.comment}"` : "";
+			lines.push(`        ${a.type} ${a.name}${meta}${comment}`);
+		}
+		for (const extra of e.extras) {
+			lines.push(`        ${extra}`);
 		}
 		lines.push(`    }`);
 	}
@@ -114,7 +136,7 @@ export function serializeEr(model: ErModel): string {
 export function addErEntity(model: ErModel, id: string): ErEntity {
 	const existing = model.entities.find((e) => e.id === id);
 	if (existing) return existing;
-	const e: ErEntity = { id, attributes: [] };
+	const e: ErEntity = { id, attributes: [], extras: [] };
 	model.entities.push(e);
 	return e;
 }

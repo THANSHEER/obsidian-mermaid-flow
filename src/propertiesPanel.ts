@@ -375,9 +375,8 @@ export class PropertiesPanel {
 		this.buildStyleAsRow();
 		this.buildNodeStyleSection(node);
 		this.buildNodeClassSection(node, model);
-		this.buildQuickAddRow();
-
 		this.endSection();
+		this.buildQuickAddRow();
 
 		// Lock toggle
 		const lockRow = this.panelEl.createDiv({ cls: "mermaid-flow-field-inline" });

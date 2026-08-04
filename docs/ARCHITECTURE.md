@@ -26,14 +26,14 @@ graph TD
 - `src/editorView.ts`: The main workspace view for the "Embedded Pane" mode.
 - `src/canvas.ts`: Handles the logic for rendering and interacting with the flowchart elements.
 - `src/editorBridge.ts`: Logic for reading and writing to the Obsidian Editor (locating blocks, replacing text).
-- `src/diagramType.ts`: Detects Mermaid diagram kinds; non-flowchart blocks open in the code viewer.
+- `src/diagramType.ts`: Detects Mermaid diagram kinds; sequence/mindmap/ER route to `AltDiagramModal`, while unsupported kinds fall back to the code viewer.
 - `src/ai/`: Optional AI generation (HTTP providers + desktop-only CLI).
 
 ## Persistent Layouts
 
 Standard Mermaid does not store node coordinates. Mermaid Flow solves this by appending a specialized comment to the Mermaid block (Mermaid ignores `%%` lines, so the diagram stays valid):
 
-```
+```text
 %% mermaid-flow:pos A=100,200,120,40 B=240,60
 ```
 

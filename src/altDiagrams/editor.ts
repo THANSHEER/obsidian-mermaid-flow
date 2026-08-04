@@ -58,7 +58,7 @@ function serializeAltDiagram(model: AltDiagramModel): string {
 export class AltDiagramModal extends Modal {
 	private kind: AltDiagramKind;
 	private model: AltDiagramModel;
-	private onSave: (code: string) => void;
+	private onSave: (code: string) => Promise<void>;
 	private canvasHost!: HTMLElement;
 	private listHost!: HTMLElement;
 
@@ -66,7 +66,7 @@ export class AltDiagramModal extends Modal {
 		app: App,
 		kind: AltDiagramKind,
 		source: string,
-		onSave: (code: string) => void,
+		onSave: (code: string) => Promise<void>,
 	) {
 		super(app);
 		this.kind = kind;
@@ -99,9 +99,19 @@ export class AltDiagramModal extends Modal {
 		discard.addEventListener("click", () => this.close());
 		const save = footer.createEl("button", { text: "Save", cls: "mod-cta" });
 		save.addEventListener("click", () => {
-			this.onSave(serializeAltDiagram(this.model));
-			new Notice("Diagram saved to note.");
-			this.close();
+			save.disabled = true;
+			this.onSave(serializeAltDiagram(this.model))
+				.then(() => {
+					new Notice("Diagram saved to note.");
+					this.close();
+				})
+				.catch((e) => {
+					const msg = e instanceof Error ? e.message : String(e);
+					new Notice(`Failed to save diagram: ${msg}`);
+				})
+				.finally(() => {
+					save.disabled = false;
+				});
 		});
 
 		this.refresh();
@@ -128,7 +138,7 @@ export class AltDiagramModal extends Modal {
 				const from = m.participants[0]!.id;
 				const to = m.participants[1]!.id;
 				const text = activeWindow.prompt("Message text", "message") ?? "message";
-				addSequenceMessage(m, { from, to, text, arrow: "solid" });
+				addSequenceMessage(m, { from, to, text, arrow: "->>" });
 				this.refresh();
 			});
 		} else if (this.kind === "mindmap") {
@@ -250,7 +260,7 @@ export class AltDiagramModal extends Modal {
 			line.setAttribute("y2", String(y));
 			line.setAttribute("stroke", "#7c3aed");
 			line.setAttribute("stroke-width", "2");
-			if (msg.arrow === "dotted" || msg.arrow === "dotted-cross") {
+			if (msg.arrow.startsWith("--")) {
 				line.setAttribute("stroke-dasharray", "6 4");
 			}
 			svg.appendChild(line);
@@ -299,14 +309,16 @@ export class AltDiagramModal extends Modal {
 		svg.classList.add("mermaid-flow-alt-svg");
 		const positions = new Map<string, { x: number; y: number }>();
 		let y = 40;
+		let maxDepth = 0;
 		const layout = (node: MindmapNode, depth: number) => {
+			maxDepth = Math.max(maxDepth, depth);
 			const x = 60 + depth * 140;
 			positions.set(node.id, { x, y });
 			y += 48;
 			for (const c of node.children) layout(c, depth + 1);
 		};
 		layout(m.root, 0);
-		const width = Math.max(400, 80 + 5 * 140);
+		const width = Math.max(400, 80 + (maxDepth + 1) * 140);
 		const height = Math.max(200, y + 20);
 		svg.setAttribute("width", String(width));
 		svg.setAttribute("height", String(height));

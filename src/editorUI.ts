@@ -80,6 +80,15 @@ interface MermaidApi {
 	parse(code: string): unknown;
 }
 
+interface CanvasContextMenuEvent extends MouseEvent {
+	svgX?: number;
+	svgY?: number;
+}
+
+function hasCanvasPoint(e: MouseEvent): e is CanvasContextMenuEvent {
+	return "svgX" in e || "svgY" in e;
+}
+
 export class DiagramEditorUI {
 	private app: App;
 	private root: HTMLElement;
@@ -887,7 +896,9 @@ export class DiagramEditorUI {
 		const lib = this.host.getComponentLibrary?.() ?? [];
 		menu.addItem((item) =>
 			item.setTitle("Save selection as component…").setIcon("plus").onClick(() => {
-				this.saveSelectionAsComponent();
+				this.saveSelectionAsComponent().catch((err) =>
+					console.error("[mermaid-flow]", err),
+				);
 			}),
 		);
 		if (lib.length > 0) {
@@ -909,13 +920,12 @@ export class DiagramEditorUI {
 				menu.addItem((item) =>
 					item.setTitle(`Delete “${comp.name}”`).setIcon("trash-2").onClick(() => {
 						const next = lib.filter((c) => c.id !== comp.id);
-						const result = this.host.saveComponentLibrary?.(next);
-						if (result && typeof (result as Promise<void>).then === "function") {
-							(result as Promise<void>).catch((err) =>
-								console.error("[mermaid-flow]", err),
-							);
-						}
-						new Notice(`Removed “${comp.name}”`);
+						this.persistComponentLibrary(next)
+							.then(() => new Notice(`Removed “${comp.name}”`))
+							.catch((err) => {
+								console.error("[mermaid-flow]", err);
+								new Notice(`Failed to remove “${comp.name}”.`);
+							});
 					}),
 				);
 			}
@@ -927,7 +937,13 @@ export class DiagramEditorUI {
 		menu.showAtMouseEvent(e);
 	}
 
-	private saveSelectionAsComponent(): void {
+	private async persistComponentLibrary(next: LibraryComponent[]): Promise<void> {
+		const saver = this.host.saveComponentLibrary;
+		if (!saver) throw new Error("Component library is not available.");
+		await Promise.resolve(saver(next));
+	}
+
+	private async saveSelectionAsComponent(): Promise<void> {
 		if (!this.host.saveComponentLibrary || !this.host.getComponentLibrary) {
 			new Notice("Component library is not available.");
 			return;
@@ -948,10 +964,7 @@ export class DiagramEditorUI {
 			return;
 		}
 		const next = [...this.host.getComponentLibrary(), comp];
-		const result = this.host.saveComponentLibrary(next);
-		if (result && typeof (result as Promise<void>).then === "function") {
-			(result as Promise<void>).catch((err) => console.error("[mermaid-flow]", err));
-		}
+		await this.persistComponentLibrary(next);
 		new Notice(`Saved “${comp.name}” to the component library.`);
 	}
 
@@ -1000,9 +1013,8 @@ export class DiagramEditorUI {
 
 		if (empty || !sel) {
 			// Right-click on empty canvas
-			const p = (e as { svgX?: number; svgY?: number });
-			const svgX = p.svgX ?? 200;
-			const svgY = p.svgY ?? 200;
+			const svgX = hasCanvasPoint(e) ? e.svgX ?? 200 : 200;
+			const svgY = hasCanvasPoint(e) ? e.svgY ?? 200 : 200;
 			const menu = new Menu();
 			menu.addItem((item) =>
 				item.setTitle("Add node here").setIcon("plus-circle").onClick(() => this.addNodeAt(this.defaultNodeShape(), svgX, svgY)),
@@ -1042,7 +1054,9 @@ export class DiagramEditorUI {
 			if (this.host.getComponentLibrary && this.host.saveComponentLibrary) {
 				menu.addItem((item) =>
 					item.setTitle("Save selection as component…").setIcon("library").onClick(() => {
-						this.saveSelectionAsComponent();
+						this.saveSelectionAsComponent().catch((err) =>
+							console.error("[mermaid-flow]", err),
+						);
 					}),
 				);
 			}
@@ -1087,8 +1101,8 @@ export class DiagramEditorUI {
 	private registerKeys(): void {
 		this.keyHandler = (e: KeyboardEvent) => {
 			const mod = e.ctrlKey || e.metaKey;
-			const target = e.target as HTMLElement | null;
-			const tag = target?.tagName?.toLowerCase();
+			const target = e.target;
+			const tag = target instanceof HTMLElement ? target.tagName.toLowerCase() : undefined;
 			const inInput = tag === "input" || tag === "textarea" || tag === "select";
 
 			// Undo / redo

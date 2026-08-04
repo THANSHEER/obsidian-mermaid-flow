@@ -623,17 +623,14 @@ export class DiagramCanvas {
 			cls: "mermaid-flow-canvas-empty-inner",
 		});
 		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
-		// Use standard DOM so this method works in the test environment (jsdom),
-		// which does not polyfill Obsidian's createEl helper.
-		const title = activeDocument.createElement("p");
-		title.className = "mermaid-flow-canvas-empty-title";
-		title.textContent = "Start your diagram";
-		inner.appendChild(title);
-		const hint = activeDocument.createElement("p");
-		hint.className = "mermaid-flow-canvas-empty-hint";
-		hint.textContent =
-			"Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.";
-		inner.appendChild(hint);
+		inner.createEl("p", {
+			cls: "mermaid-flow-canvas-empty-title",
+			text: "Start your diagram",
+		});
+		inner.createEl("p", {
+			cls: "mermaid-flow-canvas-empty-hint",
+			text: "Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.",
+		});
 	}
 
 	/**
@@ -651,27 +648,18 @@ export class DiagramCanvas {
 		);
 		if (!inner) return;
 		clearChildren(inner);
-		const glyph = activeDocument.createElement("div");
-		glyph.className = "mermaid-flow-canvas-empty-glyph";
-		glyph.textContent = "◆";
-		inner.appendChild(glyph);
-		const title = activeDocument.createElement("p");
-		title.className = "mermaid-flow-canvas-empty-title";
-		title.textContent = opts.title;
-		inner.appendChild(title);
-		const hint = activeDocument.createElement("p");
-		hint.className = "mermaid-flow-canvas-empty-hint";
-		hint.textContent = opts.hint;
-		inner.appendChild(hint);
+		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
+		inner.createEl("p", { cls: "mermaid-flow-canvas-empty-title", text: opts.title });
+		inner.createEl("p", { cls: "mermaid-flow-canvas-empty-hint", text: opts.hint });
 		if (opts.actionLabel && opts.onAction) {
-			const btn = activeDocument.createElement("button");
-			btn.className = "mermaid-flow-canvas-empty-action";
-			btn.textContent = opts.actionLabel;
+			const btn = inner.createEl("button", {
+				cls: "mermaid-flow-canvas-empty-action",
+				text: opts.actionLabel,
+			});
 			btn.addEventListener("click", (e) => {
 				e.preventDefault();
 				opts.onAction?.();
 			});
-			inner.appendChild(btn);
 		}
 	}
 

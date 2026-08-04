@@ -216,6 +216,12 @@ export default class MermaidFlowPlugin extends Plugin {
 			new AiGenerateModal(this.app, this.aiService, "improve", {
 				currentCode: block.content,
 				onResult: (code) => {
+					const type = detectDiagramType(code);
+					if (isAltDiagramType(type)) {
+						const fresh = this.relocateBlock(editor, block);
+						replaceBlockContent(editor, fresh ?? block, code);
+						return;
+					}
 					const model = this.parseOrEmpty(code);
 					this.openEditor(
 						model,
@@ -234,6 +240,11 @@ export default class MermaidFlowPlugin extends Plugin {
 		}
 		new AiGenerateModal(this.app, this.aiService, mode, {
 			onResult: (code) => {
+				const type = detectDiagramType(code);
+				if (isAltDiagramType(type)) {
+					insertBlockAtCursor(editor, "```mermaid\n" + code + "\n```");
+					return;
+				}
 				const model = this.parseOrEmpty(code);
 				this.openEditor(model, (result) => {
 					const block = modelToFencedBlock(result, {
@@ -334,6 +345,7 @@ export default class MermaidFlowPlugin extends Plugin {
 			new AltDiagramModal(this.app, type, block.content, (code) => {
 				const fresh = this.relocateBlock(editor, block);
 				replaceBlockContent(editor, fresh ?? block, code);
+				return Promise.resolve();
 			}).open();
 			return;
 		}
@@ -587,19 +599,18 @@ export default class MermaidFlowPlugin extends Plugin {
 		const lineStart = info.lineStart;
 		const lineEnd = info.lineEnd;
 
-		const writeBack = (code: string) => {
-			this.app.vault
-				.process(file, (data) => {
-					const dl = data.split("\n");
-					const before = dl.slice(0, lineStart + 1);
-					const after = dl.slice(lineEnd);
-					return [...before, ...code.split("\n"), ...after].join("\n");
-				})
-				.catch((e) => console.error("[mermaid-flow] Failed to save diagram:", e));
-		};
+		const writeBack = (code: string) =>
+			this.app.vault.process(file, (data) => {
+				const dl = data.split("\n");
+				const before = dl.slice(0, lineStart + 1);
+				const after = dl.slice(lineEnd);
+				return [...before, ...code.split("\n"), ...after].join("\n");
+			});
 
 		if (isAltDiagramType(type)) {
-			new AltDiagramModal(this.app, type, content, writeBack).open();
+			new AltDiagramModal(this.app, type, content, (code) =>
+				writeBack(code).then(() => undefined),
+			).open();
 			return;
 		}
 		if (!isVisuallyEditable(type)) {
