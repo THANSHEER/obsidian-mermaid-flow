@@ -135,11 +135,14 @@ export interface DiagramNode {
 	link?: string;
 }
 
-/** A Mermaid `subgraph` — a labelled container grouping member nodes. */
+/** A Mermaid `subgraph` — a labelled container grouping member nodes.
+ *  Optional `parentId` nests this group inside another (nested subgraphs). */
 export interface DiagramGroup {
 	id: string;
 	title: string;
 	nodeIds: string[];
+	/** When set, this subgraph is nested inside the group with that id. */
+	parentId?: string;
 }
 
 /** Diagram-level Mermaid config, emitted as a `%%{init: …}%%` directive. */
@@ -319,9 +322,53 @@ export function assignNodeToGroup(
 	}
 }
 
-/** Delete a group but keep its member nodes (ungroup). */
+/** Delete a group but keep its member nodes (ungroup). Nested children are
+ *  re-parented to this group's former parent (or become roots). */
 export function removeGroup(model: DiagramModel, groupId: string): void {
+	const removed = model.groups.find((g) => g.id === groupId);
+	const newParent = removed?.parentId;
+	for (const g of model.groups) {
+		if (g.parentId !== groupId) continue;
+		if (newParent) g.parentId = newParent;
+		else delete g.parentId;
+	}
 	model.groups = model.groups.filter((g) => g.id !== groupId);
+}
+
+/** Direct child groups of `parentId` (or root groups when parentId is null). */
+export function childGroups(
+	model: DiagramModel,
+	parentId: string | null,
+): DiagramGroup[] {
+	return model.groups.filter((g) =>
+		parentId === null ? !g.parentId : g.parentId === parentId,
+	);
+}
+
+/** All node ids owned by this group or any nested descendant group. */
+export function descendantNodeIds(
+	model: DiagramModel,
+	groupId: string,
+): string[] {
+	const ids: string[] = [];
+	const visit = (id: string) => {
+		const g = model.groups.find((x) => x.id === id);
+		if (!g) return;
+		ids.push(...g.nodeIds);
+		for (const child of model.groups) {
+			if (child.parentId === id) visit(child.id);
+		}
+	};
+	visit(groupId);
+	return ids;
+}
+
+/** True if the group (or any nested child) still owns at least one node. */
+export function groupSubtreeHasNodes(
+	model: DiagramModel,
+	groupId: string,
+): boolean {
+	return descendantNodeIds(model, groupId).length > 0;
 }
 
 export function removeEdge(model: DiagramModel, id: string): void {
@@ -385,7 +432,11 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 				? { ...e.style, extra: e.style.extra ? [...e.style.extra] : undefined }
 				: undefined,
 		})),
-		groups: model.groups.map((g) => ({ ...g, nodeIds: [...g.nodeIds] })),
+		groups: model.groups.map((g) => ({
+			...g,
+			nodeIds: [...g.nodeIds],
+			parentId: g.parentId,
+		})),
 		classDefs: model.classDefs.map((c) => ({
 			name: c.name,
 			style: { ...c.style, extra: c.style.extra ? [...c.style.extra] : undefined },

@@ -7,6 +7,7 @@ import {
 	NodeShape,
 	SHAPE_LABELS,
 } from "./model";
+import type { LibraryComponent } from "./componentLibrary";
 import type MermaidFlowPlugin from "./main";
 import { AiProviderId, AiSettings, CliPresetId, DEFAULT_AI_SETTINGS } from "./ai/types";
 import { CLI_PRESETS } from "./ai/cliProvider";
@@ -25,6 +26,8 @@ export interface MermaidFlowSettings {
 	snapToGrid: boolean;
 	snapSize: number;
 	ai: AiSettings;
+	/** User-saved reusable diagram snippets. */
+	componentLibrary: LibraryComponent[];
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
@@ -38,6 +41,7 @@ export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	snapToGrid: false,
 	snapSize: 10,
 	ai: DEFAULT_AI_SETTINGS,
+	componentLibrary: [],
 };
 
 export class MermaidFlowSettingTab extends PluginSettingTab {
@@ -181,6 +185,25 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		this.displayAiSection(containerEl);
+
+		new Setting(containerEl).setName("Component library").setHeading();
+		const count = this.plugin.settings.componentLibrary?.length ?? 0;
+		new Setting(containerEl)
+			.setName("Saved components")
+			.setDesc(
+				count === 0
+					? "No components yet. In the visual editor, select nodes and use the library button (or context menu) to save a reusable snippet."
+					: `${count} component(s) saved. Insert or delete them from the library button in the visual editor.`,
+			)
+			.addButton((btn) => {
+				btn.setButtonText("Clear all");
+				btn.setDisabled(count === 0);
+				btn.onClick(async () => {
+					this.plugin.settings.componentLibrary = [];
+					await this.plugin.saveSettings();
+					this.display();
+				});
+			});
 	}
 
 	private displayAiSection(containerEl: HTMLElement): void {

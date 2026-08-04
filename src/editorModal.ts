@@ -3,8 +3,9 @@
  */
 
 import { App, Modal } from "obsidian";
+import type { LibraryComponent } from "./componentLibrary";
 import { AiHostBridge, DiagramEditorUI } from "./editorUI";
-import { DiagramModel } from "./model";
+import { DiagramModel, NodeShape } from "./model";
 
 export class MermaidEditorModal extends Modal {
 	private model: DiagramModel;
@@ -12,7 +13,10 @@ export class MermaidEditorModal extends Modal {
 	private toolbarStyle: "native" | "floating";
 	private exportFolder: string;
 	private snapSize: number;
+	private defaultShape: NodeShape;
 	private ai?: AiHostBridge;
+	private getComponentLibrary?: () => LibraryComponent[];
+	private saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void;
 	private ui: DiagramEditorUI | null = null;
 
 	constructor(
@@ -23,6 +27,9 @@ export class MermaidEditorModal extends Modal {
 		exportFolder = "mermaid flow",
 		snapSize = 0,
 		ai?: AiHostBridge,
+		getComponentLibrary?: () => LibraryComponent[],
+		saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void,
+		defaultShape: NodeShape = "rect",
 	) {
 		super(app);
 		this.model = model;
@@ -31,6 +38,9 @@ export class MermaidEditorModal extends Modal {
 		this.exportFolder = exportFolder;
 		this.snapSize = snapSize;
 		this.ai = ai;
+		this.getComponentLibrary = getComponentLibrary;
+		this.saveComponentLibrary = saveComponentLibrary;
+		this.defaultShape = defaultShape;
 	}
 
 	onOpen(): void {
@@ -46,7 +56,10 @@ export class MermaidEditorModal extends Modal {
 			toolbarStyle: this.toolbarStyle,
 			exportFolder: this.exportFolder,
 			snapSize: this.snapSize,
+			defaultShape: this.defaultShape,
 			ai: this.ai,
+			getComponentLibrary: this.getComponentLibrary,
+			saveComponentLibrary: this.saveComponentLibrary,
 		});
 		this.ui.build();
 	}

@@ -19,7 +19,7 @@ export interface NodeLink {
 }
 
 /** Linked (id, label, target) triples for a parsed diagram. */
-export function linksFromModel(model: DiagramModel): NodeLink[] {
+function linksFromModel(model: DiagramModel): NodeLink[] {
 	const out: NodeLink[] = [];
 	for (const n of model.nodes) {
 		const target = n.link?.trim();

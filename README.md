@@ -76,16 +76,20 @@ The editor focuses on flowchart structure. Advanced or unrecognized Mermaid synt
 
 ## 🗺️ Roadmap
 
-Here's a look at what's already built and what's planned for the future of Mermaid Flow.
+**Done**
 
-- [x] ~~**Edit existing Mermaid flowcharts visually**~~
-- [x] ~~**Generate flowcharts from Text or Image prompts using AI**~~
-- [x] ~~**Two-way sync between raw code and visual canvas**~~
-- [x] ~~**Full round-trip safety to preserve advanced Mermaid syntax**~~
-- [ ] **Support for more diagram types**: Expanding visual editing beyond flowcharts to include Sequence Diagrams, Mindmaps, Entity-Relationship, and more.
-- [ ] **Custom Styling & Node Colors**: Ability to apply custom colors, strokes, and styling to individual nodes directly on the canvas.
-- [ ] **Icon Integrations**: Native support for dragging and dropping icons (like Lucide) directly into nodes.
-- [ ] **Component Library**: Save custom subgraphs and node combinations as reusable snippets to quickly drop into future diagrams.
+- [x] Visual flowchart editor (drag, connect, subgraphs, undo/redo, zoom/pan)
+- [x] Safe round-trip (advanced Mermaid lines preserved)
+- [x] Custom node/edge styling + themes + classDefs
+- [x] Component library (save / insert snippets)
+- [x] AI generate & improve (HTTP + desktop CLI)
+- [x] Sequence, mindmap, and ER visual editors (MVP)
+
+**Next**
+
+- [ ] Richer sequence fragments (loops, alts, activations)
+- [ ] Stronger mindmap / ER canvas (drag layout, fuller editing)
+- [ ] Additional Mermaid diagram kinds beyond code-view fallback
 
 ## 🤝 Contributing
 

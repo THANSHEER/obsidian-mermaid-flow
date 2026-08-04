@@ -30,10 +30,6 @@ export type AiTask =
 export class AiService {
 	constructor(private getSettings: () => MermaidFlowSettings) {}
 
-	isEnabled(): boolean {
-		return this.getSettings().ai.enabled;
-	}
-
 	/** True when the selected provider has what it needs to make a call. */
 	isConfigured(): boolean {
 		const ai = this.getSettings().ai;

@@ -12,7 +12,7 @@ import { AiProvider, AiRequest } from "./types";
 
 const MAX_TOKENS = 4096;
 
-export interface HttpRequestSpec {
+interface HttpRequestSpec {
 	url: string;
 	headers: Record<string, string>;
 	body: Record<string, unknown>;

@@ -40,7 +40,9 @@ export class ExportManager {
 			item
 				.setTitle("Copy PNG to clipboard")
 				.setIcon("clipboard-copy")
-				.onClick(() => void this.copyPNG()),
+				.onClick(() => {
+					this.copyPNG().catch((e) => console.error("[mermaid-flow]", e));
+				}),
 		);
 		menu.addItem((item) =>
 			item
@@ -95,13 +97,13 @@ export class ExportManager {
 		cancelBtn.addEventListener("click", () => modal.close());
 		exportBtn.addEventListener("click", () => {
 			modal.close();
-			void this.exportDiagramWithOptions(
+			this.exportDiagramWithOptions(
 				format,
 				(fnInput.value.trim() || fnInput.placeholder).replace(/\.(svg|png)$/i, ""),
 				folderInput.value.trim() || this.opts.getExportFolder(),
 				scale,
 				transparent,
-			);
+			).catch((e) => console.error("[mermaid-flow]", e));
 		});
 		modal.open();
 		fnInput.focus();
@@ -201,9 +203,9 @@ export class ExportManager {
 		}
 	}
 
-	copyCode(): void {
+	private copyCode(): void {
 		const code = modelToMermaid(this.opts.getModel());
-		void navigator.clipboard
+		navigator.clipboard
 			.writeText(code)
 			.then(() => new Notice("Diagram code copied to clipboard"))
 			.catch(() => new Notice("Failed to copy code"));

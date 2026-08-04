@@ -12,10 +12,13 @@
 import {
 	DiagramConfig,
 	DiagramEdge,
+	DiagramGroup,
 	DiagramModel,
 	DiagramNode,
 	EdgeKind,
 	NodeStyle,
+	childGroups,
+	descendantNodeIds,
 	hasConfig,
 	hasEdgeStyle,
 	hasStyle,
@@ -225,20 +228,29 @@ export function modelToMermaid(
 	const nodeById = new Map(model.nodes.map((n) => [n.id, n]));
 	const grouped = new Set<string>();
 
-	// Subgraphs first, declaring their member nodes inside.
-	for (const group of model.groups) {
-		const members = group.nodeIds.filter((id) => nodeById.has(id));
-		if (members.length === 0) continue;
-		const title = group.title && group.title !== group.id
-			? ` [${quoteLabel(group.title)}]`
-			: "";
-		lines.push(`${INDENT}subgraph ${sanitizeId(group.id)}${title}`);
-		for (const id of members) {
-			grouped.add(id);
-			const node = nodeById.get(id);
-			if (node) lines.push(INDENT + INDENT + nodeDeclaration(node));
+	const emitGroup = (group: DiagramGroup, indent: string): void => {
+		const title =
+			group.title && group.title !== group.id
+				? ` [${quoteLabel(group.title)}]`
+				: "";
+		lines.push(`${indent}subgraph ${sanitizeId(group.id)}${title}`);
+		const childIndent = indent + INDENT;
+		for (const child of childGroups(model, group.id)) {
+			emitGroup(child, childIndent);
 		}
-		lines.push(`${INDENT}end`);
+		for (const id of group.nodeIds) {
+			const node = nodeById.get(id);
+			if (!node) continue;
+			grouped.add(id);
+			lines.push(childIndent + nodeDeclaration(node));
+		}
+		lines.push(`${indent}end`);
+	};
+
+	// Root subgraphs first (nested children emitted recursively).
+	for (const group of childGroups(model, null)) {
+		if (descendantNodeIds(model, group.id).length === 0) continue;
+		emitGroup(group, INDENT);
 	}
 
 	// Remaining (ungrouped) nodes.

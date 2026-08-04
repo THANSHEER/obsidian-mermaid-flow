@@ -4,8 +4,9 @@
  */
 
 import { ItemView, WorkspaceLeaf } from "obsidian";
+import type { LibraryComponent } from "./componentLibrary";
 import { AiHostBridge, DiagramEditorUI } from "./editorUI";
-import { DiagramModel } from "./model";
+import { DiagramModel, NodeShape } from "./model";
 
 export const VIEW_TYPE_MERMAID_FLOW = "mermaid-flow-editor-view";
 
@@ -17,7 +18,10 @@ export class MermaidEditorView extends ItemView {
 	private toolbarStyle: "native" | "floating" = "native";
 	private exportFolder = "mermaid flow";
 	private snapSize = 0;
+	private defaultShape: NodeShape = "rect";
 	private ai?: AiHostBridge;
+	private getComponentLibrary?: () => LibraryComponent[];
+	private saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -44,6 +48,9 @@ export class MermaidEditorView extends ItemView {
 		exportFolder = "mermaid flow",
 		snapSize = 0,
 		ai?: AiHostBridge,
+		getComponentLibrary?: () => LibraryComponent[],
+		saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void,
+		defaultShape: NodeShape = "rect",
 	): void {
 		this.model = model;
 		this.onSave = onSave;
@@ -52,6 +59,9 @@ export class MermaidEditorView extends ItemView {
 		this.exportFolder = exportFolder;
 		this.snapSize = snapSize;
 		this.ai = ai;
+		this.getComponentLibrary = getComponentLibrary;
+		this.saveComponentLibrary = saveComponentLibrary;
+		this.defaultShape = defaultShape;
 		this.rebuild();
 	}
 
@@ -75,7 +85,7 @@ export class MermaidEditorView extends ItemView {
 		if (!this.model) {
 			container.createDiv({
 				cls: "mermaid-flow-empty",
-				text: "Open a Mermaid diagram with the “Edit Mermaid diagram visually” command to start editing.",
+				text: "No diagram open yet. Insert a Mermaid flowchart, then choose Edit — or run “Insert visual Mermaid diagram” from the command palette.",
 			});
 			return;
 		}
@@ -88,7 +98,10 @@ export class MermaidEditorView extends ItemView {
 			toolbarStyle: this.toolbarStyle,
 			exportFolder: this.exportFolder,
 			snapSize: this.snapSize,
+			defaultShape: this.defaultShape,
 			ai: this.ai,
+			getComponentLibrary: this.getComponentLibrary,
+			saveComponentLibrary: this.saveComponentLibrary,
 		});
 		this.ui.build();
 	}

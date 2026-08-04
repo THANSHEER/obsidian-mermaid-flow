@@ -22,17 +22,14 @@ import { STYLE_PRESETS } from "./presets";
 export interface PanelOps {
 	commit(): void;
 	render(): void;
-	refresh(): void;
 	quickAddStep(): void;
 	quickAddBranch(): void;
 	quickAddChild(): void;
 	applyStylePreset(id: string): void;
 	duplicateSelected(): void;
 	deleteSelected(): void;
-	addSubgraph(): void;
 	ungroupSelected(): void;
 	reverseSelectedEdge(): void;
-	focusLabel(): void;
 	/** Prompt for a note to link the selected node to; resolves to a wiki link or null. */
 	pickLink(): Promise<string | null>;
 	/** Open a node's link target (Obsidian note or external URL). */
@@ -72,6 +69,7 @@ export class PropertiesPanel {
 	}
 
 	refresh(): HTMLInputElement | null {
+		this.sectionParent = null;
 		const canvas = this.getCanvas();
 		const model = this.getModel();
 		const sel = canvas.getSelection();
@@ -80,7 +78,9 @@ export class PropertiesPanel {
 
 		// Multi-selection batch style panel
 		if (multi.length > 1) {
-			return this.buildMultiPanel(multi, model);
+			const result = this.buildMultiPanel(multi, model);
+			this.endSection();
+			return result;
 		}
 
 		if (!sel) {
@@ -98,6 +98,7 @@ export class PropertiesPanel {
 			list.createEl("li", { text: "Shift-click or drag a box to select several nodes." });
 			list.createEl("li", { text: "Right-click a node or edge for more actions." });
 			this.buildDiagramSection(model);
+			this.endSection();
 			this.panelEl.createDiv({
 				cls: "mermaid-flow-stats",
 				text: `${model.nodes.length} nodes · ${model.edges.length} edges`,
@@ -105,9 +106,18 @@ export class PropertiesPanel {
 			return null;
 		}
 
-		if (sel.type === "node") return this.buildNodePanel(sel.id, model);
-		if (sel.type === "edge") { this.buildEdgePanel(sel.id, model); return null; }
+		if (sel.type === "node") {
+			const result = this.buildNodePanel(sel.id, model);
+			this.endSection();
+			return result;
+		}
+		if (sel.type === "edge") {
+			this.buildEdgePanel(sel.id, model);
+			this.endSection();
+			return null;
+		}
 		this.buildGroupPanel(sel.id, model);
+		this.endSection();
 		return null;
 	}
 
@@ -367,6 +377,8 @@ export class PropertiesPanel {
 		this.buildNodeClassSection(node, model);
 		this.buildQuickAddRow();
 
+		this.endSection();
+
 		// Lock toggle
 		const lockRow = this.panelEl.createDiv({ cls: "mermaid-flow-field-inline" });
 		lockRow.createEl("label", { text: "Lock position" });
@@ -598,8 +610,25 @@ export class PropertiesPanel {
 
 	// --- shared field helpers -----------------------------------------------
 
+	/** Parent panel while a collapsible section redirects writes into its body. */
+	private sectionParent: HTMLElement | null = null;
+
 	private sectionHead(text: string): void {
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text });
+		this.endSection();
+		const details = this.panelEl.createEl("details", {
+			cls: "mermaid-flow-section",
+		});
+		details.open = true;
+		details.createEl("summary", { cls: "mermaid-flow-subhead", text });
+		const body = details.createDiv({ cls: "mermaid-flow-section-body" });
+		this.sectionParent = this.panelEl;
+		this.panelEl = body;
+	}
+
+	private endSection(): void {
+		if (!this.sectionParent) return;
+		this.panelEl = this.sectionParent;
+		this.sectionParent = null;
 	}
 
 	private labelField(

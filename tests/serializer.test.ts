@@ -160,6 +160,32 @@ describe('modelToMermaid', () => {
 			expect(out).toContain('end');
 		});
 
+		it('round-trips nested subgraphs without flattening', () => {
+			const src = [
+				'flowchart TB',
+				'  subgraph Outer [Outer]',
+				'    subgraph Inner [Inner]',
+				'      A[A] --> B[B]',
+				'    end',
+				'  end',
+			].join('\n');
+			const once = mermaidToModel(src).model;
+			const text1 = modelToMermaid(once, { includePositions: false });
+			const twice = mermaidToModel(text1).model;
+			const text2 = modelToMermaid(twice, { includePositions: false });
+
+			expect(once.groups).toHaveLength(2);
+			const outer = once.groups.find((g) => g.id === 'Outer');
+			const inner = once.groups.find((g) => g.id === 'Inner');
+			expect(outer?.parentId).toBeUndefined();
+			expect(inner?.parentId).toBe('Outer');
+			expect(inner?.nodeIds).toEqual(expect.arrayContaining(['A', 'B']));
+
+			expect(twice.groups.find((g) => g.id === 'Inner')?.parentId).toBe('Outer');
+			expect(text1).toMatch(/subgraph Outer[\s\S]*subgraph Inner[\s\S]*end[\s\S]*end/);
+			expect(text2).toBe(text1);
+		});
+
 		it('emits a config init directive', () => {
 			const model = emptyModel('LR');
 			model.config = { theme: 'dark' };
