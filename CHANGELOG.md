@@ -2,303 +2,172 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.7.0] - 2026-08-16
+
+### Features
+- Setting to open the embedded editor pane as its own tab instead of always splitting the pane vertically (#12)
+- Rich text rendering on the canvas: `<b>`/`<strong>`, `<i>`/`<em>`, and `<font color>` tags in node and edge labels now render as styled text instead of raw tags, matching how Obsidian's built-in Mermaid renderer already displays them (#14)
+- Setting to disable canvas auto-resize, so panning or dragging a node near the edge no longer shrinks the whole diagram to fit (#15)
+- Floating properties panel option, replacing the fixed sidebar so the canvas can use the full width when nothing is selected (#16)
+- Setting to collapse properties-panel sections by default (#13)
+- "View release notes" button in settings, linking straight to the GitHub Releases page
+
+### Improvements
+- Removed the in-app feedback pop-up shown on install/uninstall/update; feedback, feature requests, and uninstall surveys are now only reachable via the existing command palette entries that open the web forms directly
+- Plugin no longer submits anything to a backend on version change — it just records the version silently
+
+### Security
+- Rich text label parsing (#14) never uses `innerHTML` — `<b>`/`<i>`/`<font>` tags are tokenized and only their text content is written back via `textContent`, so a crafted label can't inject arbitrary markup into the DOM
+
+---
+
 ## [1.6.0] - 2026-08-16
 
-### v1.6.0 - Faster and Smoother
-
-The plugin now runs faster and works even better. We've improved the feedback system to be simpler and more efficient.
-
-**What's Better**
-
-- Plugin runs faster and more smoothly
-- Feedback system works more reliably
-- Better overall performance
+### Features
+- Feedback prompts on install, uninstall, and version updates, using an in-app dialog (star rating, optional message, optional email) that submits to a small backend service
+- Command palette commands to open the web-based feedback, feature-request, and uninstall-survey forms directly: "Send feedback", "Request a feature", "Send uninstall feedback"
+- Ko-fi support widget in settings, with a fallback button if the embedded widget script fails to load (offline, mobile, or CSP restrictions)
 
 ---
 
-**How to Update:** Install from Obsidian Community Plugins or run `npm install` if building from source.
+## [1.5.0] - 2026-08-04
 
-No breaking changes.
-
----
-
-## [1.5.0] - 2026-08-16
-
-### v1.5.0 - Better Feedback Process
-
-We've made it easier to send us feedback without cluttering the plugin with extra windows. Now you can quickly share your thoughts using simple commands.
-
-**What's New**
-
-- Easy feedback commands in the command palette: "Send feedback", "Request a feature", and "Send uninstall feedback"
-- Send us your ideas and suggestions directly through web forms
-
-**What's Better**
-
-- Settings panel is cleaner without extra feedback windows
-- Plugin no longer shows update notifications (you'll see those in the Obsidian community plugins list instead)
-- Feedback system works better with Obsidian's guidelines
-
----
-
-**How to Update:** Install from Obsidian Community Plugins or run `npm install` if building from source.
-
-No breaking changes.
+Version/tag housekeeping only — no functional changes from 1.4.5.
 
 ---
 
 ## [1.4.5] - 2026-08-04
 
-### v1.4.5 - Smoother Editing
+### Features
+- Visual editors for sequence diagrams, mindmaps, and entity-relationship (ER) diagrams — the visual editor previously only supported flowcharts
+- Component library: save reusable diagram snippets and insert them into any diagram
+- Nested subgraphs: a subgraph can now contain other subgraphs, and the nesting survives editing and Mermaid round-trips
+- Plugin is no longer marked desktop-only
 
-Diagram editing now runs faster and smoother.
-
-**What's Better**
-
-- Better performance when editing diagrams
-- Faster response when working with your diagrams
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Improvements
+- Collapsible sections in the properties panel and settings
+- Configurable default node shape
+- Documentation refresh: updated roadmap, PRD, and architecture docs; archived stale UI/UX audit notes
 
 ---
 
 ## [1.4.4] - 2026-06-27
 
-### v1.4.4 - Maintenance Update
+### Improvements
+- CI now automatically publishes a GitHub Release with build assets (`main.js`, `manifest.json`, `styles.css`) whenever the plugin version is bumped, replacing a manual release step
 
-Internal improvements to make updates faster and more reliable.
-
-**What's Better**
-
-- Faster delivery of new versions
-
----
-
-**How to Update:** No user-facing changes.
-
-No breaking changes.
+No user-facing plugin changes.
 
 ---
 
 ## [1.4.3] - 2026-06-27
 
-### v1.4.3 - More Editing Tools
-
-Added new options to make editing diagrams easier and more flexible.
-
-**What's New**
-
-- New diagram editing features
-- Better ways to organize and manage your diagrams
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Features
+- Click-to-navigate node links: clicking a node with a Mermaid `click` link in Reading mode or Live Preview jumps straight to its target note or URL, using the plugin's own click handling instead of Mermaid's native binding (which Obsidian's security settings can strip, and which can't resolve `[[wiki links]]` anyway)
 
 ---
 
 ## [1.4.2] - 2026-06-21
 
-### v1.4.2 - Fixed Blank Canvas Issue
+### Features
+- Double-click a node or edge label to edit it directly on the canvas
+- Drag an edge's endpoint to reconnect it to a different node
+- Resize handles for subgraph groups
+- Alignment guide lines while dragging nodes
 
-Fixed a problem where your diagram would sometimes disappear from the editor.
-
-**What's Fixed**
-
-- Canvas no longer goes blank during editing
-- Visual feedback is back when you work with diagrams
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Fixes
+- Fixed another canvas rendering "blackout" case, on top of the fix shipped in 1.4.1
 
 ---
 
 ## [1.4.1] - 2026-06-20
 
-### v1.4.1 - Fixed Display Issues
+### Improvements
+- Consolidated duplicate parsing logic (style-property parsing, closing-fence regex matching) into single shared helpers
+- Removed ~90 lines of dead export code left over from before the dedicated export manager
 
-Fixed problems with how diagrams appear on screen.
-
-**What's Fixed**
-
-- Diagrams now display correctly on all systems
-- Visual issues during editing are resolved
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Fixes
+- Fixed nodes rendering as solid black boxes with invisible text: when the canvas couldn't resolve a CSS color variable, it wrote the unresolved `var(...)` token straight into the SVG, which silently fell back to black. Color resolution now always falls back to a concrete color instead.
 
 ---
 
 ## [1.4.0] - 2026-06-13
 
-### v1.4.0 - Faster and More Powerful
+### Features
+- AI-assisted diagram generation and editing: describe a diagram in plain text and generate or improve it via OpenAI, Gemini, or Anthropic, or via a desktop CLI tool — configurable provider, model, and prompt template, with entry points in both the command palette and the editor toolbar
+- Generate a diagram from an image dropped or pasted onto the canvas
+- Custom theme color palette, applied to canvas rendering
 
-Added new editing features and made the plugin run faster, especially with large diagrams.
-
-**What's New**
-
-- New ways to edit and control your diagrams
-- Better interface for diagram management
-
-**What's Better**
-
-- Faster performance when working with large diagrams
-- Smoother and more responsive editing
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Improvements
+- More accurate node sizing via a dedicated text-measurement helper
+- Substantially expanded automated test coverage (AI providers, canvas, diagram types, layout, theme palette)
 
 ---
 
 ## [1.3.1] - 2026-06-06
 
-### v1.3.1 - More Stable
+### Improvements
+- Stricter linting and build attestation enforced in CI
 
-Small improvements to make the plugin more stable and reliable.
-
-**What's Better**
-
-- Better overall stability and reliability
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Fixes
+- Replaced bare `document`/`window` references with `activeDocument`/`activeWindow` throughout, fixing behavior when the editor is opened in a popout window
 
 ---
 
 ## [1.3.0] - 2026-06-05
 
-### v1.3.0 - New Diagram Options
+### Features
+- Insert-from-template picker with built-in starter diagrams
+- Export diagrams to PNG or SVG (to the vault), plus copy-to-clipboard
+- Alignment and distribution tools for selected nodes (align left/right/top/bottom/center, distribute horizontally/vertically)
+- Dedicated properties panel for editing node, edge, and group details
+- Toolbar rebuilt as its own module with a drag-to-canvas shape palette
 
-Added new features to give you more ways to create and edit diagrams.
-
-**What's New**
-
-- New diagram types and features
-- More component options
-
-**What's Included**
-
-- Additional node types
-- More toolbar options for editing
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Improvements
+- Editor UI code substantially reorganized into dedicated modules (toolbar, properties panel, export, alignment, templates) instead of one large file
 
 ---
 
 ## [1.2.0] - 2026-06-03
 
-### v1.2.0 - Better Appearance
+### Improvements
+- Multi-line labels are collapsed to a single line on serialize, preventing a label from breaking its node's Mermaid statement
+- Added a full unit test suite (parser, serializer, model, canvas, settings)
 
-Fixed styling and design issues.
+### Security
+- Node, edge, and subgraph IDs are sanitized (restricted to alphanumeric/underscore) before being written to Mermaid text — defense-in-depth against a malformed ID injecting extra Mermaid syntax into the generated diagram
 
-**What's Better**
-
-- Improved visual appearance and colors
-- Better consistency between light and dark themes
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Fixes
+- Removed `!important` from CSS rules in favor of proper specificity, and scoped focus-visible styles to the plugin's own elements instead of overriding global `button:focus`/`input:focus`/etc. — both required for Obsidian's community plugin listing
 
 ---
 
 ## [1.1.2] - 2026-06-03
 
-### v1.1.2 - Visual Improvements
+### Improvements
+- Multi-line labels are collapsed to a single line on serialize, preventing a label from breaking its node's Mermaid statement
+- Added a full unit test suite (parser, serializer, model, canvas, settings)
 
-Updated the visual design for consistency and better appearance.
+### Security
+- Node, edge, and subgraph IDs are sanitized (restricted to alphanumeric/underscore) before being written to Mermaid text — defense-in-depth against a malformed ID injecting extra Mermaid syntax into the generated diagram
 
-**What's Better**
-
-- Improved overall appearance and styling
-- Better support for light and dark themes
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Fixes
+- Removed `!important` from CSS rules in favor of proper specificity, and scoped focus-visible styles to the plugin's own elements instead of overriding global `button:focus`/`input:focus`/etc. — both required for Obsidian's community plugin listing
 
 ---
 
 ## [1.1.0] - 2026-05-27
 
-### v1.1.0 - Refined and Polished
-
-Made the plugin faster and smoother with better user experience.
-
-**What's New**
-
-- Improved diagram editing interface
-- Better visual feedback when you interact with diagrams
-
-**What's Better**
-
-- Faster performance on all systems
-- Smoother workflows
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Improvements
+- Added CI, CodeQL security scanning, and an automated release workflow
+- Added an AI prompt template setting in settings, ahead of the AI generation feature that shipped in 1.4.0
 
 ---
 
 ## [1.0.0] - 2026-05-27
 
-### v1.0.0 - Mermaid Flow Visual Editor for Obsidian
-
-The first release of Mermaid Flow — a visual editor for creating Mermaid diagrams inside Obsidian. Create and edit diagrams by dragging and moving boxes around, no need to learn diagram syntax.
-
-**What's Included**
-
-- Visual drag-and-drop diagram editor
-- Support for flowcharts, sequence diagrams, mindmaps, and ER diagrams
-- Easy node positioning and connection management
-- Grouping and organizing related nodes into subgraphs
-- Multiple diagram themes and layout options
-- Live preview while you edit
-- Full undo and redo history
-- Zoom and pan to navigate large diagrams
-- Multiple node shapes and styling options
-- Export diagrams as PNG or SVG images
-- Code view if you want to edit the diagram text directly
-- Automatic position saving
-
-**Why You'll Love It**
-
-- Create diagrams without learning Mermaid syntax
-- Your advanced diagram code is preserved and safe
-- Works in all Obsidian modes: reading mode, live preview, and source mode
-- Fast and optimized even with large, complex diagrams
-
----
-
-**How to Update:** Install from Obsidian Community Plugins.
-
-No breaking changes.
+### Features
+- Initial release: visual editor for Mermaid flowcharts — add nodes, draw connections, and arrange layout by dragging, no Mermaid syntax required
+- Two-way sync between the visual canvas and Mermaid text, so hand-written Mermaid and the visual editor stay consistent
+- Editor available as a modal or a dedicated pane
+- Works directly in Reading mode and Live Preview
