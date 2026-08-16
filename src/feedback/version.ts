@@ -1,4 +1,10 @@
-/** Pure helper for tests — decide lifecycle action without touching Obsidian. */
+/**
+ * Determines the lifecycle action for the current version.
+ *
+ * @param lastSeenVersion - The previously stored version, if available
+ * @param currentVersion - The current version
+ * @returns `"record"` when no previous version exists, `"update"` when versions differ, or `"noop"` when they match
+ */
 export function planVersionAction(
 	lastSeenVersion: string | null | undefined,
 	currentVersion: string,

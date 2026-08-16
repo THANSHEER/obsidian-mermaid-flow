@@ -12,14 +12,27 @@ interface KofiWidget2 {
 /** Avoid calling draw() on every settings re-render (AI toggles, etc.). */
 let widgetDrawn = false;
 
+/**
+ * Retrieves the available Ko-fi widget API from the active window.
+ *
+ * @returns The Ko-fi widget API, or `undefined` when it is unavailable
+ */
 function getKofiApi(): KofiWidget2 | undefined {
 	return (activeWindow as Window & { kofiwidget2?: KofiWidget2 }).kofiwidget2;
 }
 
+/**
+ * Opens the Ko-fi page in the active window.
+ */
 function openKofi(): void {
 	activeWindow.open(KOFI_URL);
 }
 
+/**
+ * Mounts a button that opens the Ko-fi support page.
+ *
+ * @param host - The element in which to place the support button
+ */
 function mountFallbackLink(host: HTMLElement): void {
 	host.empty();
 	const btn = host.createEl("button", {
@@ -29,6 +42,11 @@ function mountFallbackLink(host: HTMLElement): void {
 	btn.addEventListener("click", () => openKofi());
 }
 
+/**
+ * Renders the Ko-fi widget into the specified host element or mounts a fallback link.
+ *
+ * @param host - The element that receives the widget or fallback link
+ */
 function drawInto(host: HTMLElement): void {
 	const api = getKofiApi();
 	if (!api || widgetDrawn) {
@@ -54,8 +72,9 @@ function drawInto(host: HTMLElement): void {
 }
 
 /**
- * Load Ko-fi Widget_2 into `parent` (settings). Falls back to a button that
- * opens the Ko-fi page if the remote script fails (CSP / offline / mobile).
+ * Mounts the Ko-fi widget in `parent`, falling back to a button that opens the Ko-fi page when the widget cannot be loaded or rendered.
+ *
+ * @param parent - The element that receives the widget host
  */
 export function mountKofiWidget(parent: HTMLElement): void {
 	const host = parent.createDiv({ cls: "mermaid-flow-kofi-widget" });

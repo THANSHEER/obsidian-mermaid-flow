@@ -301,6 +301,17 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			.setDesc("If Mermaid Flow helps you, you can support development with a tip.");
 		mountKofiWidget(containerEl);
 
+		new Setting(containerEl).setName("Changelog").setHeading();
+		new Setting(containerEl)
+			.setName("View release notes")
+			.setDesc("See what's new in the latest version and view the complete changelog.")
+			.addButton((btn) => {
+				btn.setButtonText("View on GitHub");
+				btn.onClick(() => {
+					activeWindow.open("https://github.com/THANSHEER/obsidian-mermaid-flow/releases", "_blank");
+				});
+			});
+
 		new Setting(containerEl).setName("Component library").setHeading();
 		const count = this.plugin.settings.componentLibrary?.length ?? 0;
 		new Setting(containerEl)

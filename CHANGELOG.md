@@ -2,6 +2,32 @@
 
 All notable changes to Mermaid Flow are documented here. See [Release Notes Guide](./release.md) for formatting rules.
 
+## [1.6.0] - 2026-08-16
+
+### 🧹 v1.6.0 - Code Cleanup, Streamlined Feedback Module
+
+Removed unnecessary legacy code from the feedback module to reduce bundle size and maintenance burden. Kept only essential version tracking while maintaining the new web-based feedback command flow.
+
+### 💡 Improvements
+
+- **Removed legacy API code** — deleted unused feedback submission functions that relied on old modal infrastructure
+- **Cleaned up feedback module** — removed 400+ lines of modal components and old API bindings (api.ts, modals.ts, releaseNotes.ts)
+- **Streamlined exports** — feedback module now exports only what's actively used (version lifecycle tracking)
+- **Smaller bundle** — reduced plugin size by removing deprecated code paths
+- **Maintainability** — clearer module purpose with only essential version tracking
+
+### 🐛 Bug Fixes
+
+- Removed dead imports and stale code references that could confuse future maintenance
+
+---
+
+**Upgrade:** Install from Obsidian Community Plugins or run `npm install` if building from source.
+
+No breaking changes.
+
+---
+
 ## [1.5.0] - 2026-08-16
 
 ### 🎯 v1.5.0 - Cleaner Feedback, Direct Web Forms

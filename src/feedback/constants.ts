@@ -39,6 +39,12 @@ export const FEEDBACK_TOPICS = [
 
 export type FeedbackTopic = (typeof FEEDBACK_TOPICS)[number]["value"];
 
+/**
+ * Builds the API URL for a product action.
+ *
+ * @param action - The product action for which to generate a URL
+ * @returns The product-specific API URL
+ */
 export function productUrl(
 	action: "feedback" | "feature-requests" | "uninstall" | "install" | "bug-reports",
 ): string {
