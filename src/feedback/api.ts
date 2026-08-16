@@ -23,7 +23,12 @@ export interface UninstallPayload {
 
 export type ApiResult = { ok: true } | { ok: false; error: string };
 
-/** Build JSON body for general feedback (unit-testable, no network). */
+/**
+ * Builds a JSON-ready body for general feedback.
+ *
+ * @param payload - The feedback data to include in the request body
+ * @returns An object containing the trimmed topic, nonempty optional text fields, and defined rating
+ */
 export function buildFeedbackBody(payload: FeedbackPayload): Record<string, unknown> {
 	const body: Record<string, unknown> = { topic: payload.topic.trim() };
 	if (payload.message?.trim()) body.message = payload.message.trim();
@@ -33,6 +38,12 @@ export function buildFeedbackBody(payload: FeedbackPayload): Record<string, unkn
 	return body;
 }
 
+/**
+ * Builds the request body for a feature request.
+ *
+ * @param payload - The feature request data to format
+ * @returns An object containing trimmed email, title, and details
+ */
 export function buildFeatureRequestBody(
 	payload: FeatureRequestPayload,
 ): Record<string, unknown> {
@@ -43,6 +54,12 @@ export function buildFeatureRequestBody(
 	};
 }
 
+/**
+ * Builds the request body for an uninstall submission.
+ *
+ * @param payload - The uninstall information to include in the request body
+ * @returns An object containing nonempty reasons, a trimmed message, and a defined rating
+ */
 export function buildUninstallBody(payload: UninstallPayload): Record<string, unknown> {
 	const body: Record<string, unknown> = {};
 	if (payload.reasons && payload.reasons.length > 0) body.reasons = payload.reasons;
@@ -51,6 +68,12 @@ export function buildUninstallBody(payload: UninstallPayload): Record<string, un
 	return body;
 }
 
+/**
+ * Validates the required topic and content constraints for feedback.
+ *
+ * @param payload - The feedback data to validate
+ * @returns An error message when validation fails, or `null` when the payload is valid
+ */
 export function validateFeedback(payload: FeedbackPayload): string | null {
 	if (!payload.topic.trim()) return "Topic is required.";
 	const hasMessage = Boolean(payload.message?.trim());
@@ -68,6 +91,12 @@ export function validateFeedback(payload: FeedbackPayload): string | null {
 	return null;
 }
 
+/**
+ * Validates the required fields and length limits for a feature request.
+ *
+ * @param payload - The feature request data to validate
+ * @returns An error message for the first invalid field, or `null` when the payload is valid
+ */
 export function validateFeatureRequest(payload: FeatureRequestPayload): string | null {
 	if (!payload.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim())) {
 		return "A valid email is required.";
@@ -81,6 +110,13 @@ export function validateFeatureRequest(payload: FeatureRequestPayload): string |
 	return null;
 }
 
+/**
+ * Sends a JSON payload to an endpoint and normalizes the response.
+ *
+ * @param url - The endpoint URL
+ * @param body - The JSON request payload
+ * @returns A successful result for HTTP 201 responses; otherwise, a failure result with an error message
+ */
 async function postJson(url: string, body: Record<string, unknown>): Promise<ApiResult> {
 	try {
 		const res = await requestUrl({
@@ -107,12 +143,24 @@ async function postJson(url: string, body: Record<string, unknown>): Promise<Api
 	}
 }
 
+/**
+ * Validates and submits feedback data.
+ *
+ * @param payload - The feedback details to validate and submit
+ * @returns A successful result when the feedback is accepted, or an error result when validation or submission fails
+ */
 export async function submitFeedback(payload: FeedbackPayload): Promise<ApiResult> {
 	const err = validateFeedback(payload);
 	if (err) return { ok: false, error: err };
 	return postJson(productUrl("feedback"), buildFeedbackBody(payload));
 }
 
+/**
+ * Validates and submits a feature request.
+ *
+ * @param payload - The feature request data to submit
+ * @returns The submission result, including an error message when validation or submission fails
+ */
 export async function submitFeatureRequest(
 	payload: FeatureRequestPayload,
 ): Promise<ApiResult> {
@@ -121,6 +169,12 @@ export async function submitFeatureRequest(
 	return postJson(productUrl("feature-requests"), buildFeatureRequestBody(payload));
 }
 
+/**
+ * Submits an uninstall report.
+ *
+ * @param payload - The uninstall report data to submit
+ * @returns The submission result
+ */
 export async function submitUninstall(payload: UninstallPayload): Promise<ApiResult> {
 	return postJson(productUrl("uninstall"), buildUninstallBody(payload));
 }

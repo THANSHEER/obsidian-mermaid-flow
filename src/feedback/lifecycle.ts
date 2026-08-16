@@ -4,8 +4,9 @@ import { planVersionAction } from "./version";
 export { planVersionAction } from "./version";
 
 /**
- * Compare persisted lastSeenVersion to the running manifest version.
- * First run: record version only. Version bump: save silently.
+ * Records the current manifest version when it differs from the persisted last-seen version.
+ *
+ * @param plugin - The plugin whose version state is updated and saved
  */
 export async function runVersionLifecycle(plugin: MermaidFlowPlugin): Promise<void> {
 	const current = plugin.manifest.version;

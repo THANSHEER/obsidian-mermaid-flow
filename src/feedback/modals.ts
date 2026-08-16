@@ -12,6 +12,12 @@ import {
 } from "./constants";
 import { fetchReleaseNotes, type ReleaseNotes } from "./releaseNotes";
 
+/**
+ * Displays a status message or hides and clears the status element.
+ *
+ * @param el - The element used to display the status
+ * @param text - The status message, or `null` to hide and clear it
+ */
 function setStatus(el: HTMLElement | null, text: string | null): void {
 	if (!el) return;
 	if (!text) {
