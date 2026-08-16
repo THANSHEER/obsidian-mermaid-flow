@@ -96,11 +96,11 @@ re-deriving.
 3. CI auto-creates the GitHub release (`main.js`, `manifest.json`,
    `styles.css`) with a bare version title and `--generate-notes` placeholder
    body — never leave that placeholder as the final release. Replace it with
-   the `gh release edit <version> --title "vX.Y.Z - Title" --notes "..."`:
-   title picked from the CHANGELOG entry (not auto-generated), notes rewritten
-   in public-friendly language — plain language, no emoji, no
-   code/implementation detail — what's new, what's better, what's fixed, how
-   to update.
+   `gh release edit <version> --title "vX.Y.Z - Title" --notes-file <path>`:
+   title picked from the CHANGELOG entry (not auto-generated), notes are the
+   matching CHANGELOG.md section **verbatim** — same `### Features` /
+   `### Improvements` / `### Security` / `### Fixes` headings and wording, not
+   a reworded "What's new / What's better" paraphrase.
 4. Run `npm run validate` to check manifest version sync.
 5. Run `/code-review` before pushing.
 
