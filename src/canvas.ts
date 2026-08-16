@@ -20,6 +20,7 @@ import { createShapeElements } from "./shapes";
 import { estimateNodeSize, MIN_W, NODE_H } from "./nodeGeometry";
 import { measureTextWidth } from "./textMetrics";
 import { resolveThemePalette, ThemePalette } from "./themePalette";
+import { parseInlineMarkup, plainTextFromMarkup } from "./richText";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 // HTML elements embedded in an SVG <foreignObject> must be created in the XHTML
@@ -157,12 +158,17 @@ export class DiagramCanvas {
 	private zoom = 1;
 	private snapSize = 0;  // 0 = off
 	private spaceDown = false;
+	// When false, the viewBox only ever grows to cover new content — it never
+	// shrinks back down as nodes move, so panning beyond content stays stable.
+	private autoResize = true;
 
 	// Current viewBox origin. Stays (0,0) for all-positive content; extends
 	// into negative space when nodes/groups sit at negative coordinates so
 	// they are never clipped top/left.
 	private vbX = 0;
 	private vbY = 0;
+	private vbW = 0;
+	private vbH = 0;
 
 	// Watches the scroller until it gains real dimensions (fitWhenReady).
 	private fitObserver: ResizeObserver | null = null;
@@ -471,6 +477,15 @@ export class DiagramCanvas {
 	/** Configure optional snap-to-grid. size=0 disables snap. */
 	setSnapGrid(size: number): void {
 		this.snapSize = Math.max(0, size);
+	}
+
+	/**
+	 * When false, the canvas viewBox only grows to cover new content and never
+	 * shrinks as nodes move, giving a stable fixed viewport you can pan beyond.
+	 */
+	setAutoResize(enabled: boolean): void {
+		this.autoResize = enabled;
+		this.resizeCanvas();
 	}
 
 	/** Notify canvas that Space key is held (enables pan mode). */
@@ -810,12 +825,32 @@ export class DiagramCanvas {
 		const b = this.contentBounds();
 		// Origin stays (0,0) for all-positive content (the common case) and only
 		// extends into negative space actually occupied, so nothing clips top/left.
-		this.vbX = b ? Math.min(0, Math.floor(b.minX - PADDING)) : 0;
-		this.vbY = b ? Math.min(0, Math.floor(b.minY - PADDING)) : 0;
+		let vbX = b ? Math.min(0, Math.floor(b.minX - PADDING)) : 0;
+		let vbY = b ? Math.min(0, Math.floor(b.minY - PADDING)) : 0;
 		const maxX = Math.max(600, b ? b.maxX : 0);
 		const maxY = Math.max(400, b ? b.maxY : 0);
-		const w = Math.round(maxX + PADDING) - this.vbX;
-		const h = Math.round(maxY + PADDING) - this.vbY;
+		let w = Math.round(maxX + PADDING) - vbX;
+		let h = Math.round(maxY + PADDING) - vbY;
+
+		if (!this.autoResize && this.vbW > 0 && this.vbH > 0) {
+			// Union with the current viewport instead of refitting to content,
+			// so the canvas only ever grows and never shrinks/re-centers.
+			const prevMaxX = this.vbX + this.vbW;
+			const prevMaxY = this.vbY + this.vbH;
+			const nextMinX = Math.min(this.vbX, vbX);
+			const nextMinY = Math.min(this.vbY, vbY);
+			const nextMaxX = Math.max(prevMaxX, vbX + w);
+			const nextMaxY = Math.max(prevMaxY, vbY + h);
+			vbX = nextMinX;
+			vbY = nextMinY;
+			w = nextMaxX - nextMinX;
+			h = nextMaxY - nextMinY;
+		}
+
+		this.vbX = vbX;
+		this.vbY = vbY;
+		this.vbW = w;
+		this.vbH = h;
 		this.svg.setAttribute("width", String(Math.round(w * this.zoom)));
 		this.svg.setAttribute("height", String(Math.round(h * this.zoom)));
 		this.svg.setAttribute("viewBox", `${this.vbX} ${this.vbY} ${w} ${h}`);
@@ -969,9 +1004,11 @@ export class DiagramCanvas {
 		text.classList.add("mermaid-flow-node-label");
 		// Labels carry \n for line breaks (parser decodes <br/> → \n). SVG <text>
 		// ignores \n, so render one <tspan> per line, centred around node.y.
+		// Each line may also carry inline markup (<b>, <i>, <font color>) —
+		// rendered as nested <tspan> runs, never via innerHTML.
 		const lines = (node.label || node.id).split("\n");
 		if (lines.length <= 1) {
-			text.textContent = node.label || node.id;
+			this.appendInlineRuns(text, lines[0] ?? node.id);
 		} else {
 			const lineHeight = s?.fontSize ?? 16;
 			lines.forEach((line, i) => {
@@ -981,7 +1018,7 @@ export class DiagramCanvas {
 					"dy",
 					String(i === 0 ? -((lines.length - 1) / 2) * lineHeight : lineHeight),
 				);
-				tspan.textContent = line;
+				this.appendInlineRuns(tspan, line);
 				text.appendChild(tspan);
 			});
 		}
@@ -989,6 +1026,29 @@ export class DiagramCanvas {
 		if (s?.fontSize) text.setAttribute("font-size", `${s.fontSize}px`);
 		if (s?.fontFamily) text.setAttribute("font-family", s.fontFamily);
 		return text;
+	}
+
+	/**
+	 * Render one line of label text into `parent` (a <text> or <tspan>),
+	 * expanding supported inline markup (<b>, <i>, <font color>) into nested
+	 * <tspan> runs. Plain lines take a fast path identical to the old
+	 * `textContent =` assignment.
+	 */
+	private appendInlineRuns(parent: SVGTextElement | SVGTSpanElement, line: string): void {
+		const runs = parseInlineMarkup(line);
+		const only = runs.length === 1 ? runs[0] : undefined;
+		if (only && !only.bold && !only.italic && !only.color) {
+			parent.textContent = only.text;
+			return;
+		}
+		for (const run of runs) {
+			const span = activeDocument.createElementNS(SVG_NS, "tspan");
+			if (run.bold) span.setAttribute("font-weight", "bold");
+			if (run.italic) span.setAttribute("font-style", "italic");
+			if (run.color) span.setAttribute("fill", run.color);
+			span.textContent = run.text;
+			parent.appendChild(span);
+		}
 	}
 
 	/** Border-midpoint handles, shown on hover, used to drag out new edges. */
@@ -1259,7 +1319,7 @@ export class DiagramCanvas {
 		const fontSize = edge.style?.fontSize ?? 11;
 		const g = activeDocument.createElementNS(SVG_NS, "g");
 		const rect = activeDocument.createElementNS(SVG_NS, "rect");
-		const approxW = measureTextWidth(label, `${fontSize}px sans-serif`) + 12;
+		const approxW = measureTextWidth(plainTextFromMarkup(label), `${fontSize}px sans-serif`) + 12;
 		const half = fontSize * 0.85;
 		rect.setAttribute("x", String(x - approxW / 2));
 		rect.setAttribute("y", String(y - half));
@@ -1272,7 +1332,7 @@ export class DiagramCanvas {
 		text.setAttribute("text-anchor", "middle");
 		text.setAttribute("dominant-baseline", "central");
 		text.classList.add("mermaid-flow-edge-label");
-		text.textContent = label;
+		this.appendInlineRuns(text, label);
 		if (edge.style?.textColor) text.setAttribute("fill", edge.style.textColor);
 		if (edge.style?.fontSize) text.setAttribute("font-size", `${edge.style.fontSize}px`);
 		g.appendChild(rect);

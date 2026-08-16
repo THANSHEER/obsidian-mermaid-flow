@@ -216,6 +216,9 @@ export default class MermaidFlowPlugin extends Plugin {
 					await this.saveSettings();
 				},
 				this.settings.defaultShape,
+				this.settings.collapsePropertySections,
+				this.settings.autoResizeCanvas,
+				this.settings.panelStyle,
 			).open();
 		}
 	}
@@ -287,7 +290,10 @@ export default class MermaidFlowPlugin extends Plugin {
 		onSave: (model: DiagramModel) => void,
 		autoSave: boolean,
 	): Promise<void> {
-		const leaf = this.app.workspace.getLeaf("split", "vertical");
+		const leaf =
+			this.settings.paneOpenMode === "tab"
+				? this.app.workspace.getLeaf("tab")
+				: this.app.workspace.getLeaf("split", "vertical");
 		await leaf.setViewState({ type: VIEW_TYPE_MERMAID_FLOW, active: true });
 		await this.app.workspace.revealLeaf(leaf);
 		const view = leaf.view;
@@ -306,6 +312,9 @@ export default class MermaidFlowPlugin extends Plugin {
 					await this.saveSettings();
 				},
 				this.settings.defaultShape,
+				this.settings.collapsePropertySections,
+				this.settings.autoResizeCanvas,
+				this.settings.panelStyle,
 			);
 		}
 	}

@@ -27,4 +27,4 @@ build/
 *.log
 .env
 
-API.md
+GUIDE.md

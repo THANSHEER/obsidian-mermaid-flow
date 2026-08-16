@@ -155,6 +155,49 @@ describe('DiagramCanvas rendering', () => {
 		expect(svg.querySelector('.mermaid-flow-node-label')!.getAttribute('fill')).toBe('#0000ff');
 	});
 
+	it('renders supported inline markup (<b>, <i>, <font color>) as styled tspans', () => {
+		const model = emptyModel('LR');
+		model.nodes.push({
+			id: 'A',
+			label: 'plain <b>bold</b> <i>italic</i> <font color="#ff0000">red</font>',
+			shape: 'rect',
+			x: 100,
+			y: 60,
+		});
+
+		const svg = render(model);
+		const label = svg.querySelector('.mermaid-flow-node-label');
+		expect(label).not.toBeNull();
+		// still plain text overall — no unsupported elements
+		expect(label!.textContent).toBe('plain bold italic red');
+		expect(label!.querySelector('img')).toBeNull();
+
+		const runs = Array.from(label!.querySelectorAll('tspan'));
+		const bold = runs.find((r) => r.textContent === 'bold');
+		const italic = runs.find((r) => r.textContent === 'italic');
+		const red = runs.find((r) => r.textContent === 'red');
+		expect(bold!.getAttribute('font-weight')).toBe('bold');
+		expect(italic!.getAttribute('font-style')).toBe('italic');
+		expect(red!.getAttribute('fill')).toBe('#ff0000');
+	});
+
+	it('never lets an inline <font color="var(...)"> reach an SVG fill attribute', () => {
+		const model = emptyModel('LR');
+		model.nodes.push({
+			id: 'A',
+			label: '<font color="var(--text-error)">danger</font>',
+			shape: 'rect',
+			x: 100,
+			y: 60,
+		});
+
+		const svg = render(model);
+		svg.querySelectorAll('*').forEach((el) => {
+			const fill = el.getAttribute('fill');
+			if (fill) expect(fill.includes('var(')).toBe(false);
+		});
+	});
+
 	it('colours edges with the theme line colour by default', () => {
 		const model = emptyModel('LR');
 		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60 });

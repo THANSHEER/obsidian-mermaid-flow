@@ -17,6 +17,9 @@ export class MermaidEditorModal extends Modal {
 	private ai?: AiHostBridge;
 	private getComponentLibrary?: () => LibraryComponent[];
 	private saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void;
+	private collapsePropertySections: boolean;
+	private autoResizeCanvas: boolean;
+	private panelStyle: "sidebar" | "floating";
 	private ui: DiagramEditorUI | null = null;
 
 	constructor(
@@ -30,6 +33,9 @@ export class MermaidEditorModal extends Modal {
 		getComponentLibrary?: () => LibraryComponent[],
 		saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void,
 		defaultShape: NodeShape = "rect",
+		collapsePropertySections = false,
+		autoResizeCanvas = true,
+		panelStyle: "sidebar" | "floating" = "sidebar",
 	) {
 		super(app);
 		this.model = model;
@@ -41,6 +47,9 @@ export class MermaidEditorModal extends Modal {
 		this.getComponentLibrary = getComponentLibrary;
 		this.saveComponentLibrary = saveComponentLibrary;
 		this.defaultShape = defaultShape;
+		this.collapsePropertySections = collapsePropertySections;
+		this.autoResizeCanvas = autoResizeCanvas;
+		this.panelStyle = panelStyle;
 	}
 
 	onOpen(): void {
@@ -57,6 +66,9 @@ export class MermaidEditorModal extends Modal {
 			exportFolder: this.exportFolder,
 			snapSize: this.snapSize,
 			defaultShape: this.defaultShape,
+			collapsePropertySections: this.collapsePropertySections,
+			autoResizeCanvas: this.autoResizeCanvas,
+			panelStyle: this.panelStyle,
 			ai: this.ai,
 			getComponentLibrary: this.getComponentLibrary,
 			saveComponentLibrary: this.saveComponentLibrary,

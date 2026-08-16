@@ -63,9 +63,14 @@ export interface EditorHost {
 	closeOnSave?: boolean;
 	saveLabel?: string;
 	toolbarStyle?: "native" | "floating";
+	panelStyle?: "sidebar" | "floating";
 	exportFolder?: string;
 	/** Snap-to-grid cell size in pixels; 0 means no snap. */
 	snapSize?: number;
+	/** Start properties panel sections collapsed instead of expanded. */
+	collapsePropertySections?: boolean;
+	/** Keep canvas bounds fitted to content as nodes move. Default true. */
+	autoResizeCanvas?: boolean;
 	/** Shape used when adding a node via dbl-click / empty-canvas context menu. */
 	defaultShape?: NodeShape;
 	/** Present when AI assistance is enabled in settings. */
@@ -132,9 +137,11 @@ export class DiagramEditorUI {
 
 	build(): void {
 		const floating = (this.host.toolbarStyle ?? "native") === "floating";
+		const panelFloating = (this.host.panelStyle ?? "sidebar") === "floating";
 		this.root.addClass("mermaid-flow-editor");
 		this.root.toggleClass("is-toolbar-floating", floating);
 		this.root.toggleClass("is-toolbar-native", !floating);
+		this.root.toggleClass("is-panel-floating", panelFloating);
 		this.root.addClass("is-actions-docked");
 
 		const bar = this.root.createDiv({ cls: "mermaid-flow-toolbar" });
@@ -180,6 +187,7 @@ export class DiagramEditorUI {
 		this.canvas = new DiagramCanvas(canvasHost, this.model, callbacks);
 
 		this.canvas.setSnapGrid(this.host.snapSize ?? 0);
+		this.canvas.setAutoResize(this.host.autoResizeCanvas ?? true);
 
 		// Edge-type picker: shown after drawing a new edge with anchor-drag
 		this.canvas.setNewEdgePickerCallback((edgeId, e) => this.showEdgeTypePicker(edgeId, e));
@@ -208,6 +216,7 @@ export class DiagramEditorUI {
 				pickLink: () => this.pickNoteLink(),
 				openLink: (target) => this.openNodeLink(target),
 			},
+			this.host.collapsePropertySections ?? false,
 		);
 
 		// Code view
@@ -396,6 +405,9 @@ export class DiagramEditorUI {
 	private refreshPanel(): void {
 		this.panel?.refresh();
 		this.tbRefs?.updateAlignGroup();
+		const hasSelection =
+			this.canvas.getSelection() !== null || this.canvas.getMultiSelection().length > 0;
+		this.root.toggleClass("has-panel-selection", hasSelection);
 	}
 
 	private focusLabel(): void {

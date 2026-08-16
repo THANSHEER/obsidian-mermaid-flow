@@ -43,17 +43,21 @@ export class PropertiesPanel {
 	private ops: PanelOps;
 
 	private focusLabelOnBuild = false;
+	/** Start each collapsible section closed instead of open. */
+	private collapseSections: boolean;
 
 	constructor(
 		panelEl: HTMLElement,
 		getModel: () => DiagramModel,
 		getCanvas: () => DiagramCanvas,
 		ops: PanelOps,
+		collapseSections = false,
 	) {
 		this.panelEl = panelEl;
 		this.getModel = getModel;
 		this.getCanvas = getCanvas;
 		this.ops = ops;
+		this.collapseSections = collapseSections;
 	}
 
 	/**
@@ -617,7 +621,7 @@ export class PropertiesPanel {
 		const details = this.panelEl.createEl("details", {
 			cls: "mermaid-flow-section",
 		});
-		details.open = true;
+		details.open = !this.collapseSections;
 		details.createEl("summary", { cls: "mermaid-flow-subhead", text });
 		const body = details.createDiv({ cls: "mermaid-flow-section-body" });
 		this.sectionParent = this.panelEl;

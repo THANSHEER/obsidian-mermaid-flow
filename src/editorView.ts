@@ -22,6 +22,9 @@ export class MermaidEditorView extends ItemView {
 	private ai?: AiHostBridge;
 	private getComponentLibrary?: () => LibraryComponent[];
 	private saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void;
+	private collapsePropertySections = false;
+	private autoResizeCanvas = true;
+	private panelStyle: "sidebar" | "floating" = "sidebar";
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -51,6 +54,9 @@ export class MermaidEditorView extends ItemView {
 		getComponentLibrary?: () => LibraryComponent[],
 		saveComponentLibrary?: (lib: LibraryComponent[]) => Promise<void> | void,
 		defaultShape: NodeShape = "rect",
+		collapsePropertySections = false,
+		autoResizeCanvas = true,
+		panelStyle: "sidebar" | "floating" = "sidebar",
 	): void {
 		this.model = model;
 		this.onSave = onSave;
@@ -62,6 +68,9 @@ export class MermaidEditorView extends ItemView {
 		this.getComponentLibrary = getComponentLibrary;
 		this.saveComponentLibrary = saveComponentLibrary;
 		this.defaultShape = defaultShape;
+		this.collapsePropertySections = collapsePropertySections;
+		this.autoResizeCanvas = autoResizeCanvas;
+		this.panelStyle = panelStyle;
 		this.rebuild();
 	}
 
@@ -99,6 +108,9 @@ export class MermaidEditorView extends ItemView {
 			exportFolder: this.exportFolder,
 			snapSize: this.snapSize,
 			defaultShape: this.defaultShape,
+			collapsePropertySections: this.collapsePropertySections,
+			autoResizeCanvas: this.autoResizeCanvas,
+			panelStyle: this.panelStyle,
 			ai: this.ai,
 			getComponentLibrary: this.getComponentLibrary,
 			saveComponentLibrary: this.saveComponentLibrary,
