@@ -6,6 +6,15 @@ vi.mock('obsidian', () => ({
 	App: class {},
 	PluginSettingTab: class {},
 	Setting: class {},
+	Platform: { isDesktopApp: true },
+	Modal: class {
+		app: unknown;
+		constructor(app: unknown) { this.app = app; }
+		open() {}
+		close() {}
+	},
+	Notice: class {},
+	requestUrl: vi.fn(),
 }));
 
 import { DEFAULT_SETTINGS } from '../src/settings';
@@ -18,6 +27,7 @@ describe('DEFAULT_SETTINGS', () => {
 			defaultShape: 'rect',
 			savePositions: true,
 			autoSave: true,
+			lastSeenVersion: null,
 		});
 	});
 
@@ -40,6 +50,7 @@ describe('DEFAULT_SETTINGS', () => {
 		expect(merged.autoSave).toBe(false);
 		expect(merged.defaultDirection).toBe('LR');
 		expect(merged.openMode).toBe('modal'); // untouched default
+		expect(merged.lastSeenVersion).toBeNull();
 	});
 
 	it('deep-merges a partial saved ai block without masking new keys', () => {

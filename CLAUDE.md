@@ -71,6 +71,25 @@ Polyfills live only in `tests/setup.ts`. UI/render changes → update
 `canvas.test.ts`. Parser/serializer changes → round-trip tests + follow
 `.claude/skills/mermaid-roundtrip/SKILL.md`.
 
+## Release & Changelog
+
+**Before creating a release:**
+
+1. Collect changes into `CHANGELOG.md` following [`release.md`](./release.md) format
+2. Use semantic versioning: Major.Minor.Patch
+3. Structure each release with:
+   - **Title**: `### [emoji] vX.Y.Z - Value Proposition, Key Benefit`
+   - **Summary**: 1-2 user-focused sentences
+   - **Sections**: ✨ New, 🚀 Features, 💡 Improvements, 🐛 Bug Fixes (only if applicable)
+4. Run `npm run validate` to check manifest version sync
+5. Run `/code-review` before pushing
+
+**Release cadence:**
+- Tag push to `main` triggers CI → auto-release with assets (main.js, manifest.json)
+- GitHub Releases mirror CHANGELOG.md content
+
+**Reference:** See [`release.md`](./release.md) for complete formatting guide and examples.
+
 ## Local AI tooling (`.claude/`)
 
 - **Guard hook** — after edits, greps for the four listing rules + version sync.

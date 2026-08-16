@@ -12,8 +12,11 @@ Build and rearrange diagrams by moving nodes and drawing connections — Mermaid
 [![GitHub Repo stars](https://img.shields.io/github/stars/THANSHEER/obsidian-mermaid-flow?color=yellow)](https://github.com/THANSHEER/obsidian-mermaid-flow)
 [![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22mermaid-flow%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)](https://community.obsidian.md/plugins/mermaid-flow)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E78?logo=kofi&logoColor=white)](https://ko-fi.com/P0R02009G7)
 
 <img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/animated-webp/obsidian-meramaid-create-mermaid-daigram.webp" alt="Building a Mermaid flowchart visually in Obsidian" width="780" />
+
+**☕ Like Mermaid Flow?** [Support me on Ko-fi](https://ko-fi.com/P0R02009G7) • Use the **Send feedback** command to share ideas
 
 </div>
 
@@ -94,6 +97,12 @@ The editor focuses on flowchart structure. Advanced or unrecognized Mermaid synt
 ## 🤝 Contributing
 
 Contributions are welcome! See the [Contribution Guide](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/CONTRIBUTING.md) and [Architecture Overview](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/ARCHITECTURE.md) to get started.
+
+## ☕ Support
+
+If Mermaid Flow helps your notes, you can tip on Ko-fi:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/P0R02009G7)
 
 ## 📄 License
 

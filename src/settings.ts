@@ -11,6 +11,7 @@ import type { LibraryComponent } from "./componentLibrary";
 import type MermaidFlowPlugin from "./main";
 import { AiProviderId, AiSettings, CliPresetId, DEFAULT_AI_SETTINGS } from "./ai/types";
 import { CLI_PRESETS } from "./ai/cliProvider";
+import { mountKofiWidget } from "./kofi";
 
 export type OpenMode = "modal" | "pane";
 export type ToolbarStyle = "native" | "floating";
@@ -28,6 +29,8 @@ export interface MermaidFlowSettings {
 	ai: AiSettings;
 	/** User-saved reusable diagram snippets. */
 	componentLibrary: LibraryComponent[];
+	/** Last plugin version the user has seen (for update notices). */
+	lastSeenVersion: string | null;
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
@@ -42,6 +45,7 @@ export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	snapSize: 10,
 	ai: DEFAULT_AI_SETTINGS,
 	componentLibrary: [],
+	lastSeenVersion: null,
 };
 
 export class MermaidFlowSettingTab extends PluginSettingTab {
@@ -290,6 +294,12 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		this.displayAiSection(containerEl);
+
+		new Setting(containerEl).setName("Support").setHeading();
+		new Setting(containerEl)
+			.setName("Tip on Ko-fi")
+			.setDesc("If Mermaid Flow helps you, you can support development with a tip.");
+		mountKofiWidget(containerEl);
 
 		new Setting(containerEl).setName("Component library").setHeading();
 		const count = this.plugin.settings.componentLibrary?.length ?? 0;

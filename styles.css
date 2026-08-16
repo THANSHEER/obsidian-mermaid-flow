@@ -1332,3 +1332,107 @@
 @keyframes mermaid-flow-ai-spin {
 	to { transform: rotate(360deg); }
 }
+
+/* ===== Feedback / update modals ===== */
+
+.modal.mermaid-flow-feedback-modal {
+	width: min(480px, 92vw);
+}
+
+.modal.mermaid-flow-update-modal {
+	width: min(560px, 94vw);
+}
+
+.mermaid-flow-feedback-textarea {
+	width: 100%;
+	resize: vertical;
+	font-family: var(--font-interface);
+}
+
+.mermaid-flow-feedback-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
+	margin: 0 0 var(--size-4-2);
+}
+
+.mermaid-flow-feedback-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-3);
+}
+
+.mermaid-flow-feedback-reasons {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-3);
+	margin: var(--size-4-2) 0;
+}
+
+.mermaid-flow-feedback-reason {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.mermaid-flow-feedback-reason.is-on {
+	border-color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+.mermaid-flow-feedback-reason strong {
+	display: block;
+	font-size: var(--font-ui-small);
+}
+
+.mermaid-flow-feedback-reason span {
+	display: block;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.mermaid-flow-feedback-loading {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.mermaid-flow-feedback-notes {
+	max-height: min(320px, 45vh);
+	overflow: auto;
+	margin: var(--size-4-2) 0;
+	padding: var(--size-4-2);
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+}
+
+.mermaid-flow-feedback-notes-title {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-medium);
+}
+
+.mermaid-flow-feedback-notes-body {
+	margin: 0 0 var(--size-4-2);
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-small);
+	line-height: 1.45;
+}
+
+.mermaid-flow-feedback-notes-link {
+	font-size: var(--font-ui-small);
+}
+
+.mermaid-flow-kofi-widget {
+	margin: 0 0 var(--size-4-4);
+	padding: 0 var(--size-4-2);
+}
+
+.mermaid-flow-kofi-fallback {
+	margin-top: var(--size-2-2);
+}
