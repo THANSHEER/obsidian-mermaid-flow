@@ -8,6 +8,13 @@ vi.mock('obsidian', () => ({
 	PluginSettingTab: class {},
 	Setting: class {},
 	Platform: { isDesktopApp: true },
+	Modal: class {
+		app: unknown;
+		constructor(app: unknown) { this.app = app; }
+		open() {}
+		close() {}
+	},
+	Notice: class {},
 	requestUrl: (...args: unknown[]) => requestUrlMock(...args),
 }));
 

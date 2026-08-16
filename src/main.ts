@@ -43,6 +43,7 @@ import {
 	isVisuallyEditable,
 } from "./diagramType";
 import { AltDiagramModal } from "./altDiagrams";
+import { runVersionLifecycle } from "./feedback";
 
 export default class MermaidFlowPlugin extends Plugin {
 	settings!: MermaidFlowSettings;
@@ -53,6 +54,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 		this.addSettingTab(new MermaidFlowSettingTab(this.app, this));
+		runVersionLifecycle(this).catch((e) => console.error("[mermaid-flow]", e));
 
 		this.registerView(
 			VIEW_TYPE_MERMAID_FLOW,
@@ -111,6 +113,30 @@ export default class MermaidFlowPlugin extends Plugin {
 				if (!findMermaidBlockAtCursor(editor)) return false;
 				if (!checking) this.openAiFlow("improve", editor);
 				return true;
+			},
+		});
+
+		this.addCommand({
+			id: "open-feedback-form",
+			name: "Send feedback",
+			callback: () => {
+				window.open("https://geekstash.dev/mermaid-flow/feedback", "_blank");
+			},
+		});
+
+		this.addCommand({
+			id: "open-feature-request-form",
+			name: "Request a feature",
+			callback: () => {
+				window.open("https://geekstash.dev/mermaid-flow/feature-request", "_blank");
+			},
+		});
+
+		this.addCommand({
+			id: "open-uninstall-form",
+			name: "Send uninstall feedback",
+			callback: () => {
+				window.open("https://geekstash.dev/mermaid-flow/uninstall", "_blank");
 			},
 		});
 
