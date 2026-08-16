@@ -341,6 +341,36 @@
 	display: none;
 }
 
+/* --- panel style: floating (overlay near selection, hidden otherwise) --- */
+.mermaid-flow-editor.is-panel-floating .mermaid-flow-body {
+	position: relative;
+}
+
+.mermaid-flow-editor.is-panel-floating .mermaid-flow-panel-collapse {
+	display: none;
+}
+
+.mermaid-flow-editor.is-panel-floating .mermaid-flow-panel {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	bottom: 10px;
+	width: 280px;
+	max-width: calc(100% - 20px);
+	z-index: 15;
+	box-shadow: var(--shadow-s);
+	opacity: 0;
+	transform: translateX(8px);
+	pointer-events: none;
+	transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.mermaid-flow-editor.is-panel-floating.has-panel-selection .mermaid-flow-panel {
+	opacity: 1;
+	transform: translateX(0);
+	pointer-events: auto;
+}
+
 .mermaid-flow-canvas-scroll {
 	flex: 1;
 	overflow: auto;

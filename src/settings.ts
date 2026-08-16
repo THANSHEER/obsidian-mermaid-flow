@@ -15,10 +15,14 @@ import { mountKofiWidget } from "./kofi";
 
 export type OpenMode = "modal" | "pane";
 export type ToolbarStyle = "native" | "floating";
+export type PaneOpenMode = "split" | "tab";
+export type PanelStyle = "sidebar" | "floating";
 
 export interface MermaidFlowSettings {
 	openMode: OpenMode;
 	toolbarStyle: ToolbarStyle;
+	panelStyle: PanelStyle;
+	paneOpenMode: PaneOpenMode;
 	defaultDirection: Direction;
 	defaultShape: NodeShape;
 	savePositions: boolean;
@@ -26,6 +30,8 @@ export interface MermaidFlowSettings {
 	exportFolder: string;
 	snapToGrid: boolean;
 	snapSize: number;
+	collapsePropertySections: boolean;
+	autoResizeCanvas: boolean;
 	ai: AiSettings;
 	/** User-saved reusable diagram snippets. */
 	componentLibrary: LibraryComponent[];
@@ -36,6 +42,8 @@ export interface MermaidFlowSettings {
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	openMode: "modal",
 	toolbarStyle: "native",
+	panelStyle: "sidebar",
+	paneOpenMode: "split",
 	defaultDirection: "TB",
 	defaultShape: "rect",
 	savePositions: true,
@@ -43,6 +51,8 @@ export const DEFAULT_SETTINGS: MermaidFlowSettings = {
 	exportFolder: "mermaid flow",
 	snapToGrid: false,
 	snapSize: 10,
+	collapsePropertySections: false,
+	autoResizeCanvas: true,
 	ai: DEFAULT_AI_SETTINGS,
 	componentLibrary: [],
 	lastSeenVersion: null,
@@ -90,6 +100,48 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 						native: "Native (docked)",
 						floating: "Floating",
 					},
+				},
+			},
+			{
+				name: "Properties panel style",
+				desc: "Sidebar docks the panel at the right edge. Floating shows it as an overlay near your selection, and hides when nothing is selected.",
+				control: {
+					type: "dropdown",
+					key: "panelStyle",
+					defaultValue: DEFAULT_SETTINGS.panelStyle,
+					options: {
+						sidebar: "Sidebar (docked)",
+						floating: "Floating",
+					},
+				},
+			},
+			{
+				name: "Open embedded pane as",
+				desc: "Split opens the editor beside your note. New tab opens it in its own workspace tab.",
+				control: {
+					type: "dropdown",
+					key: "paneOpenMode",
+					defaultValue: DEFAULT_SETTINGS.paneOpenMode,
+					options: {
+						split: "Split",
+						tab: "New tab",
+					},
+				},
+			},
+			{
+				name: "Collapse property sections by default",
+				desc: "Start each properties panel section (Content, Shape & size, Text & style, etc.) collapsed when you select a node or edge.",
+				control: {
+					type: "toggle",
+					key: "collapsePropertySections",
+				},
+			},
+			{
+				name: "Auto-resize canvas to content",
+				desc: "Keep the canvas bounds fitted to your diagram as you move nodes. Turn off for a fixed viewport you can pan freely beyond the current content.",
+				control: {
+					type: "toggle",
+					key: "autoResizeCanvas",
 				},
 			},
 			{
@@ -197,6 +249,34 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl)
+			.setName("Properties panel style")
+			.setDesc(
+				"Sidebar docks the panel at the right edge. Floating shows it as an overlay near your selection, and hides when nothing is selected.",
+			)
+			.addDropdown((dd) => {
+				dd.addOption("sidebar", "Sidebar (docked)");
+				dd.addOption("floating", "Floating");
+				dd.setValue(this.plugin.settings.panelStyle);
+				dd.onChange(async (value) => {
+					this.plugin.settings.panelStyle = value as PanelStyle;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Open embedded pane as")
+			.setDesc("Split opens the editor beside your note. New tab opens it in its own workspace tab.")
+			.addDropdown((dd) => {
+				dd.addOption("split", "Split");
+				dd.addOption("tab", "New tab");
+				dd.setValue(this.plugin.settings.paneOpenMode);
+				dd.onChange(async (value) => {
+					this.plugin.settings.paneOpenMode = value as PaneOpenMode;
+					await this.plugin.saveSettings();
+				});
+			});
+
 		new Setting(containerEl).setName("Diagram defaults").setHeading();
 
 		new Setting(containerEl)
@@ -276,6 +356,32 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				tg.setValue(this.plugin.settings.autoSave);
 				tg.onChange(async (value) => {
 					this.plugin.settings.autoSave = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Collapse property sections by default")
+			.setDesc(
+				"Start each properties panel section (Content, Shape & size, Text & style, etc.) collapsed when you select a node or edge.",
+			)
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.collapsePropertySections);
+				tg.onChange(async (value) => {
+					this.plugin.settings.collapsePropertySections = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Auto-resize canvas to content")
+			.setDesc(
+				"Keep the canvas bounds fitted to your diagram as you move nodes. Turn off for a fixed viewport you can pan freely beyond the current content.",
+			)
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.autoResizeCanvas);
+				tg.onChange(async (value) => {
+					this.plugin.settings.autoResizeCanvas = value;
 					await this.plugin.saveSettings();
 				});
 			});
