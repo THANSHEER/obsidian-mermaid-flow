@@ -17,7 +17,15 @@ try {
         }
     }
 
-    console.log('✅ manifest.json is valid and matches package.json version.');
+    if (fs.existsSync('versions.json')) {
+        const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8'));
+        if (!versions[manifest.version]) {
+            console.error(`❌ Missing version entry in versions.json for ${manifest.version}`);
+            process.exit(1);
+        }
+    }
+
+    console.log('✅ manifest.json and versions.json are valid and match package.json version.');
 } catch (e) {
     console.error(`❌ Error validating manifest.json: ${e.message}`);
     process.exit(1);

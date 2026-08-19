@@ -1,10 +1,13 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import obsidianmd from 'eslint-plugin-obsidianmd';
 
 export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
+  ...obsidianmd.configs.recommended,
   {
+    files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
         project: true,

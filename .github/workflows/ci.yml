@@ -2,9 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   build:
@@ -22,14 +20,21 @@ jobs:
     - name: Install dependencies
       run: npm install
 
-    - name: Validate manifest.json
+    - name: Validate manifest and versions
       run: npm run validate
 
-    - name: Lint
+    - name: Obsidian security and lint checks
       run: npm run lint
 
     - name: Unit tests
       run: npm test
 
-    - name: Build check
+    - name: Production build
       run: npm run build
+
+    - name: Verify build assets
+      run: |
+        test -f main.js || (echo "❌ main.js missing" && exit 1)
+        test -f manifest.json || (echo "❌ manifest.json missing" && exit 1)
+        test -f styles.css || (echo "❌ styles.css missing" && exit 1)
+        echo "✅ All release assets successfully built and verified."
