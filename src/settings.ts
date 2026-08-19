@@ -11,7 +11,7 @@ import type { LibraryComponent } from "./componentLibrary";
 import type MermaidFlowPlugin from "./main";
 import { AiProviderId, AiSettings, CliPresetId, DEFAULT_AI_SETTINGS } from "./ai/types";
 import { CLI_PRESETS } from "./ai/cliProvider";
-import { mountKofiWidget } from "./kofi";
+import { openKofi } from "./kofi";
 
 export type OpenMode = "modal" | "pane";
 export type ToolbarStyle = "native" | "floating";
@@ -404,8 +404,14 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Support").setHeading();
 		new Setting(containerEl)
 			.setName("Tip on Ko-fi")
-			.setDesc("If Mermaid Flow helps you, you can support development with a tip.");
-		mountKofiWidget(containerEl);
+			.setDesc("If Mermaid Flow helps you, you can support development with a tip.")
+			.addButton((btn) => {
+				btn.setCta();
+				btn.setButtonText("Support on Ko-fi");
+				btn.onClick(() => {
+					openKofi();
+				});
+			});
 
 		new Setting(containerEl).setName("Changelog").setHeading();
 		new Setting(containerEl)

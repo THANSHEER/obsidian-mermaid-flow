@@ -132,7 +132,7 @@ export class CodeView {
 			this.errorEl.empty();
 			const icon = this.errorEl.createSpan({ cls: "mermaid-flow-error-icon" });
 			setIcon(icon, "alert-triangle");
-			this.errorEl.createEl("span", { text: ` Syntax Error: ${msg}` });
+			this.errorEl.createSpan({ text: ` Syntax Error: ${msg}` });
 			this.errorEl.show();
 			if (!isAuto) new Notice("Invalid Mermaid code. Check the error below.");
 		}

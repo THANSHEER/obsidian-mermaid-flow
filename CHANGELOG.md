@@ -2,6 +2,14 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.7.1] - 2026-08-19
+
+### Fixes
+- Removed dynamic script injection for the Ko-fi support widget to comply with Obsidian community plugin security policies; support button is now rendered natively in settings.
+- Replaced `createEl` usage with Obsidian `createSpan` helper in code view error display.
+
+---
+
 ## [1.7.0] - 2026-08-16
 
 ### Features
