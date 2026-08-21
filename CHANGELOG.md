@@ -2,6 +2,17 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.8.0] - 2026-08-21
+
+### Features
+- Full-bleed canvas layout: the diagram canvas now extends edge-to-edge across editor and modal views with a continuous grid background, removing bounding borders, radius, and margins (#21)
+- Hidden visual scrollbars on the canvas while preserving full mouse, trackpad gesture, spacebar pan, and scroll-wheel navigation (#21)
+- Full-width floating toolbar: the floating toolbar now spans the full width of the editor with natural multi-line flex-wrapping on narrower viewports (#22)
+- Overlap prevention for floating actions: reserved space ensures the pinned Save and Discard buttons never collide with toolbar tool items (#22)
+- Auto-hiding floating properties panel: the properties panel automatically hides while dragging a node, group, edge, or resize handle, restoring full canvas visibility during positioning (#23)
+
+---
+
 ## [1.7.1] - 2026-08-19
 
 ### Fixes

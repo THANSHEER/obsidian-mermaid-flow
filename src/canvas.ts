@@ -123,6 +123,8 @@ export interface CanvasCallbacks {
 	onDblClickNode?: (id: string) => void;
 	/** Called whenever the multi-selection set changes (for toolbar updates). */
 	onMultiChange?: () => void;
+	/** Called when a node, group, edge endpoint, or handle drag starts/stops. */
+	onDragStateChange?: (isDragging: boolean) => void;
 	/** Shape dragged from palette and dropped at SVG coordinates. */
 	onDrop?: (shape: string, svgX: number, svgY: number) => void;
 	/** A .mmd file was dropped onto the canvas — raw Mermaid text. */
@@ -181,6 +183,7 @@ export class DiagramCanvas {
 	// drag state (delta-based)
 	private dragId: string | null = null;
 	private dragLast = { x: 0, y: 0 };
+	private isDragging = false;
 
 	// space/middle-click pan
 	private panDrag: { startX: number; startY: number; scrollLeft: number; scrollTop: number } | null = null;
@@ -282,6 +285,7 @@ export class DiagramCanvas {
 		this.svg.addEventListener("pointerdown", (e) => this.onBackgroundDown(e));
 		this.svg.addEventListener("pointermove", (e) => this.onPointerMove(e));
 		this.svg.addEventListener("pointerup", (e) => this.onPointerUp(e));
+		this.svg.addEventListener("pointercancel", (e) => this.onPointerCancel(e));
 		this.svg.addEventListener("contextmenu", (e) => this.onBackgroundContext(e));
 		this.svg.addEventListener("dblclick", (e) => this.onDblClick(e));
 		this.scroller.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
@@ -304,13 +308,31 @@ export class DiagramCanvas {
 	}
 
 	setModel(model: DiagramModel): void {
+		if (this.isDragging) {
+			this.isDragging = false;
+			this.callbacks.onDragStateChange?.(false);
+		}
 		this.teardownLabelEditor();
 		this.model = model;
 		this.selection = null;
 		this.connectFrom = null;
 		this.linkFrom = null;
+		this.linkHoverTarget = null;
+		this.dragId = null;
 		this.groupDragId = null;
 		this.resizeId = null;
+		this.groupResizeId = null;
+		this.groupResizeOrigin = null;
+		this.reconnectEdge = null;
+		this.panDrag = null;
+		if (this.rubberRect) {
+			this.rubberRect.remove();
+			this.rubberRect = null;
+		}
+		this.rubber = null;
+		this.rubberMoved = false;
+		this.clearGuides();
+		this.clearGhost();
 		this.multi.clear();
 		this.render();
 	}
@@ -1779,6 +1801,19 @@ export class DiagramCanvas {
 			return;
 		}
 
+		const isMoveInteraction = !!(
+			this.dragId ||
+			this.groupDragId ||
+			this.reconnectEdge ||
+			this.resizeId ||
+			this.groupResizeId ||
+			this.linkFrom
+		);
+		if (isMoveInteraction && !this.isDragging) {
+			this.isDragging = true;
+			this.callbacks.onDragStateChange?.(true);
+		}
+
 		if (this.resizeId) {
 			const node = this.model.nodes.find((n) => n.id === this.resizeId);
 			if (!node) return;
@@ -2036,6 +2071,11 @@ export class DiagramCanvas {
 	}
 
 	private onPointerUp(e: PointerEvent): void {
+		if (this.isDragging) {
+			this.isDragging = false;
+			this.callbacks.onDragStateChange?.(false);
+		}
+
 		if (this.panDrag) {
 			this.panDrag = null;
 			this.scroller.classList.remove("mermaid-flow-cursor-grabbing");
@@ -2154,6 +2194,56 @@ export class DiagramCanvas {
 			} else {
 				this.render();
 			}
+		}
+	}
+
+	private onPointerCancel(e: PointerEvent): void {
+		const hadModelMutation =
+			(this.dragId !== null ||
+				this.resizeId !== null ||
+				this.groupDragId !== null ||
+				this.groupResizeId !== null) &&
+			this.isDragging;
+		const hadLinkOrReconnect =
+			this.linkFrom !== null ||
+			this.reconnectEdge !== null ||
+			this.linkHoverTarget !== null;
+
+		if (this.isDragging) {
+			this.isDragging = false;
+			this.callbacks.onDragStateChange?.(false);
+		}
+		if (this.panDrag) {
+			this.panDrag = null;
+			this.scroller.classList.remove("mermaid-flow-cursor-grabbing");
+			this.scroller.classList.toggle("mermaid-flow-cursor-grab", this.spaceDown);
+		}
+		if (this.rubberRect) {
+			this.rubberRect.remove();
+			this.rubberRect = null;
+		}
+		this.rubber = null;
+		this.rubberMoved = false;
+		this.resizeId = null;
+		this.dragId = null;
+		this.groupDragId = null;
+		this.groupResizeId = null;
+		this.groupResizeOrigin = null;
+		this.reconnectEdge = null;
+		this.linkFrom = null;
+		this.linkHoverTarget = null;
+		this.clearGuides();
+		this.clearGhost();
+		if (hadLinkOrReconnect) {
+			this.renderNodes();
+		}
+		try {
+			this.svg.releasePointerCapture(e.pointerId);
+		} catch {
+			/* ignore */
+		}
+		if (hadModelMutation) {
+			this.callbacks.onChange();
 		}
 	}
 

@@ -181,6 +181,9 @@ export class DiagramEditorUI {
 			// editor on double-click (draw.io style), so don't grab the side panel.
 			onDblClickNode: (id) => { this.canvas.select({ type: "node", id }); this.refreshPanel(); },
 			onMultiChange: () => this.tbRefs?.updateAlignGroup(),
+			onDragStateChange: (isDragging) => {
+				this.root.classList.toggle("is-dragging", isDragging);
+			},
 			onImportFile: (text) => this.importMermaidText(text),
 			onImportImage: (file) => this.handleImportImage(file),
 		};

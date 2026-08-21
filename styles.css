@@ -5,20 +5,30 @@
 	height: min(800px, 90vh);
 }
 
+.mermaid-flow-modal .modal-content {
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
 /* The editor root works inside both a modal and a workspace pane. */
 .mermaid-flow-editor {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
-	padding-top: 8px;
+	padding-top: 0;
 	/* positioning context for the pinned Save/Discard actions */
 	position: relative;
 }
 
 .mermaid-flow-view {
 	height: 100%;
-	padding: 8px 12px 12px;
+	padding: 0;
 	overflow: hidden;
 }
 
@@ -35,7 +45,7 @@
 	row-gap: 6px;
 	align-items: center;
 	gap: 14px;
-	padding: 8px 4px;
+	padding: 8px 12px;
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
@@ -143,10 +153,9 @@
 .mermaid-flow-editor.is-toolbar-floating .mermaid-flow-toolbar {
 	position: absolute;
 	top: 8px;
-	left: 50%;
-	transform: translateX(-50%);
+	left: 8px;
+	right: 8px;
 	z-index: 10;
-	max-width: calc(100% - 20px);
 	gap: 8px;
 	padding: 6px 10px;
 	border: 1px solid var(--background-modifier-border);
@@ -155,8 +164,8 @@
 	box-shadow: var(--shadow-s);
 }
 
-.mermaid-flow-editor.is-toolbar-floating .mermaid-flow-body {
-	padding-top: 58px;
+.mermaid-flow-editor.is-toolbar-floating.is-actions-docked .mermaid-flow-toolbar {
+	padding-right: 200px;
 }
 
 /* --- align & distribute toolbar group --- */
@@ -305,8 +314,8 @@
 	display: flex;
 	flex: 1;
 	min-height: 0;
-	gap: 10px;
-	padding-top: 10px;
+	gap: 0;
+	padding-top: 0;
 }
 
 .mermaid-flow-canvas-host {
@@ -322,8 +331,11 @@
 	width: 22px;
 	padding: 0;
 	margin: 0;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
+	border-top: none;
+	border-bottom: none;
+	border-left: 1px solid var(--background-modifier-border);
+	border-right: 1px solid var(--background-modifier-border);
+	border-radius: 0;
 	background: var(--background-secondary);
 	color: var(--text-muted);
 	cursor: pointer;
@@ -365,17 +377,27 @@
 	transition: opacity 120ms ease, transform 120ms ease;
 }
 
+.mermaid-flow-editor.is-toolbar-floating.is-panel-floating .mermaid-flow-panel {
+	top: 56px;
+}
+
 .mermaid-flow-editor.is-panel-floating.has-panel-selection .mermaid-flow-panel {
 	opacity: 1;
 	transform: translateX(0);
 	pointer-events: auto;
 }
 
+.mermaid-flow-editor.is-panel-floating.has-panel-selection.is-dragging .mermaid-flow-panel {
+	opacity: 0;
+	transform: translateX(8px);
+	pointer-events: none;
+}
+
 .mermaid-flow-canvas-scroll {
 	flex: 1;
 	overflow: auto;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
+	border: none;
+	border-radius: 0;
 	/* Faint grid (alignment aid) over a plain background, so the editing surface
 	   reads close to Mermaid's plain render rather than a busy graph-paper grid. */
 	background:
@@ -383,6 +405,12 @@
 		linear-gradient(90deg, var(--background-modifier-border) 1px, transparent 1px) 0 0 / 28px 28px,
 		var(--background-primary);
 	background-blend-mode: soft-light;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.mermaid-flow-canvas-scroll::-webkit-scrollbar {
+	display: none;
 }
 
 .mermaid-flow-svg {
@@ -488,6 +516,14 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	background: var(--background-secondary);
+}
+
+.mermaid-flow-editor:not(.is-panel-floating) .mermaid-flow-panel {
+	border-top: none;
+	border-bottom: none;
+	border-right: none;
+	border-left: none;
+	border-radius: 0;
 }
 
 .mermaid-flow-panel h3 {
@@ -1466,3 +1502,159 @@
 .mermaid-flow-kofi-fallback {
 	margin-top: var(--size-2-2);
 }
+
+/* ===== Welcome & Changelog modals ===== */
+
+.modal.mermaid-flow-welcome-modal {
+	width: min(560px, 94vw);
+	max-height: min(720px, 90vh);
+}
+
+.modal.mermaid-flow-changelog-modal {
+	width: min(580px, 94vw);
+	max-height: min(720px, 90vh);
+}
+
+.mermaid-flow-modal-header {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	margin-bottom: var(--size-4-3);
+}
+
+.mermaid-flow-app-logo {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: var(--size-4-2);
+}
+
+.mermaid-flow-app-logo svg {
+	display: block;
+	border-radius: 16px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.mermaid-flow-modal-title {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	margin: 0 0 var(--size-2-2);
+	color: var(--text-normal);
+}
+
+.mermaid-flow-modal-desc {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin: 0;
+	line-height: 1.5;
+}
+
+.mermaid-flow-welcome-features {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-3) 0;
+}
+
+.mermaid-flow-welcome-feature {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.mermaid-flow-welcome-feature-icon {
+	font-size: 20px;
+	line-height: 1;
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.mermaid-flow-welcome-feature-text strong {
+	display: block;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	margin-bottom: 2px;
+}
+
+.mermaid-flow-welcome-feature-text span {
+	display: block;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.mermaid-flow-changelog-content {
+	max-height: min(340px, 45vh);
+	overflow-y: auto;
+	margin: var(--size-4-2) 0;
+	padding: var(--size-4-3);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.mermaid-flow-changelog-item:not(:last-child) {
+	margin-bottom: var(--size-4-3);
+	padding-bottom: var(--size-4-2);
+	border-bottom: 1px dashed var(--background-modifier-border);
+}
+
+.mermaid-flow-changelog-version {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--size-4-2);
+	padding-bottom: var(--size-2-2);
+}
+
+.mermaid-flow-changelog-tag {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.mermaid-flow-changelog-badge {
+	font-size: var(--font-ui-smaller);
+	padding: 2px 8px;
+	border-radius: var(--radius-s);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: var(--font-medium);
+}
+
+.mermaid-flow-changelog-section-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: var(--size-4-2) 0 var(--size-2-2);
+}
+
+.mermaid-flow-changelog-list {
+	margin: 0;
+	padding-left: var(--size-4-4);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	line-height: 1.5;
+}
+
+.mermaid-flow-changelog-list li {
+	margin-bottom: var(--size-2-2);
+}
+
+.mermaid-flow-modal-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-3);
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
