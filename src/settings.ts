@@ -12,6 +12,7 @@ import type MermaidFlowPlugin from "./main";
 import { AiProviderId, AiSettings, CliPresetId, DEFAULT_AI_SETTINGS } from "./ai/types";
 import { CLI_PRESETS } from "./ai/cliProvider";
 import { openKofi } from "./kofi";
+import { ChangelogModal, WelcomeModal } from "./feedback";
 
 export type OpenMode = "modal" | "pane";
 export type ToolbarStyle = "native" | "floating";
@@ -413,14 +414,30 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl).setName("Changelog").setHeading();
+		new Setting(containerEl).setName("Changelog & help").setHeading();
 		new Setting(containerEl)
-			.setName("View release notes")
-			.setDesc("See what's new in the latest version and view the complete changelog.")
+			.setName("What's new")
+			.setDesc("See what's new in this version and view recent changelogs.")
+			.addButton((btn) => {
+				btn.setButtonText("View changelog");
+				btn.onClick(() => {
+					new ChangelogModal(this.app, this.plugin, this.plugin.manifest.version).open();
+				});
+			})
 			.addButton((btn) => {
 				btn.setButtonText("View on GitHub");
 				btn.onClick(() => {
 					activeWindow.open("https://github.com/THANSHEER/obsidian-mermaid-flow/releases", "_blank");
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Welcome guide")
+			.setDesc("Revisit the getting started guide and feature overview.")
+			.addButton((btn) => {
+				btn.setButtonText("Show welcome guide");
+				btn.onClick(() => {
+					new WelcomeModal(this.app, this.plugin).open();
 				});
 			});
 

@@ -1502,3 +1502,159 @@
 .mermaid-flow-kofi-fallback {
 	margin-top: var(--size-2-2);
 }
+
+/* ===== Welcome & Changelog modals ===== */
+
+.modal.mermaid-flow-welcome-modal {
+	width: min(560px, 94vw);
+	max-height: min(720px, 90vh);
+}
+
+.modal.mermaid-flow-changelog-modal {
+	width: min(580px, 94vw);
+	max-height: min(720px, 90vh);
+}
+
+.mermaid-flow-modal-header {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	margin-bottom: var(--size-4-3);
+}
+
+.mermaid-flow-app-logo {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: var(--size-4-2);
+}
+
+.mermaid-flow-app-logo svg {
+	display: block;
+	border-radius: 16px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.mermaid-flow-modal-title {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	margin: 0 0 var(--size-2-2);
+	color: var(--text-normal);
+}
+
+.mermaid-flow-modal-desc {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin: 0;
+	line-height: 1.5;
+}
+
+.mermaid-flow-welcome-features {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-3) 0;
+}
+
+.mermaid-flow-welcome-feature {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.mermaid-flow-welcome-feature-icon {
+	font-size: 20px;
+	line-height: 1;
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.mermaid-flow-welcome-feature-text strong {
+	display: block;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	margin-bottom: 2px;
+}
+
+.mermaid-flow-welcome-feature-text span {
+	display: block;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.mermaid-flow-changelog-content {
+	max-height: min(340px, 45vh);
+	overflow-y: auto;
+	margin: var(--size-4-2) 0;
+	padding: var(--size-4-3);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.mermaid-flow-changelog-item:not(:last-child) {
+	margin-bottom: var(--size-4-3);
+	padding-bottom: var(--size-4-2);
+	border-bottom: 1px dashed var(--background-modifier-border);
+}
+
+.mermaid-flow-changelog-version {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--size-4-2);
+	padding-bottom: var(--size-2-2);
+}
+
+.mermaid-flow-changelog-tag {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.mermaid-flow-changelog-badge {
+	font-size: var(--font-ui-smaller);
+	padding: 2px 8px;
+	border-radius: var(--radius-s);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: var(--font-medium);
+}
+
+.mermaid-flow-changelog-section-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: var(--size-4-2) 0 var(--size-2-2);
+}
+
+.mermaid-flow-changelog-list {
+	margin: 0;
+	padding-left: var(--size-4-4);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	line-height: 1.5;
+}
+
+.mermaid-flow-changelog-list li {
+	margin-bottom: var(--size-2-2);
+}
+
+.mermaid-flow-modal-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-3);
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+

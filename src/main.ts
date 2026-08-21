@@ -43,7 +43,7 @@ import {
 	isVisuallyEditable,
 } from "./diagramType";
 import { AltDiagramModal } from "./altDiagrams";
-import { runVersionLifecycle } from "./feedback";
+import { ChangelogModal, WelcomeModal, runVersionLifecycle } from "./feedback";
 
 export default class MermaidFlowPlugin extends Plugin {
 	settings!: MermaidFlowSettings;
@@ -137,6 +137,22 @@ export default class MermaidFlowPlugin extends Plugin {
 			name: "Send uninstall feedback",
 			callback: () => {
 				window.open("https://geekstash.dev/mermaid-flow/uninstall", "_blank");
+			},
+		});
+
+		this.addCommand({
+			id: "show-changelog",
+			name: "Show what's new (Changelog)",
+			callback: () => {
+				new ChangelogModal(this.app, this, this.manifest.version).open();
+			},
+		});
+
+		this.addCommand({
+			id: "show-welcome",
+			name: "Show welcome guide",
+			callback: () => {
+				new WelcomeModal(this.app, this).open();
 			},
 		});
 
@@ -340,7 +356,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	}
 
 	/** Ribbon action: edit the block under the cursor, else insert a new one. */
-	private editOrInsert(): void {
+	editOrInsert(): void {
 		const editor = this.getEditor();
 		if (!editor) {
 			new Notice("Open a note in editing mode first.");
