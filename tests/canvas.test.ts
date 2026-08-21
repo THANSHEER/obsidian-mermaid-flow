@@ -583,3 +583,40 @@ describe('DiagramCanvas alignment guides', () => {
 		expect(canvas.getSVG().querySelector('.mermaid-flow-guide')).toBeNull();
 	});
 });
+
+describe('DiagramCanvas drag state notifications', () => {
+	it('fires onDragStateChange(true) on drag move and onDragStateChange(false) on pointerup', () => {
+		const model = emptyModel('TB');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60, w: 80, h: 40 });
+		const parent = document.createElement('div');
+		document.body.appendChild(parent);
+		const dragEvents: boolean[] = [];
+		const canvas = new DiagramCanvas(parent, model, {
+			onSelect() {},
+			onChange() {},
+			onDragStateChange(isDragging) {
+				dragEvents.push(isDragging);
+			},
+		});
+		const svg = canvas.getSVG();
+		const nodeA = [...svg.querySelectorAll('.mermaid-flow-node')].find((n) =>
+			n.querySelector('.mermaid-flow-node-label')?.textContent === 'A',
+		)!;
+
+		// Pointerdown on node without movement does not mark as dragging
+		nodeA.dispatchEvent(pointer('pointerdown', 100, 60));
+		expect(dragEvents).toEqual([]);
+
+		// Moving mouse starts drag
+		svg.dispatchEvent(pointer('pointermove', 120, 80));
+		expect(dragEvents).toEqual([true]);
+
+		// Subsequent moves while dragging do not repeat
+		svg.dispatchEvent(pointer('pointermove', 130, 90));
+		expect(dragEvents).toEqual([true]);
+
+		// Pointerup ends drag
+		svg.dispatchEvent(pointer('pointerup', 130, 90));
+		expect(dragEvents).toEqual([true, false]);
+	});
+});
