@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/logo/logo.svg" alt="Mermaid Flow Logo" width="128" />
+<img src="assets/logo/logo.svg" alt="Mermaid Flow Logo" width="128" />
 
 # Mermaid Flow
 
@@ -14,7 +14,7 @@ Build and rearrange diagrams by moving nodes and drawing connections — Mermaid
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E78?logo=kofi&logoColor=white)](https://ko-fi.com/P0R02009G7)
 
-<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/animated-webp/obsidian-meramaid-create-mermaid-daigram.webp" alt="Building a Mermaid flowchart visually in Obsidian" width="780" />
+<img src="assets/animated-webp/obsidian-meramaid-create-mermaid-daigram.webp" alt="Building a Mermaid flowchart visually in Obsidian" width="780" />
 
 **☕ Like Mermaid Flow?** [Support me on Ko-fi](https://ko-fi.com/P0R02009G7) • Use the **Send feedback** command to share ideas
 
@@ -42,7 +42,7 @@ Your edits **round-trip safely**: Mermaid Flow reads your existing Mermaid block
 Click **Edit** on any rendered Mermaid block and rearrange it visually — your advanced syntax is preserved on save.
 
 <div align="center">
-<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/animated-webp/obsidian-meramaid-edit-mermadi-daigram.webp" alt="Editing an existing Mermaid diagram visually in Obsidian" width="780" />
+<img src="assets/animated-webp/obsidian-meramaid-edit-mermadi-daigram.webp" alt="Editing an existing Mermaid diagram visually in Obsidian" width="780" />
 </div>
 
 ### Generate with AI
@@ -50,7 +50,7 @@ Click **Edit** on any rendered Mermaid block and rearrange it visually — your 
 Describe what you want and let your configured AI provider draft the flowchart, then refine it on the canvas.
 
 <div align="center">
-<img src="https://raw.githubusercontent.com/THANSHEER/media-hub/main/obsidian-mermaid-flow/animated-webp/obsidian-meramaid-ai-mermadi-generater.webp" alt="Generating a Mermaid flowchart with AI in Obsidian" width="780" />
+<img src="assets/animated-webp/obsidian-meramaid-ai-mermadi-generater.webp" alt="Generating a Mermaid flowchart with AI in Obsidian" width="780" />
 </div>
 
 ## 🚀 Getting started
