@@ -317,8 +317,22 @@ export class DiagramCanvas {
 		this.selection = null;
 		this.connectFrom = null;
 		this.linkFrom = null;
+		this.linkHoverTarget = null;
+		this.dragId = null;
 		this.groupDragId = null;
 		this.resizeId = null;
+		this.groupResizeId = null;
+		this.groupResizeOrigin = null;
+		this.reconnectEdge = null;
+		this.panDrag = null;
+		if (this.rubberRect) {
+			this.rubberRect.remove();
+			this.rubberRect = null;
+		}
+		this.rubber = null;
+		this.rubberMoved = false;
+		this.clearGuides();
+		this.clearGhost();
 		this.multi.clear();
 		this.render();
 	}
@@ -2184,14 +2198,34 @@ export class DiagramCanvas {
 	}
 
 	private onPointerCancel(e: PointerEvent): void {
+		const hadModelMutation =
+			(this.dragId !== null ||
+				this.resizeId !== null ||
+				this.groupDragId !== null ||
+				this.groupResizeId !== null) &&
+			this.isDragging;
+		const hadLinkOrReconnect =
+			this.linkFrom !== null ||
+			this.reconnectEdge !== null ||
+			this.linkHoverTarget !== null;
+
 		if (this.isDragging) {
 			this.isDragging = false;
 			this.callbacks.onDragStateChange?.(false);
 		}
-		this.panDrag = null;
+		if (this.panDrag) {
+			this.panDrag = null;
+			this.scroller.classList.remove("mermaid-flow-cursor-grabbing");
+			this.scroller.classList.toggle("mermaid-flow-cursor-grab", this.spaceDown);
+		}
+		if (this.rubberRect) {
+			this.rubberRect.remove();
+			this.rubberRect = null;
+		}
+		this.rubber = null;
+		this.rubberMoved = false;
 		this.resizeId = null;
 		this.dragId = null;
-		this.rubber = null;
 		this.groupDragId = null;
 		this.groupResizeId = null;
 		this.groupResizeOrigin = null;
@@ -2200,10 +2234,16 @@ export class DiagramCanvas {
 		this.linkHoverTarget = null;
 		this.clearGuides();
 		this.clearGhost();
+		if (hadLinkOrReconnect) {
+			this.renderNodes();
+		}
 		try {
 			this.svg.releasePointerCapture(e.pointerId);
 		} catch {
 			/* ignore */
+		}
+		if (hadModelMutation) {
+			this.callbacks.onChange();
 		}
 	}
 

@@ -619,4 +619,36 @@ describe('DiagramCanvas drag state notifications', () => {
 		svg.dispatchEvent(pointer('pointerup', 130, 90));
 		expect(dragEvents).toEqual([true, false]);
 	});
+
+	it('commits mutated model and resets drag state on pointercancel', () => {
+		const model = emptyModel('TB');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60, w: 80, h: 40 });
+		const parent = document.createElement('div');
+		document.body.appendChild(parent);
+		let changeCalled = false;
+		const dragEvents: boolean[] = [];
+		const canvas = new DiagramCanvas(parent, model, {
+			onSelect() {},
+			onChange() {
+				changeCalled = true;
+			},
+			onDragStateChange(isDragging) {
+				dragEvents.push(isDragging);
+			},
+		});
+		const svg = canvas.getSVG();
+		const nodeA = [...svg.querySelectorAll('.mermaid-flow-node')].find((n) =>
+			n.querySelector('.mermaid-flow-node-label')?.textContent === 'A',
+		)!;
+
+		nodeA.dispatchEvent(pointer('pointerdown', 100, 60));
+		svg.dispatchEvent(pointer('pointermove', 150, 110));
+		expect(dragEvents).toEqual([true]);
+
+		svg.dispatchEvent(pointer('pointercancel', 150, 110));
+		expect(dragEvents).toEqual([true, false]);
+		expect(changeCalled).toBe(true);
+		expect(model.nodes[0]!.x).toBe(150);
+		expect(model.nodes[0]!.y).toBe(110);
+	});
 });
