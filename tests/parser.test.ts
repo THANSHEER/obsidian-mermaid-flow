@@ -333,4 +333,136 @@ describe('mermaidToModel', () => {
 			expect(warnings.length).toBeGreaterThan(0);
 		});
 	});
+
+	describe('Issue #26: semicolons, quotes, entities, and delimiter safety', () => {
+		it('parses quoted labels containing semicolons without splitting statements', () => {
+			const { model, warnings } = mermaidToModel('flowchart LR\n  A["one; two"] --> B');
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes).toHaveLength(2);
+			expect(model.nodes.find(n => n.id === 'A')?.label).toBe('one; two');
+			expect(model.edges).toHaveLength(1);
+		});
+
+		it('preserves subgraphs when nodes contain semicolons in quoted labels', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A["one; two"] --> B',
+				'  end',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(warnings).toHaveLength(0);
+			expect(model.groups).toHaveLength(1);
+			expect(model.groups[0]?.id).toBe('Group1');
+			expect(model.groups[0]?.nodeIds).toEqual(expect.arrayContaining(['A', 'B']));
+			expect(model.nodes.find(n => n.id === 'A')?.label).toBe('one; two');
+		});
+
+		it('parses edge labels containing semicolons', () => {
+			const { model, warnings } = mermaidToModel('flowchart LR\n  A -->|"one; two"| B');
+			expect(warnings).toHaveLength(0);
+			expect(model.edges[0]?.label).toBe('one; two');
+		});
+
+		it('parses HTML entities with trailing semicolons and unescapes quotes', () => {
+			const { model, warnings } = mermaidToModel('flowchart LR\n  A["•&nbsp;first"]\n  B["He said &quot;hi&quot;"]');
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes.find(n => n.id === 'A')?.label).toBe('•&nbsp;first');
+			expect(model.nodes.find(n => n.id === 'B')?.label).toBe('He said "hi"');
+			expect(model.nodes).toHaveLength(2);
+		});
+
+		it('parses multiple statements on a single line separated by semicolons', () => {
+			const { model, warnings } = mermaidToModel('flowchart LR\n  A["one; two"] --> B; C --> D');
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes).toHaveLength(4);
+			expect(model.edges).toHaveLength(2);
+		});
+
+		it('parses labels containing arrow operators without misinterpreting them as links', () => {
+			const { model, warnings } = mermaidToModel('flowchart LR\n  A["Step 1 --> Step 2"] --> B');
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes.find(n => n.id === 'A')?.label).toBe('Step 1 --> Step 2');
+			expect(model.edges).toHaveLength(1);
+		});
+
+		it('parses inline labels containing hyphens', () => {
+			const { model, warnings } = mermaidToModel('flowchart LR\n  A -- step-by-step --> B');
+			expect(warnings).toHaveLength(0);
+			expect(model.edges[0]?.label).toBe('step-by-step');
+		});
+
+		it('parses pipe labels containing pipe characters inside quotes', () => {
+			const { model, warnings } = mermaidToModel('flowchart LR\n  A -->|"option A | option B"| B');
+			expect(warnings).toHaveLength(0);
+			expect(model.edges[0]?.label).toBe('option A | option B');
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+		});
+	});
+
+	describe('Issue #27: subgraph style, class, direction, and scoped extras', () => {
+		it('applies style <subgraphId> to group.style without creating a ghost node', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A --> B',
+				'  end',
+				'  style Group1 fill:none,stroke:#333',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(model.nodes.find(n => n.id === 'Group1')).toBeUndefined();
+			const group = model.groups.find(g => g.id === 'Group1');
+			expect(group).toBeDefined();
+			expect(group?.style?.fillColor).toBe('none');
+			expect(group?.style?.strokeColor).toBe('#333');
+		});
+
+		it('applies class <subgraphId> to group.classes without creating a ghost node', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A --> B',
+				'  end',
+				'  class Group1 important',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(model.nodes.find(n => n.id === 'Group1')).toBeUndefined();
+			const group = model.groups.find(g => g.id === 'Group1');
+			expect(group?.classes).toEqual(['important']);
+		});
+
+		it('parses direction inside a subgraph as group.direction without moving it to extras', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    direction LR',
+				'    A --> B',
+				'  end',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(warnings).toHaveLength(0);
+			expect(model.direction).toBe('TB');
+			const group = model.groups.find(g => g.id === 'Group1');
+			expect(group?.direction).toBe('LR');
+			expect(model.extras).toHaveLength(0);
+		});
+
+		it('scopes comments and unsupported syntax inside a subgraph to group.extras', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    %% internal group comment',
+				'    A --> B',
+				'  end',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			const group = model.groups.find(g => g.id === 'Group1');
+			expect(group?.extras).toContain('%% internal group comment');
+			expect(model.extras).toHaveLength(0);
+		});
+	});
 });

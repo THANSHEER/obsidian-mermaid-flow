@@ -320,4 +320,150 @@ describe('modelToMermaid', () => {
 			expect(block.endsWith('\n```')).toBe(true);
 		});
 	});
+
+	describe('Issue #26 round-trips', () => {
+		it('round-trips quoted labels containing semicolons without corruption', () => {
+			const src = 'flowchart LR\n  A["one; two"] --> B\n  %% mermaid-flow:pos A=0,0 B=100,0';
+			const first = mermaidToModel(src).model;
+			const out1 = modelToMermaid(first);
+			expect(out1).toContain('A["one; two"]');
+			const second = mermaidToModel(out1).model;
+			expect(second.nodes).toHaveLength(2);
+			expect(second.nodes.find((n) => n.id === 'A')?.label).toBe('one; two');
+		});
+
+		it('round-trips labels containing double quotes over multiple cycles without minting ghost nodes', () => {
+			const model = emptyModel('LR');
+			model.nodes.push({ id: 'A', label: 'He said "hi"', shape: 'rect', x: 0, y: 0 });
+			model.nodes.push({ id: 'B', label: 'End', shape: 'rect', x: 100, y: 0 });
+			model.edges.push({ id: 'e1', from: 'A', to: 'B', label: '', kind: 'arrow' });
+
+			// Cycle 1: serialize -> parse
+			const text1 = modelToMermaid(model);
+			expect(text1).toContain('A["He said &quot;hi&quot;"]');
+			const parsed1 = mermaidToModel(text1).model;
+			expect(parsed1.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(parsed1.nodes.find(n => n.id === 'A')?.label).toBe('He said "hi"');
+
+			// Cycle 2: serialize -> parse (verify stability and no ghost nodes)
+			const text2 = modelToMermaid(parsed1);
+			expect(text2).not.toContain('hi["hi"]');
+			expect(text2).not.toContain('quot["quot"]');
+			const parsed2 = mermaidToModel(text2).model;
+			expect(parsed2.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(parsed2.nodes.find(n => n.id === 'A')?.label).toBe('He said "hi"');
+		});
+
+		it('preserves subgraphs with semicolon labels across round-trip', () => {
+			const src = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A["one; two"] --> B',
+				'  end',
+			].join('\n');
+			const first = mermaidToModel(src).model;
+			const out = modelToMermaid(first, { includePositions: false });
+			const second = mermaidToModel(out).model;
+			expect(second.groups).toHaveLength(1);
+			expect(second.groups[0]?.id).toBe('Group1');
+			expect(second.groups[0]?.nodeIds).toEqual(expect.arrayContaining(['A', 'B']));
+		});
+	});
+
+	describe('Issue #27 round-trips', () => {
+		it('preserves style <subgraphId> without creating a ghost node or pos entry', () => {
+			const src = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A --> B',
+				'  end',
+				'  style Group1 fill:none,stroke:#333',
+			].join('\n');
+			const first = mermaidToModel(src).model;
+			expect(first.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			const out = modelToMermaid(first);
+			expect(out).toContain('style Group1 fill:none,stroke:#333');
+			expect(out).not.toContain('Group1["Group1"]');
+			expect(out).not.toContain('Group1=');
+
+			const second = mermaidToModel(out).model;
+			expect(second.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(second.groups.find(g => g.id === 'Group1')?.style?.fillColor).toBe('none');
+		});
+
+		it('preserves direction inside a subgraph without moving it to root level', () => {
+			const src = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    direction LR',
+				'    A --> B',
+				'  end',
+			].join('\n');
+			const first = mermaidToModel(src).model;
+			expect(first.direction).toBe('TB');
+			expect(first.groups.find(g => g.id === 'Group1')?.direction).toBe('LR');
+
+			const out = modelToMermaid(first, { includePositions: false });
+			// Direction statement must be inside the subgraph block before 'end'
+			expect(out).toMatch(/subgraph Group1[\s\S]*direction LR[\s\S]*end/);
+			expect(out).not.toMatch(/end[\s\S]*direction LR/);
+
+			const second = mermaidToModel(out).model;
+			expect(second.direction).toBe('TB');
+			expect(second.groups.find(g => g.id === 'Group1')?.direction).toBe('LR');
+		});
+
+		it('preserves class assignment on subgraphs across round-trips', () => {
+			const src = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A --> B',
+				'  end',
+				'  classDef custom fill:#afa',
+				'  class Group1 custom',
+			].join('\n');
+			const first = mermaidToModel(src).model;
+			expect(first.nodes.find(n => n.id === 'Group1')).toBeUndefined();
+			const out = modelToMermaid(first, { includePositions: false });
+			expect(out).toContain('class Group1 custom');
+			expect(out).not.toContain('Group1["Group1"]');
+			const second = mermaidToModel(out).model;
+			expect(second.groups.find(g => g.id === 'Group1')?.classes).toContain('custom');
+		});
+
+		it('keeps subgraph-scoped comments inside the subgraph across round-trips', () => {
+			const src = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    %% internal group comment',
+				'    A --> B',
+				'  end',
+			].join('\n');
+			const first = mermaidToModel(src).model;
+			const out = modelToMermaid(first, { includePositions: false });
+			expect(out).toMatch(/subgraph Group1[\s\S]*%% internal group comment[\s\S]*end/);
+			const second = mermaidToModel(out).model;
+			expect(second.groups.find(g => g.id === 'Group1')?.extras)
+				.toContain('%% internal group comment');
+			expect(second.extras).toHaveLength(0);
+		});
+
+		it('does not emit style or class for emptied/skipped subgraphs, preventing ghost nodes', () => {
+			const model = emptyModel('TB');
+			model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0 });
+			// Group has no nodes
+			model.groups.push({
+				id: 'EmptyGroup',
+				title: 'Empty',
+				nodeIds: [],
+				style: { fillColor: '#f00' },
+				classes: ['custom'],
+			});
+			const out = modelToMermaid(model, { includePositions: false });
+			expect(out).not.toContain('style EmptyGroup');
+			expect(out).not.toContain('class EmptyGroup');
+			const back = mermaidToModel(out).model;
+			expect(back.nodes.find(n => n.id === 'EmptyGroup')).toBeUndefined();
+		});
+	});
 });

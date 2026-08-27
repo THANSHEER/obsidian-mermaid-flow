@@ -143,6 +143,14 @@ export interface DiagramGroup {
 	nodeIds: string[];
 	/** When set, this subgraph is nested inside the group with that id. */
 	parentId?: string;
+	/** Subgraph-specific layout direction (e.g. `direction LR`). */
+	direction?: Direction;
+	/** Subgraph style applied via `style <groupId> ...`. */
+	style?: NodeStyle;
+	/** classDef names assigned to the subgraph via `class <groupId> name`. */
+	classes?: string[];
+	/** Comments or unrecognized lines preserved inside this subgraph's scope. */
+	extras?: string[];
 }
 
 /** Diagram-level Mermaid config, emitted as a `%%{init: …}%%` directive. */
@@ -436,6 +444,12 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 			...g,
 			nodeIds: [...g.nodeIds],
 			parentId: g.parentId,
+			direction: g.direction,
+			style: g.style
+				? { ...g.style, extra: g.style.extra ? [...g.style.extra] : undefined }
+				: undefined,
+			classes: g.classes ? [...g.classes] : undefined,
+			extras: g.extras ? [...g.extras] : undefined,
 		})),
 		classDefs: model.classDefs.map((c) => ({
 			name: c.name,

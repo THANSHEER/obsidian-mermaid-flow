@@ -2,6 +2,28 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.8.1] - 2026-08-27
+
+### 🛡️ v1.8.1 - Semicolon & Quote Safety, Subgraph Styling and Direction Fidelity
+
+Reliable round-tripping for labels containing semicolons, double quotes, and HTML entities, plus faithful preservation of subgraph styling, directions, and comments across visual edits.
+
+### 🐛 Bug Fixes
+- Preserved quoted labels containing semicolons: statements are no longer split on ';' inside quoted node labels, edge labels, or HTML entities like `&nbsp;` and `&quot;`, preventing label truncation and diagram corruption (#26)
+- Subgraph preservation: subgraphs containing nodes with semicolons or HTML entities are no longer deleted on save (#26)
+- Double-quote round-trip stability: labels containing double quotes now round-trip cleanly without minting ghost nodes (`hi["hi"]`, `quot["quot"]`) on repeated save/open cycles (#26)
+- Ghost-free subgraph styling: `style <subgraphId>` now styles the subgraph group directly without creating a stray node rectangle or extra position coordinates (#27)
+- Subgraph layout direction scoping: `direction` statements inside subgraphs now remain inside the subgraph block instead of moving to the root diagram (#27)
+- Subgraph classDef assignment: `class <subgraphId> name` now applies the classDef to the group container without minting a ghost node
+- Subgraph comment and extras scoping: comments (`%%`) and unsupported syntax inside subgraphs retain their enclosing scope on save
+- Arrow operator safety: labels containing `-->`, `---`, or `==>` (e.g. `A["Step 1 --> Step 2"]`) are no longer misinterpreted as link operators
+- Inline label hyphens: inline edge labels containing hyphens (e.g. `A -- step-by-step --> B`) now parse correctly
+
+### 💡 Improvements
+- External link navigation hardening: restricted node link external navigation to safe protocols (`http:`, `https:`, `mailto:`) with `noopener,noreferrer` attributes, preventing navigation to untrusted URI schemes
+
+---
+
 ## [1.8.0] - 2026-08-21
 
 ### Features

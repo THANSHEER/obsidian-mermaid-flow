@@ -34,10 +34,6 @@ const HEADER_RE = /^\s*(?:flowchart|graph)\s+(TB|TD|BT|LR|RL)\b/i;
 // trip. Mermaid treats `%%` lines as comments, so this stays valid.
 const POS_RE = /^\s*%%\s*mermaid-flow:pos\s+(.*)$/i;
 
-/** Operators, longest/most-specific first so the regex matches greedily. */
-const LINK_OP_RE = /(<-->|-\.->|-\.-|-->|---|==>|===|~~~)/;
-const LINK_OP_RE_G = /(<-->|-\.->|-\.-|-->|---|==>|===|~~~)/g;
-
 function opToKind(op: string): EdgeKind {
 	if (op.startsWith("<")) return "bidirectional";
 	if (op.startsWith("~")) return "invisible";
@@ -53,8 +49,11 @@ function stripQuotes(s: string): string {
 	if (inner.length >= 2 && inner.startsWith('"') && inner.endsWith('"')) {
 		inner = inner.slice(1, -1);
 	}
-	// Decode <br/> back to \n for multi-line labels
-	return inner.replace(/<br\s*\/?>/gi, "\n");
+	// Decode <br/> back to \n for multi-line labels, and unescape quotes
+	return inner
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(/&(?:quot|#34|#x22);/gi, '"')
+		.replace(/#quot;/gi, '"');
 }
 
 interface ParsedToken {
@@ -191,11 +190,15 @@ function splitMultiNodes(segment: string): string[] {
 	let cur = "";
 	let depth = 0;
 	let inQuote = false;
-	for (const ch of segment) {
-		if (ch === '"') inQuote = !inQuote;
+	for (let i = 0; i < segment.length; i++) {
+		const ch = segment[i]!;
+		const prev = i > 0 ? segment[i - 1] : "";
+		if (ch === '"' && prev !== "\\") inQuote = !inQuote;
 		if (!inQuote) {
 			if (ch === "(" || ch === "[" || ch === "{") depth++;
-			else if (ch === ")" || ch === "]" || ch === "}") depth--;
+			else if (ch === ")" || ch === "]" || ch === "}") {
+				if (depth > 0) depth--;
+			}
 			else if (ch === "&" && depth === 0) {
 				parts.push(cur);
 				cur = "";
@@ -216,17 +219,17 @@ function splitMultiNodes(segment: string): string[] {
 function normalizeInlineLabels(stmt: string): string {
 	return stmt
 		// bidirectional: <-- text -->
-		.replace(/<--\s*([^-|>][^-|]*?)\s*-->/g, "<-->|$1|")
+		.replace(/<--\s*("(?:[^"\\]|\\.)*"|[^-|>](?:[^-|]|-(?!->))*?)\s*-->/g, "<-->|$1|")
 		// thick arrow:  == text ==>
-		.replace(/==\s*([^=|>][^=|]*?)\s*==>/g, "==>|$1|")
+		.replace(/==\s*("(?:[^"\\]|\\.)*"|[^=|>](?:[^=|]|=(?!=>))*?)\s*==>/g, "==>|$1|")
 		// thick open:   == text ===
-		.replace(/==\s*([^=|>][^=|]*?)\s*===/g, "===|$1|")
+		.replace(/==\s*("(?:[^"\\]|\\.)*"|[^=|>](?:[^=|]|=(?!==))*?)\s*===/g, "===|$1|")
 		// dotted arrow: -. text .->
-		.replace(/-\.\s*([^.|>][^.|]*?)\s*\.->/g, "-.->|$1|")
+		.replace(/-\.\s*("(?:[^"\\]|\\.)*"|[^.|>](?:[^.|]|\.(?!->))*?)\s*\.->/g, "-.->|$1|")
 		// normal arrow: -- text -->
-		.replace(/--\s*([^-|>][^-|]*?)\s*-->/g, "-->|$1|")
+		.replace(/--\s*("(?:[^"\\]|\\.)*"|[^-|>](?:[^-|]|-(?!->))*?)\s*-->/g, "-->|$1|")
 		// normal open:  -- text ---
-		.replace(/--\s*([^-|>][^-|]*?)\s*---/g, "---|$1|");
+		.replace(/--\s*("(?:[^"\\]|\\.)*"|[^-|>](?:[^-|]|-(?!--))*?)\s*---/g, "---|$1|");
 }
 
 /** A `key: value` prop with no recognized handler is preserved verbatim. */
@@ -278,10 +281,10 @@ function parseStyleProps(propStr: string): NodeStyle {
 	});
 }
 
-/** Merge a `style <id> ...` property string into the node's style. */
-function applyStyleProps(node: DiagramNode, propStr: string): void {
+/** Merge a `style <id> ...` property string into a node or group style. */
+function applyStyleProps(target: { style?: NodeStyle }, propStr: string): void {
 	const parsed = parseStyleProps(propStr);
-	const style: NonNullable<DiagramNode["style"]> = node.style ?? {};
+	const style: NodeStyle = target.style ?? {};
 	if (parsed.fillColor !== undefined) style.fillColor = parsed.fillColor;
 	if (parsed.strokeColor !== undefined) style.strokeColor = parsed.strokeColor;
 	if (parsed.textColor !== undefined) style.textColor = parsed.textColor;
@@ -290,7 +293,7 @@ function applyStyleProps(node: DiagramNode, propStr: string): void {
 	if (parsed.extra && parsed.extra.length > 0) {
 		style.extra = [...(style.extra ?? []), ...parsed.extra];
 	}
-	node.style = style;
+	target.style = style;
 }
 
 /** Parse a `linkStyle` property string into an EdgeStyle. */
@@ -353,6 +356,131 @@ function isStructuralLine(line: string): boolean {
 	);
 }
 
+/**
+ * Split a line into statements on `;`, ignoring `;` inside double quotes,
+ * shape delimiters (`[]`, `()`, `{}`), and edge pipe labels (`|...|`).
+ */
+function splitStatements(line: string): string[] {
+	const stmts: string[] = [];
+	let cur = "";
+	let inQuote = false;
+	let depth = 0;
+	let inPipe = false;
+
+	for (let i = 0; i < line.length; i++) {
+		const ch = line[i]!;
+		const prev = i > 0 ? line[i - 1] : "";
+
+		if (ch === '"' && prev !== "\\") {
+			inQuote = !inQuote;
+		}
+
+		if (!inQuote) {
+			if (ch === "|" && depth === 0) {
+				inPipe = !inPipe;
+			} else if (!inPipe) {
+				if (ch === "[" || ch === "(" || ch === "{") {
+					depth++;
+				} else if (ch === "]" || ch === ")" || ch === "}") {
+					if (depth > 0) depth--;
+				} else if (ch === ";" && depth === 0) {
+					const stmt = cur.trim();
+					if (stmt) stmts.push(stmt);
+					cur = "";
+					continue;
+				}
+			}
+		}
+
+		cur += ch;
+	}
+
+	const stmt = cur.trim();
+	if (stmt) stmts.push(stmt);
+	return stmts;
+}
+
+const KNOWN_LINK_OPS = [
+	"<-->",
+	"-.->",
+	"-.-",
+	"-->",
+	"---",
+	"==>",
+	"===",
+	"~~~",
+] as const;
+
+/**
+ * Split a statement into alternating [nodeSegment, op, nodeSegment, op, ...]
+ * pieces, ignoring operator substrings inside quotes, brackets, or pipe labels.
+ */
+function splitLinkPieces(stmt: string): string[] {
+	const pieces: string[] = [];
+	let cur = "";
+	let inQuote = false;
+	let depth = 0;
+	let inPipe = false;
+	let i = 0;
+
+	while (i < stmt.length) {
+		const ch = stmt[i]!;
+		const prev = i > 0 ? stmt[i - 1] : "";
+
+		if (ch === '"' && prev !== "\\") {
+			inQuote = !inQuote;
+			cur += ch;
+			i++;
+			continue;
+		}
+
+		if (!inQuote) {
+			if (ch === "|" && depth === 0) {
+				inPipe = !inPipe;
+				cur += ch;
+				i++;
+				continue;
+			}
+			if (!inPipe) {
+				if (ch === "[" || ch === "(" || ch === "{") {
+					depth++;
+					cur += ch;
+					i++;
+					continue;
+				}
+				if (ch === "]" || ch === ")" || ch === "}") {
+					if (depth > 0) depth--;
+					cur += ch;
+					i++;
+					continue;
+				}
+				if (depth === 0) {
+					let matchedOp: string | null = null;
+					for (const op of KNOWN_LINK_OPS) {
+						if (stmt.startsWith(op, i)) {
+							matchedOp = op;
+							break;
+						}
+					}
+					if (matchedOp) {
+						pieces.push(cur.trim());
+						pieces.push(matchedOp);
+						cur = "";
+						i += matchedOp.length;
+						continue;
+					}
+				}
+			}
+		}
+
+		cur += ch;
+		i++;
+	}
+
+	pieces.push(cur.trim());
+	return pieces;
+}
+
 export function mermaidToModel(text: string): ParseResult {
 	const warnings: string[] = [];
 	const model = emptyModel("TB");
@@ -365,6 +493,8 @@ export function mermaidToModel(text: string): ParseResult {
 	const groupStack: DiagramGroup[] = [];
 	const groupedNodes = new Set<string>();
 	const linkStyleDirectives: Array<{ index: number; props: string }> = [];
+	const styleDirectives: Array<{ id: string; props: string }> = [];
+	const classAssignments: Array<{ ids: string[]; className: string }> = [];
 	const clickBindings: Array<{ id: string; target: string; raw: string }> = [];
 
 	const ensureNode = (token: ParsedToken): DiagramNode => {
@@ -465,120 +595,163 @@ export function mermaidToModel(text: string): ParseResult {
 			continue;
 		}
 
-		// Other comments — keep them.
+		// Other comments — keep them in current group scope or root extras.
 		if (trimmed.startsWith("%%")) {
-			model.extras.push(trimmed);
-			continue;
-		}
-
-		const header = line.match(HEADER_RE);
-		if (header && header[1] !== undefined) {
-			let dir = header[1].toUpperCase();
-			if (dir === "TD") dir = "TB";
-			model.direction = dir as Direction;
-			headerSeen = true;
-			continue;
-		}
-
-		// Subgraph open / close.
-		const subMatch = trimmed.match(/^subgraph\b\s*(.*)$/i);
-		if (subMatch) {
-			openGroup((subMatch[1] ?? "").trim());
-			continue;
-		}
-		if (/^end$/i.test(trimmed)) {
-			groupStack.pop();
-			continue;
-		}
-
-		// `style <id> prop:val,...` — fold into the node's style.
-		const styleMatch = trimmed.match(/^style\s+([A-Za-z0-9_]+)\s+(.+)$/i);
-		if (styleMatch && styleMatch[1] && styleMatch[2]) {
-			const node = ensureNode({ id: styleMatch[1] });
-			applyStyleProps(node, styleMatch[2]);
-			continue;
-		}
-
-		// `linkStyle <i>[,<j>...] prop:val,...` — collect; applied after parse.
-		const linkMatch = trimmed.match(/^linkStyle\s+([\d,\s]+?)\s+(.+)$/i);
-		if (linkMatch && linkMatch[1] && linkMatch[2]) {
-			const props = linkMatch[2];
-			for (const tok of linkMatch[1].split(/[,\s]+/)) {
-				const n = parseInt(tok, 10);
-				if (!Number.isNaN(n)) linkStyleDirectives.push({ index: n, props });
-			}
-			continue;
-		}
-
-		// `classDef name[,name2] prop:val,...` — named reusable styles.
-		// Malformed variants fall through to isStructuralLine → extras.
-		const classDefMatch = trimmed.match(
-			/^classDef\s+([A-Za-z0-9_-]+(?:\s*,\s*[A-Za-z0-9_-]+)*)\s+(.+)$/i,
-		);
-		if (classDefMatch && classDefMatch[1] && classDefMatch[2]) {
-			const style = parseStyleProps(classDefMatch[2]);
-			for (const rawName of classDefMatch[1].split(",")) {
-				const name = rawName.trim();
-				if (!name) continue;
-				// Redefinition wins (Mermaid semantics), keeping original order.
-				const existing = model.classDefs.find((c) => c.name === name);
-				if (existing) existing.style = style;
-				else model.classDefs.push({ name, style });
-			}
-			continue;
-		}
-
-		// `class A,B name` — assign a classDef to nodes.
-		const classMatch = trimmed.match(
-			/^class\s+([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)\s+([A-Za-z0-9_-]+)\s*$/i,
-		);
-		if (classMatch && classMatch[1] && classMatch[2]) {
-			const className = classMatch[2];
-			for (const rawId of classMatch[1].split(",")) {
-				const id = rawId.trim();
-				if (!id) continue;
-				const node = ensureNode({ id });
-				if (!node.classes?.includes(className)) {
-					(node.classes ??= []).push(className);
-				}
-			}
-			continue;
-		}
-
-		// `click <id> "<target>"` / `click <id> href "<target>"` — a node hyperlink.
-		// Only the clean, fully reproducible forms become node.link; callbacks,
-		// tooltips and target-window variants fall through to extras untouched so
-		// nothing we cannot re-emit is ever dropped.
-		if (/^click\b/i.test(trimmed)) {
-			const m = trimmed.match(
-				/^click\s+([A-Za-z0-9_]+)\s+(?:href\s+)?"([^"]*)"\s*;?\s*$/i,
-			);
-			// A non-empty target only: an empty link cannot be re-emitted (the
-			// serializer skips blank links), so preserve it verbatim instead.
-			if (m && m[1] && m[2]) {
-				clickBindings.push({ id: m[1], target: m[2], raw: trimmed });
+			const currentGroup = groupStack[groupStack.length - 1];
+			if (currentGroup) {
+				(currentGroup.extras ??= []).push(trimmed);
 			} else {
 				model.extras.push(trimmed);
 			}
 			continue;
 		}
 
-		if (isStructuralLine(line)) {
-			model.extras.push(trimmed);
-			warnings.push(`Unsupported line kept as-is: "${trimmed}"`);
-			continue;
-		}
+		// Split line into statements on `;`, ignoring `;` inside quotes or brackets.
+		const stmts = splitStatements(trimmed);
+		for (const stmt of stmts) {
+			const header = stmt.match(HEADER_RE);
+			if (header && header[1] !== undefined) {
+				let dir = header[1].toUpperCase();
+				if (dir === "TD") dir = "TB";
+				model.direction = dir as Direction;
+				headerSeen = true;
+				continue;
+			}
 
-		// One statement may hold several `;`-separated statements.
-		for (const part of trimmed.split(";")) {
-			const stmt = part.trim();
-			if (!stmt) continue;
-			parseStatement(stmt, ensureNode, model.edges, warnings, model.extras);
+			// Subgraph open / close.
+			const subMatch = stmt.match(/^subgraph\b\s*(.*)$/i);
+			if (subMatch) {
+				openGroup((subMatch[1] ?? "").trim());
+				continue;
+			}
+			if (/^end$/i.test(stmt)) {
+				groupStack.pop();
+				continue;
+			}
+
+			// `direction <dir>` — if inside subgraph, apply to group; else diagram direction.
+			const dirMatch = stmt.match(/^direction\s+(TB|TD|BT|LR|RL)\b/i);
+			if (dirMatch && dirMatch[1] !== undefined) {
+				let dir = dirMatch[1].toUpperCase();
+				if (dir === "TD") dir = "TB";
+				const currentGroup = groupStack[groupStack.length - 1];
+				if (currentGroup) {
+					currentGroup.direction = dir as Direction;
+				} else {
+					model.direction = dir as Direction;
+					headerSeen = true;
+				}
+				continue;
+			}
+
+			// `style <id> prop:val,...` — collect; applied after parse to target node or group.
+			const styleMatch = stmt.match(/^style\s+([A-Za-z0-9_]+)\s+(.+)$/i);
+			if (styleMatch && styleMatch[1] && styleMatch[2]) {
+				styleDirectives.push({ id: styleMatch[1], props: styleMatch[2] });
+				continue;
+			}
+
+			// `linkStyle <i>[,<j>...] prop:val,...` — collect; applied after parse.
+			const linkMatch = stmt.match(/^linkStyle\s+([\d,\s]+?)\s+(.+)$/i);
+			if (linkMatch && linkMatch[1] && linkMatch[2]) {
+				const props = linkMatch[2];
+				for (const tok of linkMatch[1].split(/[,\s]+/)) {
+					const n = parseInt(tok, 10);
+					if (!Number.isNaN(n)) linkStyleDirectives.push({ index: n, props });
+				}
+				continue;
+			}
+
+			// `classDef name[,name2] prop:val,...` — named reusable styles.
+			const classDefMatch = stmt.match(
+				/^classDef\s+([A-Za-z0-9_-]+(?:\s*,\s*[A-Za-z0-9_-]+)*)\s+(.+)$/i,
+			);
+			if (classDefMatch && classDefMatch[1] && classDefMatch[2]) {
+				const style = parseStyleProps(classDefMatch[2]);
+				for (const rawName of classDefMatch[1].split(",")) {
+					const name = rawName.trim();
+					if (!name) continue;
+					const existing = model.classDefs.find((c) => c.name === name);
+					if (existing) existing.style = style;
+					else model.classDefs.push({ name, style });
+				}
+				continue;
+			}
+
+			// `class A,B name` — assign a classDef to nodes or groups.
+			const classMatch = stmt.match(
+				/^class\s+([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)\s+([A-Za-z0-9_-]+)\s*$/i,
+			);
+			if (classMatch && classMatch[1] && classMatch[2]) {
+				const className = classMatch[2];
+				const ids = classMatch[1]
+					.split(",")
+					.map((id) => id.trim())
+					.filter((id) => id.length > 0);
+				if (ids.length > 0) {
+					classAssignments.push({ ids, className });
+				}
+				continue;
+			}
+
+			// `click <id> "<target>"` / `click <id> href "<target>"` — a node hyperlink.
+			if (/^click\b/i.test(stmt)) {
+				const m = stmt.match(
+					/^click\s+([A-Za-z0-9_]+)\s+(?:href\s+)?"([^"]*)"\s*;?\s*$/i,
+				);
+				if (m && m[1] && m[2]) {
+					clickBindings.push({ id: m[1], target: m[2], raw: stmt });
+				} else {
+					const currentGroup = groupStack[groupStack.length - 1];
+					if (currentGroup) (currentGroup.extras ??= []).push(stmt);
+					else model.extras.push(stmt);
+				}
+				continue;
+			}
+
+			const currentGroup = groupStack[groupStack.length - 1];
+			const targetExtras = currentGroup ? (currentGroup.extras ??= []) : model.extras;
+
+			if (isStructuralLine(stmt)) {
+				targetExtras.push(stmt);
+				warnings.push(`Unsupported line kept as-is: "${stmt}"`);
+				continue;
+			}
+
+			parseStatement(stmt, ensureNode, model.edges, warnings, targetExtras);
 		}
 	}
 
 	if (!headerSeen && model.nodes.length === 0 && model.edges.length === 0) {
 		warnings.push("No flowchart content detected.");
+	}
+
+	// Apply collected style directives (targeting groups or nodes)
+	for (const { id, props } of styleDirectives) {
+		const group = model.groups.find((g) => g.id === id);
+		if (group) {
+			applyStyleProps(group, props);
+		} else {
+			const node = ensureNode({ id });
+			applyStyleProps(node, props);
+		}
+	}
+
+	// Apply collected class assignments (targeting groups or nodes)
+	for (const { ids, className } of classAssignments) {
+		for (const id of ids) {
+			const group = model.groups.find((g) => g.id === id);
+			if (group) {
+				if (!group.classes?.includes(className)) {
+					(group.classes ??= []).push(className);
+				}
+			} else {
+				const node = ensureNode({ id });
+				if (!node.classes?.includes(className)) {
+					(node.classes ??= []).push(className);
+				}
+			}
+		}
 	}
 
 	// Apply collected linkStyle directives to edges by index.
@@ -634,10 +807,12 @@ function parseStatement(
 	extras: string[],
 ): void {
 	const normalized = normalizeInlineLabels(stmt);
+	const pieces = splitLinkPieces(normalized);
 
-	if (!LINK_OP_RE.test(normalized)) {
+	if (pieces.length === 1) {
 		// No link operator: standalone node declaration(s), possibly `A & B`.
-		const segments = splitMultiNodes(normalized);
+		const rawSegment = pieces[0] ?? "";
+		const segments = splitMultiNodes(rawSegment);
 		const tokens = segments
 			.map((t) => parseNodeToken(t))
 			.filter((t): t is ParsedToken => t !== null);
@@ -650,10 +825,7 @@ function parseStatement(
 		return;
 	}
 
-	// Split into alternating node / operator pieces, preserving the operators.
-	const pieces = normalized.split(LINK_OP_RE_G).map((p) => p.trim());
 	// pieces = [node, op, node, op, node, ...]
-
 	let prevNodes: DiagramNode[] = [];
 	let pendingOp: string | null = null;
 
@@ -667,13 +839,26 @@ function parseStatement(
 		}
 
 		// Node piece. It may carry a leading pipe-label belonging to the
-		// previous operator: `|label| B`.
+		// previous operator: `|label| B` or `|"label"| B`.
 		let label = "";
 		let nodePart = piece;
-		const labelMatch = piece.match(/^\|([^|]*)\|\s*(.*)$/);
-		if (labelMatch && labelMatch[1] !== undefined && labelMatch[2] !== undefined) {
-			label = stripQuotes(labelMatch[1]);
-			nodePart = labelMatch[2].trim();
+		if (piece.startsWith("|")) {
+			let inQ = false;
+			let closeIdx = -1;
+			for (let j = 1; j < piece.length; j++) {
+				const ch = piece[j]!;
+				const prev = piece[j - 1]!;
+				if (ch === '"' && prev !== "\\") {
+					inQ = !inQ;
+				} else if (ch === "|" && !inQ) {
+					closeIdx = j;
+					break;
+				}
+			}
+			if (closeIdx !== -1) {
+				label = stripQuotes(piece.slice(1, closeIdx));
+				nodePart = piece.slice(closeIdx + 1).trim();
+			}
 		}
 
 		// A segment may name several nodes joined with `&` (`A & B --> C`).
