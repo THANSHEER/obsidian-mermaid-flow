@@ -13,9 +13,28 @@ export interface ChangelogItem {
 	features?: string[];
 	improvements?: string[];
 	fixes?: string[];
+	security?: string[];
 }
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
+	{
+		version: "1.8.1",
+		title: "Semicolon & quote round-trip fixes, subgraph styling/direction & security hardening",
+		fixes: [
+			"Preserve quoted labels with semicolons: statements are no longer split on ';' inside quoted node labels, edge labels, or HTML entities like &nbsp; and &quot; (#26).",
+			"Subgraph survival: subgraphs containing nodes with semicolons or HTML entities are no longer deleted on save (#26).",
+			"Double-quote round-trip stability: labels containing double quotes no longer generate ghost nodes (e.g. hi['hi'], quot['quot']) on repeated saves (#26).",
+			"Ghost-free subgraph styling: 'style <subgraphId>' now correctly styles the subgraph without creating a ghost node rectangle or stray position coordinates (#27).",
+			"Subgraph layout direction retention: 'direction' statements inside subgraphs now remain inside the subgraph block instead of moving to the root diagram (#27).",
+			"Subgraph class assignment: 'class <subgraphId> name' now assigns the class to the group without creating a ghost node.",
+			"Subgraph comment & extras scoping: comments and unsupported lines inside a subgraph retain their enclosing scope on save.",
+			"Arrow operator safety: labels containing '-->' or '---' are no longer misinterpreted as link operators.",
+			"Inline label hyphens: labels with hyphens (e.g. 'A -- step-by-step --> B') parse correctly.",
+		],
+		security: [
+			"External link navigation hardening: restricted node link external navigation to safe protocols (http, https, mailto) with 'noopener,noreferrer' attributes.",
+		],
+	},
 	{
 		version: "1.8.0",
 		title: "Full-bleed canvas, full-width floating toolbar & auto-hide panel",
@@ -121,6 +140,14 @@ export class ChangelogModal extends Modal {
 				const ul = verBlock.createEl("ul", { cls: "mermaid-flow-changelog-list" });
 				for (const fix of item.fixes) {
 					ul.createEl("li", { text: fix });
+				}
+			}
+
+			if (item.security && item.security.length > 0) {
+				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: "Security" });
+				const ul = verBlock.createEl("ul", { cls: "mermaid-flow-changelog-list" });
+				for (const s of item.security) {
+					ul.createEl("li", { text: s });
 				}
 			}
 		}

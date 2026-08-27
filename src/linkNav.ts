@@ -99,8 +99,8 @@ export function wireDiagramLinks(
 export function navigateNodeLink(app: App, target: string): void {
 	const t = target.trim();
 	if (!t) return;
-	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) {
-		activeWindow.open(t, "_blank");
+	if (/^https?:\/\//i.test(t) || /^mailto:/i.test(t)) {
+		activeWindow.open(t, "_blank", "noopener,noreferrer");
 		return;
 	}
 	const inner = t.replace(/^\[\[/, "").replace(/\]\]$/, "");

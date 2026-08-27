@@ -143,12 +143,19 @@ function classLines(model: DiagramModel): string[] {
 		const props = stylePropsToString(def.style);
 		if (props) out.push(`classDef ${def.name} ${props}`);
 	}
-	// Group node ids per class name, preserving node order.
+	// Group entity ids (nodes and groups) per class name, preserving order.
 	const members = new Map<string, string[]>();
 	for (const node of model.nodes) {
 		for (const name of node.classes ?? []) {
 			const list = members.get(name) ?? [];
 			list.push(sanitizeId(node.id));
+			members.set(name, list);
+		}
+	}
+	for (const group of model.groups) {
+		for (const name of group.classes ?? []) {
+			const list = members.get(name) ?? [];
+			list.push(sanitizeId(group.id));
 			members.set(name, list);
 		}
 	}
@@ -235,6 +242,9 @@ export function modelToMermaid(
 				: "";
 		lines.push(`${indent}subgraph ${sanitizeId(group.id)}${title}`);
 		const childIndent = indent + INDENT;
+		if (group.direction) {
+			lines.push(`${childIndent}direction ${group.direction}`);
+		}
 		for (const child of childGroups(model, group.id)) {
 			emitGroup(child, childIndent);
 		}
@@ -243,6 +253,9 @@ export function modelToMermaid(
 			if (!node) continue;
 			grouped.add(id);
 			lines.push(childIndent + nodeDeclaration(node));
+		}
+		for (const extra of group.extras ?? []) {
+			lines.push(childIndent + extra);
 		}
 		lines.push(`${indent}end`);
 	};
@@ -266,6 +279,14 @@ export function modelToMermaid(
 	for (const node of model.nodes) {
 		const sl = styleLine(node);
 		if (sl) lines.push(INDENT + sl);
+	}
+
+	for (const group of model.groups) {
+		const s = group.style;
+		if (hasStyle(s) && s) {
+			const props = stylePropsToString(s);
+			if (props) lines.push(INDENT + `style ${sanitizeId(group.id)} ${props}`);
+		}
 	}
 
 	for (const cl of classLines(model)) {
