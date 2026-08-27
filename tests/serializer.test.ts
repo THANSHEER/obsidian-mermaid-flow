@@ -430,5 +430,40 @@ describe('modelToMermaid', () => {
 			const second = mermaidToModel(out).model;
 			expect(second.groups.find(g => g.id === 'Group1')?.classes).toContain('custom');
 		});
+
+		it('keeps subgraph-scoped comments inside the subgraph across round-trips', () => {
+			const src = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    %% internal group comment',
+				'    A --> B',
+				'  end',
+			].join('\n');
+			const first = mermaidToModel(src).model;
+			const out = modelToMermaid(first, { includePositions: false });
+			expect(out).toMatch(/subgraph Group1[\s\S]*%% internal group comment[\s\S]*end/);
+			const second = mermaidToModel(out).model;
+			expect(second.groups.find(g => g.id === 'Group1')?.extras)
+				.toContain('%% internal group comment');
+			expect(second.extras).toHaveLength(0);
+		});
+
+		it('does not emit style or class for emptied/skipped subgraphs, preventing ghost nodes', () => {
+			const model = emptyModel('TB');
+			model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0 });
+			// Group has no nodes
+			model.groups.push({
+				id: 'EmptyGroup',
+				title: 'Empty',
+				nodeIds: [],
+				style: { fillColor: '#f00' },
+				classes: ['custom'],
+			});
+			const out = modelToMermaid(model, { includePositions: false });
+			expect(out).not.toContain('style EmptyGroup');
+			expect(out).not.toContain('class EmptyGroup');
+			const back = mermaidToModel(out).model;
+			expect(back.nodes.find(n => n.id === 'EmptyGroup')).toBeUndefined();
+		});
 	});
 });

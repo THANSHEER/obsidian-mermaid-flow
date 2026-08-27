@@ -281,10 +281,10 @@ function parseStyleProps(propStr: string): NodeStyle {
 	});
 }
 
-/** Merge a `style <id> ...` property string into the node's style. */
-function applyStyleProps(node: DiagramNode, propStr: string): void {
+/** Merge a `style <id> ...` property string into a node or group style. */
+function applyStyleProps(target: { style?: NodeStyle }, propStr: string): void {
 	const parsed = parseStyleProps(propStr);
-	const style: NonNullable<DiagramNode["style"]> = node.style ?? {};
+	const style: NodeStyle = target.style ?? {};
 	if (parsed.fillColor !== undefined) style.fillColor = parsed.fillColor;
 	if (parsed.strokeColor !== undefined) style.strokeColor = parsed.strokeColor;
 	if (parsed.textColor !== undefined) style.textColor = parsed.textColor;
@@ -293,22 +293,7 @@ function applyStyleProps(node: DiagramNode, propStr: string): void {
 	if (parsed.extra && parsed.extra.length > 0) {
 		style.extra = [...(style.extra ?? []), ...parsed.extra];
 	}
-	node.style = style;
-}
-
-/** Merge a `style <groupId> ...` property string into the group's style. */
-function applyGroupStyleProps(group: DiagramGroup, propStr: string): void {
-	const parsed = parseStyleProps(propStr);
-	const style: NonNullable<DiagramGroup["style"]> = group.style ?? {};
-	if (parsed.fillColor !== undefined) style.fillColor = parsed.fillColor;
-	if (parsed.strokeColor !== undefined) style.strokeColor = parsed.strokeColor;
-	if (parsed.textColor !== undefined) style.textColor = parsed.textColor;
-	if (parsed.fontSize !== undefined) style.fontSize = parsed.fontSize;
-	if (parsed.fontFamily !== undefined) style.fontFamily = parsed.fontFamily;
-	if (parsed.extra && parsed.extra.length > 0) {
-		style.extra = [...(style.extra ?? []), ...parsed.extra];
-	}
-	group.style = style;
+	target.style = style;
 }
 
 /** Parse a `linkStyle` property string into an EdgeStyle. */
@@ -745,7 +730,7 @@ export function mermaidToModel(text: string): ParseResult {
 	for (const { id, props } of styleDirectives) {
 		const group = model.groups.find((g) => g.id === id);
 		if (group) {
-			applyGroupStyleProps(group, props);
+			applyStyleProps(group, props);
 		} else {
 			const node = ensureNode({ id });
 			applyStyleProps(node, props);

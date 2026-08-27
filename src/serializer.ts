@@ -137,7 +137,7 @@ function styleLine(node: DiagramNode): string | null {
  * assignments. A parsed `:::name` shorthand is canonicalised to the grouped
  * `class` form here — semantics are preserved, the text shape changes.
  */
-function classLines(model: DiagramModel): string[] {
+function classLines(model: DiagramModel, emittedGroups?: Set<string>): string[] {
 	const out: string[] = [];
 	for (const def of model.classDefs) {
 		const props = stylePropsToString(def.style);
@@ -153,6 +153,7 @@ function classLines(model: DiagramModel): string[] {
 		}
 	}
 	for (const group of model.groups) {
+		if (emittedGroups && !emittedGroups.has(group.id)) continue;
 		for (const name of group.classes ?? []) {
 			const list = members.get(name) ?? [];
 			list.push(sanitizeId(group.id));
@@ -234,8 +235,10 @@ export function modelToMermaid(
 
 	const nodeById = new Map(model.nodes.map((n) => [n.id, n]));
 	const grouped = new Set<string>();
+	const emittedGroups = new Set<string>();
 
 	const emitGroup = (group: DiagramGroup, indent: string): void => {
+		emittedGroups.add(group.id);
 		const title =
 			group.title && group.title !== group.id
 				? ` [${quoteLabel(group.title)}]`
@@ -282,6 +285,7 @@ export function modelToMermaid(
 	}
 
 	for (const group of model.groups) {
+		if (!emittedGroups.has(group.id)) continue;
 		const s = group.style;
 		if (hasStyle(s) && s) {
 			const props = stylePropsToString(s);
@@ -289,7 +293,7 @@ export function modelToMermaid(
 		}
 	}
 
-	for (const cl of classLines(model)) {
+	for (const cl of classLines(model, emittedGroups)) {
 		lines.push(INDENT + cl);
 	}
 
