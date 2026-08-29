@@ -466,4 +466,39 @@ describe('modelToMermaid', () => {
 			expect(back.nodes.find(n => n.id === 'EmptyGroup')).toBeUndefined();
 		});
 	});
+
+	describe('Issue #30: edges targeting a subgraph', () => {
+		it('round-trips an edge into a subgraph without emitting a ghost node', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1[Grp]',
+				'    A',
+				'  end',
+				'  B --> Group1',
+			].join('\n');
+			const out = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			expect(lines(out)).toContain('B --> Group1');
+			expect(out).not.toContain('Group1["Group1"]');
+			expect(out).not.toContain('Group1[Group1]');
+		});
+
+		it('is stable across a second round trip', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1[Grp]',
+				'    A',
+				'  end',
+				'  B --> Group1',
+			].join('\n');
+			const once = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			const twice = modelToMermaid(mermaidToModel(once).model, {
+				includePositions: false,
+			});
+			expect(twice).toBe(once);
+		});
+	});
 });

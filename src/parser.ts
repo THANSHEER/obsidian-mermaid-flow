@@ -496,6 +496,10 @@ export function mermaidToModel(text: string): ParseResult {
 	const styleDirectives: Array<{ id: string; props: string }> = [];
 	const classAssignments: Array<{ ids: string[]; className: string }> = [];
 	const clickBindings: Array<{ id: string; target: string; raw: string }> = [];
+	// Ids only ever seen as a bare reference (`B --> S`, `style S ...`) — never
+	// declared with a shape or label. A subgraph id reaching us this way is not
+	// a node at all; see the ghost sweep after parsing.
+	const implicitNodeIds = new Set<string>();
 
 	const ensureNode = (token: ParsedToken): DiagramNode => {
 		let node = nodeMap.get(token.id);
@@ -509,11 +513,17 @@ export function mermaidToModel(text: string): ParseResult {
 			};
 			nodeMap.set(token.id, node);
 			model.nodes.push(node);
+			if (token.shape === undefined && token.label === undefined) {
+				implicitNodeIds.add(token.id);
+			}
 		} else {
 			// A later, richer declaration wins (e.g. shape/label defined inline
 			// in an edge statement after a bare reference).
 			if (token.shape) node.shape = token.shape;
 			if (token.label !== undefined) node.label = token.label;
+			if (token.shape !== undefined || token.label !== undefined) {
+				implicitNodeIds.delete(token.id);
+			}
 		}
 		for (const c of token.classes ?? []) {
 			if (!node.classes?.includes(c)) (node.classes ??= []).push(c);
@@ -769,6 +779,28 @@ export function mermaidToModel(text: string): ParseResult {
 			}
 		}
 		edge.style = { ...edge.style, ...parsed };
+	}
+
+	// A subgraph id may legally stand where a node id is expected (`B --> S`,
+	// `style S ...`). Any node minted for such an id is a ghost — drop it so the
+	// serializer does not emit a stray `S["S"]` beside the subgraph. Only
+	// implicitly created ids qualify; an explicit `S[Label]` declaration is left
+	// alone. Groups that hold no content are skipped: they are discarded below,
+	// so their id has to stay a node or the edge would lose its endpoint.
+	const liveGroupIds = new Set(
+		model.groups.filter((g) => groupSubtreeHasNodes(model, g.id)).map((g) => g.id),
+	);
+	const ghostIds = new Set(
+		[...implicitNodeIds].filter((id) => liveGroupIds.has(id)),
+	);
+	if (ghostIds.size > 0) {
+		model.nodes = model.nodes.filter((n) => !ghostIds.has(n.id));
+		for (const group of model.groups) {
+			group.nodeIds = group.nodeIds.filter((id) => !ghostIds.has(id));
+		}
+		// Keep nodeMap in step so a `click <subgraphId>` binding below falls
+		// through to extras instead of attaching to a node we just dropped.
+		for (const id of ghostIds) nodeMap.delete(id);
 	}
 
 	// Drop groups with no nodes in their entire subtree (keeps outer shells

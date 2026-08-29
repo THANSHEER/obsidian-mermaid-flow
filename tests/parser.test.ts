@@ -465,4 +465,102 @@ describe('mermaidToModel', () => {
 			expect(model.extras).toHaveLength(0);
 		});
 	});
+
+	describe('Issue #30: edges targeting a subgraph', () => {
+		it('does not mint a ghost node when an edge points at a subgraph', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A',
+				'  end',
+				'  B --> Group1',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(model.nodes.find(n => n.id === 'Group1')).toBeUndefined();
+			expect(model.edges).toHaveLength(1);
+			expect(model.edges[0]?.to).toBe('Group1');
+		});
+
+		it('does not mint a ghost node when the edge precedes the subgraph', () => {
+			const input = [
+				'flowchart TB',
+				'  B --> Group1',
+				'  subgraph Group1',
+				'    A',
+				'  end',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(model.edges[0]?.to).toBe('Group1');
+		});
+
+		it('handles a subgraph as the edge source', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A',
+				'  end',
+				'  Group1 --> B',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(model.edges[0]?.from).toBe('Group1');
+		});
+
+		it('does not add the subgraph id to an enclosing group members list', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Inner',
+				'    A',
+				'  end',
+				'  subgraph Outer',
+				'    B --> Inner',
+				'  end',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			const outer = model.groups.find(g => g.id === 'Outer');
+			expect(outer?.nodeIds).toEqual(['B']);
+		});
+
+		it('leaves an explicitly declared node alone', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A',
+				'  end',
+				'  Group2[Real node] --> Group1',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.nodes.find(n => n.id === 'Group2')?.label).toBe('Real node');
+		});
+
+		it('keeps the node when the subgraph is empty and therefore dropped', () => {
+			// The empty subgraph is discarded, so its id has to stay a node or
+			// the edge would lose its endpoint.
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'  end',
+				'  B --> Group1',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.groups).toHaveLength(0);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['B', 'Group1']);
+		});
+
+		it('keeps a click binding on a subgraph id instead of dropping it', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1',
+				'    A',
+				'  end',
+				'  click Group1 "https://example.com"',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.nodes.find(n => n.id === 'Group1')).toBeUndefined();
+			expect(model.extras).toContain('click Group1 "https://example.com"');
+		});
+	});
 });
