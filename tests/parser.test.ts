@@ -465,4 +465,49 @@ describe('mermaidToModel', () => {
 			expect(model.extras).toHaveLength(0);
 		});
 	});
+
+	describe('Issue #29: YAML frontmatter', () => {
+		it('captures frontmatter verbatim instead of leaking it into extras', () => {
+			const input = [
+				'---',
+				'title: My diagram',
+				'config:',
+				'  theme: dark',
+				'---',
+				'flowchart TD',
+				'  A[Start] --> B[End]',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(model.frontmatter).toEqual([
+				'---',
+				'title: My diagram',
+				'config:',
+				'  theme: dark',
+				'---',
+			]);
+			expect(model.extras).toHaveLength(0);
+			expect(warnings).toHaveLength(0);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(model.direction).toBe('TB');
+		});
+
+		it('leaves a --- link operator alone', () => {
+			const { model } = mermaidToModel('flowchart TD\n  A --- B');
+			expect(model.frontmatter).toBeUndefined();
+			expect(model.edges[0]?.kind).toBe('open');
+		});
+
+		it('does not treat an unclosed --- as frontmatter', () => {
+			const input = ['---', 'flowchart TD', '  A --> B'].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.frontmatter).toBeUndefined();
+			expect(model.nodes).toHaveLength(2);
+		});
+
+		it('ignores frontmatter that does not start the block', () => {
+			const input = ['flowchart TD', '  A --> B', '---', 'title: late', '---'].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.frontmatter).toBeUndefined();
+		});
+	});
 });

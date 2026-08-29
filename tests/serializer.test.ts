@@ -466,4 +466,48 @@ describe('modelToMermaid', () => {
 			expect(back.nodes.find(n => n.id === 'EmptyGroup')).toBeUndefined();
 		});
 	});
+
+	describe('Issue #29: YAML frontmatter', () => {
+		const input = [
+			'---',
+			'title: My diagram',
+			'config:',
+			'  theme: dark',
+			'---',
+			'flowchart TD',
+			'  A[Start] --> B[End]',
+		].join('\n');
+
+		it('re-emits frontmatter at the top of the block, indentation intact', () => {
+			const out = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			expect(out.startsWith('---\ntitle: My diagram\nconfig:\n  theme: dark\n---\n')).toBe(true);
+			expect(out.split('\n')[5]).toBe('flowchart TB');
+		});
+
+		it('keeps the frontmatter above the position comment on a full save', () => {
+			const model = mermaidToModel(input).model;
+			const out = modelToMermaid(model, { includePositions: true });
+			expect(out.indexOf('---')).toBeLessThan(out.indexOf('flowchart'));
+			expect(out).toContain('%% mermaid-flow:pos');
+		});
+
+		it('is stable across a second round trip', () => {
+			const once = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			const twice = modelToMermaid(mermaidToModel(once).model, {
+				includePositions: false,
+			});
+			expect(twice).toBe(once);
+		});
+
+		it('emits nothing extra when there is no frontmatter', () => {
+			const out = modelToMermaid(mermaidToModel('flowchart TD\n  A --> B').model, {
+				includePositions: false,
+			});
+			expect(out.startsWith('flowchart TB')).toBe(true);
+		});
+	});
 });
