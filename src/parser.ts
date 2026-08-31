@@ -488,13 +488,20 @@ function splitLinkPieces(stmt: string): string[] {
  * (which is re-emitted at the end of the block). Recognized only when the
  * opening `---` is closed, which keeps the `---` link operator (`A --- B`)
  * out of it. Returns the lines left to parse.
+ *
+ * The closing fence has to carry the opening fence's indentation, mirroring the
+ * `\1` backreference in Mermaid's own `frontMatterRegex`: an indented `---`
+ * inside a multi-line YAML scalar would otherwise close the block early.
  */
 function takeFrontmatter(lines: string[], model: DiagramModel): string[] {
 	let start = 0;
 	while (start < lines.length && (lines[start] ?? "").trim() === "") start++;
-	if ((lines[start] ?? "").trim() !== "---") return lines;
+	// Mermaid allows the opening fence itself to be indented.
+	const open = (lines[start] ?? "").match(/^([^\S\n\r]*)---\s*$/);
+	if (!open) return lines;
+	const closeRe = new RegExp(`^${open[1] ?? ""}---\\s*$`);
 	for (let end = start + 1; end < lines.length; end++) {
-		if ((lines[end] ?? "").trim() !== "---") continue;
+		if (!closeRe.test(lines[end] ?? "")) continue;
 		model.frontmatter = lines.slice(start, end + 1);
 		return lines.slice(end + 1);
 	}

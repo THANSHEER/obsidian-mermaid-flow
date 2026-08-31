@@ -509,5 +509,48 @@ describe('mermaidToModel', () => {
 			const { model } = mermaidToModel(input);
 			expect(model.frontmatter).toBeUndefined();
 		});
+
+		it('does not let an indented --- inside a YAML block scalar close the fence', () => {
+			const input = [
+				'---',
+				'title: |',
+				'  first',
+				'  ---',
+				'  second',
+				'---',
+				'flowchart TD',
+				'  A --> B',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.frontmatter).toEqual([
+				'---',
+				'title: |',
+				'  first',
+				'  ---',
+				'  second',
+				'---',
+			]);
+			expect(model.nodes.map(n => n.id).sort()).toEqual(['A', 'B']);
+			expect(model.extras).toHaveLength(0);
+		});
+
+		it('accepts an indented fence pair', () => {
+			const input = [
+				'  ---',
+				'  title: Indented',
+				'  ---',
+				'flowchart TD',
+				'  A --> B',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.frontmatter).toEqual(['  ---', '  title: Indented', '  ---']);
+			expect(model.nodes).toHaveLength(2);
+		});
+
+		it('does not close an indented fence with a flush-left ---', () => {
+			const input = ['  ---', '  title: Indented', '---', 'flowchart TD'].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.frontmatter).toBeUndefined();
+		});
 	});
 });
