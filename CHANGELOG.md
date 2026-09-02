@@ -2,7 +2,7 @@
 
 All notable changes to Mermaid Flow are documented here.
 
-## [Unreleased]
+## [1.8.2] - 2026-09-02
 
 ### Fixes
 - Preserved YAML frontmatter: Mermaid v10.5+ YAML frontmatter (`---` ... `---`) is retained verbatim at the top of the block with indentation preserved, preventing frontmatter relocation to the diagram bottom and diagram rendering failure (#29)
