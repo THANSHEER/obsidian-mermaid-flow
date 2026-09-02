@@ -229,6 +229,11 @@ export function modelToMermaid(
 ): string {
 	const includePositions = opts.includePositions ?? true;
 	const lines: string[] = [];
+	// Frontmatter is only valid as the first content of the diagram, and is
+	// written back exactly as it was read (fences and YAML indentation included).
+	if (model.frontmatter && model.frontmatter.length > 0) {
+		lines.push(...model.frontmatter);
+	}
 	const directive = configDirective(model.config);
 	if (directive) lines.push(directive);
 	lines.push(`flowchart ${model.direction}`);

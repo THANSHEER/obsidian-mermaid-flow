@@ -481,6 +481,34 @@ function splitLinkPieces(stmt: string): string[] {
 	return pieces;
 }
 
+/**
+ * Split leading YAML frontmatter (Mermaid v10.5+) off the source and store it,
+ * fences included, on `model.frontmatter`. Mermaid only accepts frontmatter as
+ * the first content of a diagram, so it cannot round-trip through `extras`
+ * (which is re-emitted at the end of the block). Recognized only when the
+ * opening `---` is closed, which keeps the `---` link operator (`A --- B`)
+ * out of it. Returns the lines left to parse.
+ *
+ * The closing fence has to carry the opening fence's indentation, mirroring the
+ * `\1` backreference in Mermaid's own `frontMatterRegex`: an indented `---`
+ * inside a multi-line YAML scalar would otherwise close the block early.
+ */
+function takeFrontmatter(lines: string[], model: DiagramModel): string[] {
+	let start = 0;
+	while (start < lines.length && (lines[start] ?? "").trim() === "") start++;
+	// Mermaid allows the opening fence itself to be indented.
+	const open = (lines[start] ?? "").match(/^([^\S\n\r]*)---\s*$/);
+	if (!open) return lines;
+	const closeRe = new RegExp(`^${open[1] ?? ""}---\\s*$`);
+	for (let end = start + 1; end < lines.length; end++) {
+		if (!closeRe.test(lines[end] ?? "")) continue;
+		model.frontmatter = lines.slice(start, end + 1);
+		return lines.slice(end + 1);
+	}
+	// Never closed, so not frontmatter — leave every line to the parser.
+	return lines;
+}
+
 export function mermaidToModel(text: string): ParseResult {
 	const warnings: string[] = [];
 	const model = emptyModel("TB");
@@ -558,7 +586,10 @@ export function mermaidToModel(text: string): ParseResult {
 		groupStack.push(group);
 	};
 
-	const rawLines = text.replace(/\r\n/g, "\n").split("\n");
+	const rawLines = takeFrontmatter(
+		text.replace(/\r\n/g, "\n").split("\n"),
+		model,
+	);
 	let headerSeen = false;
 
 	for (const rawLine of rawLines) {

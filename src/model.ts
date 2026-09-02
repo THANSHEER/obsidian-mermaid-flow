@@ -223,6 +223,13 @@ export interface DiagramModel {
 	 * untouched so the visual editor never destroys advanced syntax.
 	 */
 	extras: string[];
+	/**
+	 * Mermaid v10.5+ YAML frontmatter (`---` … `---`), including both fences,
+	 * verbatim. It is only valid at the very top of a diagram, so it cannot go
+	 * through `extras` (which is re-emitted at the end); the serializer writes
+	 * it back first, before any other line.
+	 */
+	frontmatter?: string[];
 }
 
 export function emptyModel(direction: Direction = "TB"): DiagramModel {
@@ -462,5 +469,6 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 				: undefined,
 		},
 		extras: [...model.extras],
+		frontmatter: model.frontmatter ? [...model.frontmatter] : undefined,
 	};
 }
