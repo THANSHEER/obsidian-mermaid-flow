@@ -133,6 +133,8 @@ export interface DiagramNode {
 	/** Optional hyperlink target: an Obsidian link (`[[Note#Heading]]`) or an
 	 *  external URL. Persisted as a Mermaid `click <id> "<target>"` line. */
 	link?: string;
+	/** Comments directly preceding this node declaration. */
+	comments?: string[];
 }
 
 /** A Mermaid `subgraph` — a labelled container grouping member nodes.
@@ -151,6 +153,8 @@ export interface DiagramGroup {
 	classes?: string[];
 	/** Comments or unrecognized lines preserved inside this subgraph's scope. */
 	extras?: string[];
+	/** Comments directly preceding this subgraph declaration. */
+	comments?: string[];
 }
 
 /** Diagram-level Mermaid config, emitted as a `%%{init: …}%%` directive. */
@@ -207,6 +211,8 @@ export interface DiagramEdge {
 	style?: EdgeStyle;
 	/** Show a marching-ants CSS animation on the edge line. */
 	animated?: boolean;
+	/** Comments directly preceding this edge statement. */
+	comments?: string[];
 }
 
 export interface DiagramModel {
@@ -230,6 +236,12 @@ export interface DiagramModel {
 	 * it back first, before any other line.
 	 */
 	frontmatter?: string[];
+	/** Diagram accessibility title (`accTitle: ...`). */
+	accTitle?: string;
+	/** Diagram accessibility description (`accDescr: ...` or `accDescr { ... }`). */
+	accDescr?: string;
+	/** Comments directly following the diagram header before any nodes/edges. */
+	headerComments?: string[];
 }
 
 export function emptyModel(direction: Direction = "TB"): DiagramModel {
@@ -435,6 +447,7 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 		direction: model.direction,
 		nodes: model.nodes.map((n) => ({
 			...n,
+			comments: n.comments ? [...n.comments] : undefined,
 			style: n.style
 				? { ...n.style, extra: n.style.extra ? [...n.style.extra] : undefined }
 				: undefined,
@@ -443,6 +456,7 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 		edges: model.edges.map((e) => ({
 			...e,
 			animated: e.animated,
+			comments: e.comments ? [...e.comments] : undefined,
 			style: e.style
 				? { ...e.style, extra: e.style.extra ? [...e.style.extra] : undefined }
 				: undefined,
@@ -452,6 +466,7 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 			nodeIds: [...g.nodeIds],
 			parentId: g.parentId,
 			direction: g.direction,
+			comments: g.comments ? [...g.comments] : undefined,
 			style: g.style
 				? { ...g.style, extra: g.style.extra ? [...g.style.extra] : undefined }
 				: undefined,
@@ -470,5 +485,8 @@ export function cloneModel(model: DiagramModel): DiagramModel {
 		},
 		extras: [...model.extras],
 		frontmatter: model.frontmatter ? [...model.frontmatter] : undefined,
+		accTitle: model.accTitle,
+		accDescr: model.accDescr,
+		headerComments: model.headerComments ? [...model.headerComments] : undefined,
 	};
 }

@@ -566,7 +566,7 @@ export function mermaidToModel(text: string): ParseResult {
 		return node;
 	};
 
-	const openGroup = (rest: string): void => {
+	const openGroup = (rest: string, comments?: string[]): void => {
 		let id: string;
 		let title: string;
 		let m: RegExpMatchArray | null;
@@ -591,7 +591,7 @@ export function mermaidToModel(text: string): ParseResult {
 			title = rest || title;
 		}
 		const parent = groupStack[groupStack.length - 1];
-		const group: DiagramGroup = { id, title, nodeIds: [] };
+		const group: DiagramGroup = { id, title, nodeIds: [], comments };
 		if (parent) group.parentId = parent.id;
 		model.groups.push(group);
 		groupStack.push(group);
@@ -602,11 +602,26 @@ export function mermaidToModel(text: string): ParseResult {
 		model,
 	);
 	let headerSeen = false;
+	let inAccDescr = false;
+	const accDescrLines: string[] = [];
+	let pendingComments: string[] = [];
 
 	for (const rawLine of rawLines) {
 		const line = rawLine.replace(/\t/g, "    ");
 		const trimmed = line.trim();
 		if (trimmed === "") continue;
+
+		if (inAccDescr) {
+			if (trimmed === "}" || trimmed.endsWith("}")) {
+				const beforeBrace = trimmed.endsWith("}") ? trimmed.slice(0, -1).trim() : "";
+				if (beforeBrace) accDescrLines.push(beforeBrace);
+				model.accDescr = accDescrLines.join("\n");
+				inAccDescr = false;
+			} else {
+				accDescrLines.push(trimmed);
+			}
+			continue;
+		}
 
 		// Our own position hint comment.
 		const posMatch = line.match(POS_RE);
@@ -637,13 +652,57 @@ export function mermaidToModel(text: string): ParseResult {
 			continue;
 		}
 
-		// Other comments — keep them in current group scope or root extras.
+		// Other comments — keep them in current group scope or root pendingComments.
 		if (trimmed.startsWith("%%")) {
 			const currentGroup = groupStack[groupStack.length - 1];
 			if (currentGroup) {
 				(currentGroup.extras ??= []).push(trimmed);
 			} else {
-				model.extras.push(trimmed);
+				pendingComments.push(trimmed);
+			}
+			continue;
+		}
+
+		// Multi-line accDescr open: `accDescr {`
+		if (/^accDescr\s*\{\s*$/i.test(trimmed)) {
+			inAccDescr = true;
+			accDescrLines.length = 0;
+			if (pendingComments.length > 0) {
+				model.headerComments = [...(model.headerComments ?? []), ...pendingComments];
+				pendingComments = [];
+			}
+			continue;
+		}
+
+		// Single-line `accDescr { ... }`
+		const accDescrBraceMatch = trimmed.match(/^accDescr\s*\{\s*([^}]+)\s*\}\s*$/i);
+		if (accDescrBraceMatch && accDescrBraceMatch[1]) {
+			model.accDescr = accDescrBraceMatch[1].trim();
+			if (pendingComments.length > 0) {
+				model.headerComments = [...(model.headerComments ?? []), ...pendingComments];
+				pendingComments = [];
+			}
+			continue;
+		}
+
+		// Single-line `accDescr: ...`
+		const accDescrMatch = trimmed.match(/^accDescr(?:\s*:|\s+)\s*(.+)$/i);
+		if (accDescrMatch && accDescrMatch[1]) {
+			model.accDescr = accDescrMatch[1].trim();
+			if (pendingComments.length > 0) {
+				model.headerComments = [...(model.headerComments ?? []), ...pendingComments];
+				pendingComments = [];
+			}
+			continue;
+		}
+
+		// Single-line `accTitle: ...`
+		const accTitleMatch = trimmed.match(/^accTitle(?:\s*:|\s+)\s*(.+)$/i);
+		if (accTitleMatch && accTitleMatch[1]) {
+			model.accTitle = accTitleMatch[1].trim();
+			if (pendingComments.length > 0) {
+				model.headerComments = [...(model.headerComments ?? []), ...pendingComments];
+				pendingComments = [];
 			}
 			continue;
 		}
@@ -657,13 +716,19 @@ export function mermaidToModel(text: string): ParseResult {
 				if (dir === "TD") dir = "TB";
 				model.direction = dir as Direction;
 				headerSeen = true;
+				if (pendingComments.length > 0) {
+					model.headerComments = [...(model.headerComments ?? []), ...pendingComments];
+					pendingComments = [];
+				}
 				continue;
 			}
 
 			// Subgraph open / close.
 			const subMatch = stmt.match(/^subgraph\b\s*(.*)$/i);
 			if (subMatch) {
-				openGroup((subMatch[1] ?? "").trim());
+				const comments = pendingComments.length > 0 ? [...pendingComments] : undefined;
+				pendingComments = [];
+				openGroup((subMatch[1] ?? "").trim(), comments);
 				continue;
 			}
 			if (/^end$/i.test(stmt)) {
@@ -755,13 +820,23 @@ export function mermaidToModel(text: string): ParseResult {
 			const targetExtras = currentGroup ? (currentGroup.extras ??= []) : model.extras;
 
 			if (isStructuralLine(stmt)) {
+				if (pendingComments.length > 0) {
+					targetExtras.push(...pendingComments);
+					pendingComments = [];
+				}
 				targetExtras.push(stmt);
 				warnings.push(`Unsupported line kept as-is: "${stmt}"`);
 				continue;
 			}
 
-			parseStatement(stmt, ensureNode, model.edges, warnings, targetExtras);
+			const stmtComments = pendingComments.length > 0 ? [...pendingComments] : undefined;
+			pendingComments = [];
+			parseStatement(stmt, ensureNode, model.edges, warnings, targetExtras, stmtComments);
 		}
+	}
+
+	if (pendingComments.length > 0) {
+		model.extras.push(...pendingComments);
 	}
 
 	if (!headerSeen && model.nodes.length === 0 && model.edges.length === 0) {
@@ -883,6 +958,7 @@ function parseStatement(
 	edges: DiagramEdge[],
 	warnings: string[],
 	extras: string[],
+	comments?: string[],
 ): void {
 	const normalized = normalizeInlineLabels(stmt);
 	const pieces = splitLinkPieces(normalized);
@@ -895,8 +971,16 @@ function parseStatement(
 			.map((t) => parseNodeToken(t))
 			.filter((t): t is ParsedToken => t !== null);
 		if (tokens.length > 0 && tokens.length === segments.length) {
-			for (const token of tokens) ensureNode(token);
+			for (let idx = 0; idx < tokens.length; idx++) {
+				const node = ensureNode(tokens[idx]!);
+				if (idx === 0 && comments && comments.length > 0) {
+					node.comments = [...comments];
+				}
+			}
 		} else {
+			if (comments && comments.length > 0) {
+				extras.push(...comments);
+			}
 			extras.push(stmt);
 			warnings.push(`Could not parse: "${stmt}"`);
 		}
@@ -906,6 +990,7 @@ function parseStatement(
 	// pieces = [node, op, node, op, node, ...]
 	let prevNodes: DiagramNode[] = [];
 	let pendingOp: string | null = null;
+	let commentsApplied = false;
 
 	for (let i = 0; i < pieces.length; i++) {
 		const piece = pieces[i] ?? "";
@@ -944,6 +1029,7 @@ function parseStatement(
 			.map((t) => t.trim())
 			.filter((t) => t.length > 0);
 		if (tokens.length === 0) {
+			if (comments && comments.length > 0) extras.push(...comments);
 			extras.push(stmt);
 			warnings.push(`Could not parse node "${nodePart}" in "${stmt}"`);
 			return;
@@ -952,6 +1038,7 @@ function parseStatement(
 		for (const tk of tokens) {
 			const token = parseNodeToken(tk);
 			if (!token) {
+				if (comments && comments.length > 0) extras.push(...comments);
 				extras.push(stmt);
 				warnings.push(`Could not parse node "${tk}" in "${stmt}"`);
 				return;
@@ -963,13 +1050,18 @@ function parseStatement(
 			// `A & B --> C & D` connects every left node to every right node.
 			for (const from of prevNodes) {
 				for (const to of currentNodes) {
-					edges.push({
+					const edge: DiagramEdge = {
 						id: newEdgeId(),
 						from: from.id,
 						to: to.id,
 						label,
 						kind: opToKind(pendingOp),
-					});
+					};
+					if (!commentsApplied && comments && comments.length > 0) {
+						edge.comments = [...comments];
+						commentsApplied = true;
+					}
+					edges.push(edge);
 				}
 			}
 		}

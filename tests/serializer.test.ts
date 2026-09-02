@@ -575,4 +575,57 @@ describe('modelToMermaid', () => {
 			expect(out).toContain('linkStyle 5 stroke:#f00');
 		});
 	});
+
+	describe('Issue #33: preserving comments, accTitle, and accDescr', () => {
+		it('emits accTitle and accDescr directly below flowchart header', () => {
+			const input = [
+				'flowchart TD',
+				'  accTitle: My Title',
+				'  accDescr: My Description',
+				'  A --> B',
+			].join('\n');
+			const out = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			const l = lines(out);
+			expect(l[0]).toBe('flowchart TB');
+			expect(l[1]).toBe('accTitle: My Title');
+			expect(l[2]).toBe('accDescr: My Description');
+		});
+
+		it('preserves section comment locations in reproduction from Issue #33', () => {
+			const input = [
+				'flowchart TD',
+				'  %% first section',
+				'  A --> B',
+				'  %% second section',
+				'  B --> C',
+			].join('\n');
+			const out = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			expect(out.indexOf('%% first section')).toBeLessThan(out.indexOf('A --> B'));
+			expect(out.indexOf('A --> B')).toBeLessThan(out.indexOf('%% second section'));
+			expect(out.indexOf('%% second section')).toBeLessThan(out.indexOf('B --> C'));
+		});
+
+		it('is stable across a second round trip for comments and accessibility tags', () => {
+			const input = [
+				'flowchart TD',
+				'  accTitle: Overview',
+				'  accDescr: System map',
+				'  %% first section',
+				'  A --> B',
+				'  %% second section',
+				'  B --> C',
+			].join('\n');
+			const once = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			const twice = modelToMermaid(mermaidToModel(once).model, {
+				includePositions: false,
+			});
+			expect(twice).toBe(once);
+		});
+	});
 });

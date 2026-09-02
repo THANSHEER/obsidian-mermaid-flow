@@ -713,4 +713,87 @@ describe('mermaidToModel', () => {
 			expect(model.extras).toContain('linkStyle 9 stroke:#f00');
 		});
 	});
+
+	describe('Issue #33: Comments and accTitle/accDescr', () => {
+		it('captures accTitle and single-line accDescr without warnings', () => {
+			const input = [
+				'flowchart TD',
+				'  accTitle: Overview',
+				'  accDescr: High-level system flow',
+				'  A --> B',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(model.accTitle).toBe('Overview');
+			expect(model.accDescr).toBe('High-level system flow');
+			expect(warnings).toHaveLength(0);
+			expect(model.extras).toHaveLength(0);
+		});
+
+		it('captures multi-line accDescr without warnings', () => {
+			const input = [
+				'flowchart TD',
+				'  accTitle: Overview',
+				'  accDescr {',
+				'    Line 1 of description',
+				'    Line 2 of description',
+				'  }',
+				'  A --> B',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(model.accTitle).toBe('Overview');
+			expect(model.accDescr).toBe('Line 1 of description\nLine 2 of description');
+			expect(warnings).toHaveLength(0);
+		});
+
+		it('anchors section comments to the edge statements they precede', () => {
+			const input = [
+				'flowchart TD',
+				'  %% first section',
+				'  A --> B',
+				'  %% second section',
+				'  B --> C',
+			].join('\n');
+			const { model, warnings } = mermaidToModel(input);
+			expect(warnings).toHaveLength(0);
+			expect(model.edges[0]?.comments).toEqual(['%% first section']);
+			expect(model.edges[1]?.comments).toEqual(['%% second section']);
+			expect(model.extras).toHaveLength(0);
+		});
+
+		it('anchors comments to standalone node declarations', () => {
+			const input = [
+				'flowchart TD',
+				'  %% start node',
+				'  A[Start]',
+				'  %% end node',
+				'  B[End]',
+				'  A --> B',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.nodes.find(n => n.id === 'A')?.comments).toEqual(['%% start node']);
+			expect(model.nodes.find(n => n.id === 'B')?.comments).toEqual(['%% end node']);
+		});
+
+		it('anchors comments to a subgraph declaration', () => {
+			const input = [
+				'flowchart TD',
+				'  %% group comment',
+				'  subgraph G1',
+				'    A',
+				'  end',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.groups.find(g => g.id === 'G1')?.comments).toEqual(['%% group comment']);
+		});
+
+		it('preserves header comments before flowchart declaration', () => {
+			const input = [
+				'%% Header note',
+				'flowchart TD',
+				'  A --> B',
+			].join('\n');
+			const { model } = mermaidToModel(input);
+			expect(model.headerComments).toEqual(['%% Header note']);
+		});
+	});
 });

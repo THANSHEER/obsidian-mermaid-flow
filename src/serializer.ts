@@ -237,6 +237,24 @@ export function modelToMermaid(
 	const directive = configDirective(model.config);
 	if (directive) lines.push(directive);
 	lines.push(`flowchart ${model.direction}`);
+	if (model.accTitle) {
+		lines.push(`${INDENT}accTitle: ${model.accTitle}`);
+	}
+	if (model.accDescr) {
+		if (model.accDescr.includes("\n")) {
+			lines.push(
+				`${INDENT}accDescr {\n${model.accDescr
+					.split("\n")
+					.map((l) => INDENT + l)
+					.join("\n")}\n${INDENT}}`,
+			);
+		} else {
+			lines.push(`${INDENT}accDescr: ${model.accDescr}`);
+		}
+	}
+	if (model.headerComments && model.headerComments.length > 0) {
+		for (const c of model.headerComments) lines.push(INDENT + c);
+	}
 
 	const nodeById = new Map(model.nodes.map((n) => [n.id, n]));
 	const grouped = new Set<string>();
@@ -244,6 +262,9 @@ export function modelToMermaid(
 
 	const emitGroup = (group: DiagramGroup, indent: string): void => {
 		emittedGroups.add(group.id);
+		if (group.comments && group.comments.length > 0) {
+			for (const c of group.comments) lines.push(indent + c);
+		}
 		const title =
 			group.title && group.title !== group.id
 				? ` [${quoteLabel(group.title)}]`
@@ -260,6 +281,9 @@ export function modelToMermaid(
 			const node = nodeById.get(id);
 			if (!node) continue;
 			grouped.add(id);
+			if (node.comments && node.comments.length > 0) {
+				for (const c of node.comments) lines.push(childIndent + c);
+			}
 			lines.push(childIndent + nodeDeclaration(node));
 		}
 		for (const extra of group.extras ?? []) {
@@ -277,10 +301,16 @@ export function modelToMermaid(
 	// Remaining (ungrouped) nodes.
 	for (const node of model.nodes) {
 		if (grouped.has(node.id)) continue;
+		if (node.comments && node.comments.length > 0) {
+			for (const c of node.comments) lines.push(INDENT + c);
+		}
 		lines.push(INDENT + nodeDeclaration(node));
 	}
 
 	for (const edge of model.edges) {
+		if (edge.comments && edge.comments.length > 0) {
+			for (const c of edge.comments) lines.push(INDENT + c);
+		}
 		lines.push(INDENT + edgeLine(edge));
 	}
 

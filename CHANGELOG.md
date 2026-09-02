@@ -9,6 +9,7 @@ All notable changes to Mermaid Flow are documented here.
 - Ghost-free subgraph edge targeting: linking an edge to or from a subgraph (`B --> SubgraphId`) no longer creates a ghost node with the subgraph's ID (#30)
 - Unknown ID directive preservation: `style` and `class` directives targeting unknown or deleted IDs are preserved in extras without minting ghost geometry (#31)
 - Preserved out-of-range linkStyle: `linkStyle` directives with non-existent or out-of-range indices are retained in extras rather than silently discarded (#32)
+- Preserved comments, accTitle, and accDescr: comments now keep their contextual placement above the statements (edges, nodes, subgraphs) they annotate instead of collapsing to the bottom, and accessibility metadata (`accTitle` / `accDescr`) is recognized natively without false-positive parse warnings (#33)
 
 ---
 
