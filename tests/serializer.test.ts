@@ -510,4 +510,69 @@ describe('modelToMermaid', () => {
 			expect(out.startsWith('flowchart TB')).toBe(true);
 		});
 	});
+
+	describe('Issue #30: edges targeting a subgraph', () => {
+		it('round-trips an edge into a subgraph without emitting a ghost node', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1[Grp]',
+				'    A',
+				'  end',
+				'  B --> Group1',
+			].join('\n');
+			const out = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			expect(lines(out)).toContain('B --> Group1');
+			expect(out).not.toContain('Group1["Group1"]');
+			expect(out).not.toContain('Group1[Group1]');
+		});
+
+		it('is stable across a second round trip', () => {
+			const input = [
+				'flowchart TB',
+				'  subgraph Group1[Grp]',
+				'    A',
+				'  end',
+				'  B --> Group1',
+			].join('\n');
+			const once = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			const twice = modelToMermaid(mermaidToModel(once).model, {
+				includePositions: false,
+			});
+			expect(twice).toBe(once);
+		});
+	});
+
+	describe('Issue #31 & #32: preserving unknown style/class and out-of-range linkStyle', () => {
+		it('round-trips unknown style and class directives in extras without creating nodes', () => {
+			const input = [
+				'flowchart TD',
+				'  A --> B',
+				'  style UnknownNode fill:#f00',
+				'  class UnknownTarget myClass',
+			].join('\n');
+			const out = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			expect(out).toContain('style UnknownNode fill:#f00');
+			expect(out).toContain('class UnknownTarget myClass');
+			expect(out).not.toContain('UnknownNode[');
+			expect(out).not.toContain('UnknownTarget[');
+		});
+
+		it('round-trips out-of-range linkStyle directive in extras without dropping it', () => {
+			const input = [
+				'flowchart TD',
+				'  A --> B',
+				'  linkStyle 5 stroke:#f00',
+			].join('\n');
+			const out = modelToMermaid(mermaidToModel(input).model, {
+				includePositions: false,
+			});
+			expect(out).toContain('linkStyle 5 stroke:#f00');
+		});
+	});
 });

@@ -2,13 +2,19 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [Unreleased]
+
+### Fixes
+- Preserved YAML frontmatter: Mermaid v10.5+ YAML frontmatter (`---` ... `---`) is retained verbatim at the top of the block with indentation preserved, preventing frontmatter relocation to the diagram bottom and diagram rendering failure (#29)
+- Ghost-free subgraph edge targeting: linking an edge to or from a subgraph (`B --> SubgraphId`) no longer creates a ghost node with the subgraph's ID (#30)
+- Unknown ID directive preservation: `style` and `class` directives targeting unknown or deleted IDs are preserved in extras without minting ghost geometry (#31)
+- Preserved out-of-range linkStyle: `linkStyle` directives with non-existent or out-of-range indices are retained in extras rather than silently discarded (#32)
+
+---
+
 ## [1.8.1] - 2026-08-27
 
-### 🛡️ v1.8.1 - Semicolon & Quote Safety, Subgraph Styling and Direction Fidelity
-
-Reliable round-tripping for labels containing semicolons, double quotes, and HTML entities, plus faithful preservation of subgraph styling, directions, and comments across visual edits.
-
-### 🐛 Bug Fixes
+### Fixes
 - Preserved quoted labels containing semicolons: statements are no longer split on ';' inside quoted node labels, edge labels, or HTML entities like `&nbsp;` and `&quot;`, preventing label truncation and diagram corruption (#26)
 - Subgraph preservation: subgraphs containing nodes with semicolons or HTML entities are no longer deleted on save (#26)
 - Double-quote round-trip stability: labels containing double quotes now round-trip cleanly without minting ghost nodes (`hi["hi"]`, `quot["quot"]`) on repeated save/open cycles (#26)
@@ -19,7 +25,7 @@ Reliable round-tripping for labels containing semicolons, double quotes, and HTM
 - Arrow operator safety: labels containing `-->`, `---`, or `==>` (e.g. `A["Step 1 --> Step 2"]`) are no longer misinterpreted as link operators
 - Inline label hyphens: inline edge labels containing hyphens (e.g. `A -- step-by-step --> B`) now parse correctly
 
-### 💡 Improvements
+### Improvements
 - External link navigation hardening: restricted node link external navigation to safe protocols (`http:`, `https:`, `mailto:`) with `noopener,noreferrer` attributes, preventing navigation to untrusted URI schemes
 
 ---
