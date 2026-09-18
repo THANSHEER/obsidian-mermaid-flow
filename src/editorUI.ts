@@ -1120,9 +1120,11 @@ export class DiagramEditorUI {
 			const tag = target instanceof HTMLElement ? target.tagName.toLowerCase() : undefined;
 			const inInput = tag === "input" || tag === "textarea" || tag === "select";
 
-		// Undo / redo (use e.code for layout-independent detection: works with Russian Я/Н, etc.)
-		if (mod && !e.shiftKey && (e.code === "KeyZ" || e.key === "z" || e.key === "Z")) { e.preventDefault(); this.undo(); return; }
-		if (mod && (e.shiftKey && (e.code === "KeyZ" || e.key === "z" || e.key === "Z") || e.code === "KeyY" || e.key === "y" || e.key === "Y")) { e.preventDefault(); this.redo(); return; }
+			// Undo / redo (use e.code for layout-independent detection: works with Cyrillic, etc. while preserving AZERTY/QWERTZ)
+			const isZ = e.key === "z" || e.key === "Z" || (e.code === "KeyZ" && !/^[a-zA-Z]$/.test(e.key));
+			const isY = e.key === "y" || e.key === "Y" || (e.code === "KeyY" && !/^[a-zA-Z]$/.test(e.key));
+			if (mod && !e.shiftKey && isZ) { e.preventDefault(); this.undo(); return; }
+			if (mod && ((e.shiftKey && isZ) || isY)) { e.preventDefault(); this.redo(); return; }
 
 			// Zoom
 			if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); this.canvas.zoomIn(); return; }

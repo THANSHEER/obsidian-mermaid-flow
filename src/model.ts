@@ -414,18 +414,14 @@ export function canBeParentOf(
 	
 	// Check if potentialParentId is a descendant of childId
 	const visited = new Set<string>();
-	const isDescendant = (ancestorId: string, descendantId: string): boolean => {
-		if (visited.has(descendantId)) return false; // Cycle protection
-		visited.add(descendantId);
+	const isDescendant = (targetId: string, currentRootId: string): boolean => {
+		if (visited.has(currentRootId)) return false; // Cycle protection
+		visited.add(currentRootId);
 		
-		const group = model.groups.find((g) => g.id === descendantId);
-		if (!group) return false;
-		
-		// Check direct children
 		for (const child of model.groups) {
-			if (child.parentId === descendantId) {
-				if (child.id === ancestorId) return true;
-				if (isDescendant(ancestorId, child.id)) return true;
+			if (child.parentId === currentRootId) {
+				if (child.id === targetId) return true;
+				if (isDescendant(targetId, child.id)) return true;
 			}
 		}
 		return false;

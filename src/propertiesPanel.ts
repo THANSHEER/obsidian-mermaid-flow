@@ -682,8 +682,8 @@ export class PropertiesPanel {
 		
 		// Auto-resize textarea based on content
 		const autoResize = () => {
-			textarea.style.height = "auto";
-			textarea.style.height = textarea.scrollHeight + "px";
+			textarea.setCssStyles({ height: "auto" });
+			textarea.setCssStyles({ height: `${textarea.scrollHeight}px` });
 		};
 		
 		// Initial resize synchronously to avoid visual jump
@@ -696,6 +696,7 @@ export class PropertiesPanel {
 		
 		// Handle Enter key: plain Enter commits, Shift+Enter adds newline
 		textarea.addEventListener("keydown", (e) => {
+			if (e.isComposing) return;
 			if (e.key === "Enter" && !e.shiftKey) {
 				e.preventDefault();
 				textarea.blur(); // Commit the change

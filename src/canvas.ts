@@ -182,6 +182,7 @@ export class DiagramCanvas {
 
 	// drag state (delta-based)
 	private dragId: string | null = null;
+	private dragPointerId: number | null = null; // Pointer ID owning the active drag
 	private dragLast = { x: 0, y: 0 };
 	private dragStart: { x: number; y: number } | null = null; // SVG coords where drag began
 	private isDragging = false;
@@ -200,12 +201,14 @@ export class DiagramCanvas {
 			currentY: number;
 			pointerType: string;
 		}>;
+		gesturePointerIds: [number, number] | null;
 		gestureStartDistance: number | null;
 		gestureStartZoom: number | null;
 		gestureStartScroll: { left: number; top: number } | null;
 		gestureStartMidpoint: { x: number; y: number } | null;
 	} = {
 		activePointers: new Map(),
+		gesturePointerIds: null,
 		gestureStartDistance: null,
 		gestureStartZoom: null,
 		gestureStartScroll: null,
@@ -229,10 +232,19 @@ export class DiagramCanvas {
 
 	// drag-to-connect (from a hover anchor)
 	private linkFrom: string | null = null;
-	// node hovered as a valid drop target while linkFrom/reconnectEdge is active
 	private linkHoverTarget: string | null = null;
+	private newEdgePickerCb: ((edgeId: string, e: MouseEvent) => void) | null = null;
 
-	// group (subgraph) drag
+	// edge reconnection drag
+	private reconnectEdge: { edgeId: string; end: "from" | "to" } | null = null;
+
+	// in-place label editor (<foreignObject> overlaid on canvas)
+	private labelEditor: SVGForeignObjectElement | null = null;
+	private labelInput: HTMLTextAreaElement | null = null;
+	private editingEdgeId: string | null = null;
+	private editingNodeId: string | null = null;
+
+	// subgraph dragging & resizing
 	private groupDragId: string | null = null;
 	private groupDragLast = { x: 0, y: 0 };
 
@@ -303,6 +315,30 @@ export class DiagramCanvas {
 				// blur the textarea and immediately close it on the first click.
 				if (this.labelEditor && this.labelEditor.contains(e.target as Node)) return;
 				this.svg.focus({ preventScroll: true });
+
+				this.registerPointer(e);
+
+				if (e.pointerType === "touch") {
+					// If already in a two-finger gesture, block additional touches
+					if (this.isGestureActive()) {
+						e.preventDefault();
+						e.stopPropagation();
+						return;
+					}
+
+					// If actively dragging a node past threshold, let the drag continue
+					if (this.dragId && this.dragStarted) {
+						return;
+					}
+
+					const touchPointers = this.getTouchPointers();
+					if (touchPointers.length === 2) {
+						e.preventDefault();
+						e.stopPropagation();
+						this.handleTwoFingerGestureStart(touchPointers);
+						return;
+					}
+				}
 			},
 			{ capture: true },
 		);
@@ -344,6 +380,11 @@ export class DiagramCanvas {
 		this.linkFrom = null;
 		this.linkHoverTarget = null;
 		this.dragId = null;
+		this.dragPointerId = null;
+		this.dragStart = null;
+		this.dragStarted = false;
+		this.dragStartPosition = null;
+		this.endGesture();
 		this.groupDragId = null;
 		this.resizeId = null;
 		this.groupResizeId = null;
@@ -1494,6 +1535,7 @@ export class DiagramCanvas {
 		const dragNode = this.model.nodes.find((n) => n.id === id);
 		if (!dragNode) return;
 		this.dragId = id;
+		this.dragPointerId = e.pointerId;
 		const svgPoint = this.toSvgPoint(e);
 		this.dragLast = svgPoint;
 		this.dragStart = svgPoint; // Save starting point for threshold check
@@ -1636,17 +1678,6 @@ export class DiagramCanvas {
 	}
 
 	private onBackgroundDown(e: PointerEvent): void {
-		// Register this pointer
-		this.registerPointer(e);
-		
-		// Check if this is a second touch pointer → initiate two-finger gesture
-		const touchPointers = this.getTouchPointers();
-		if (touchPointers.length === 2) {
-			e.preventDefault();
-			this.handleTwoFingerGestureStart(touchPointers);
-			return;
-		}
-		
 		// Skip other interactions if gesture is active
 		if (this.isGestureActive()) {
 			return;
@@ -1795,6 +1826,7 @@ export class DiagramCanvas {
 		// Stop canvas pointer handlers (select/rubber-band/pan) firing underneath.
 		fo.addEventListener("pointerdown", (e) => e.stopPropagation());
 		input.addEventListener("keydown", (e) => {
+			if (e.isComposing) return;
 			if (e.key === "Enter" && !e.shiftKey) {
 				e.preventDefault();
 				e.stopPropagation();
@@ -1883,16 +1915,20 @@ export class DiagramCanvas {
 			ptr.currentY = e.clientY;
 		}
 
-		// Handle two-finger gesture
-		const touchPointers = this.getTouchPointers();
-		if (touchPointers.length === 2 && this.isGestureActive()) {
-			e.preventDefault();
-			this.handleTwoFingerGestureMove(touchPointers);
-			return;
-		}
-
-		// Block other interactions during gesture
+		// Handle two-finger gesture (strictly isolated to the two initiating pointers)
 		if (this.isGestureActive()) {
+			e.preventDefault();
+			const [id0, id1] = this.pointerState.gesturePointerIds!;
+			if (e.pointerId === id0 || e.pointerId === id1) {
+				const p0 = this.pointerState.activePointers.get(id0);
+				const p1 = this.pointerState.activePointers.get(id1);
+				if (p0 && p1) {
+					this.handleTwoFingerGestureMove([
+						{ id: id0, data: p0 },
+						{ id: id1, data: p1 },
+					]);
+				}
+			}
 			return;
 		}
 
@@ -1929,7 +1965,7 @@ export class DiagramCanvas {
 			return;
 		}
 
-		if (this.dragId && this.dragStart) {
+		if (this.dragId && this.dragPointerId === e.pointerId && this.dragStart) {
 			const p = this.toSvgPoint(e);
 			
 			// Check if drag threshold has been reached (distance from start point)
