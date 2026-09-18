@@ -2408,6 +2408,25 @@ export class DiagramCanvas {
 			this.reconnectEdge !== null ||
 			this.linkHoverTarget !== null;
 
+		// Remove pointer from tracking
+		this.pointerState.activePointers.delete(e.pointerId);
+
+		// End gesture if fewer than 2 touch pointers remain
+		const touchPointers = this.getTouchPointers();
+		if (touchPointers.length < 2) {
+			this.pointerState.gestureStartDistance = null;
+			this.pointerState.gestureStartZoom = null;
+			this.pointerState.gestureStartScroll = null;
+		}
+
+		// Full cleanup when no pointers remain
+		if (this.pointerState.activePointers.size === 0) {
+			this.dragStart = null;
+			this.dragStarted = false;
+			this.dragStartPosition = null;
+			this.cancelRubberBand();
+		}
+
 		if (this.isDragging) {
 			this.isDragging = false;
 			this.callbacks.onDragStateChange?.(false);
