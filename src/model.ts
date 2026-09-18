@@ -398,6 +398,42 @@ export function groupSubtreeHasNodes(
 	return descendantNodeIds(model, groupId).length > 0;
 }
 
+/**
+ * Check if `potentialParentId` can be a parent of `childId` without creating
+ * a cycle. Returns false if:
+ * - potentialParentId is the same as childId (self-reference)
+ * - potentialParentId is a descendant of childId (would create a cycle)
+ */
+export function canBeParentOf(
+	model: DiagramModel,
+	potentialParentId: string | null,
+	childId: string,
+): boolean {
+	if (potentialParentId === null) return true; // Root is always valid
+	if (potentialParentId === childId) return false; // Can't be parent of itself
+	
+	// Check if potentialParentId is a descendant of childId
+	const visited = new Set<string>();
+	const isDescendant = (ancestorId: string, descendantId: string): boolean => {
+		if (visited.has(descendantId)) return false; // Cycle protection
+		visited.add(descendantId);
+		
+		const group = model.groups.find((g) => g.id === descendantId);
+		if (!group) return false;
+		
+		// Check direct children
+		for (const child of model.groups) {
+			if (child.parentId === descendantId) {
+				if (child.id === ancestorId) return true;
+				if (isDescendant(ancestorId, child.id)) return true;
+			}
+		}
+		return false;
+	};
+	
+	return !isDescendant(potentialParentId, childId);
+}
+
 export function removeEdge(model: DiagramModel, id: string): void {
 	model.edges = model.edges.filter((e) => e.id !== id);
 }

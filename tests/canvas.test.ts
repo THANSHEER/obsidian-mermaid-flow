@@ -100,6 +100,22 @@ describe('DiagramCanvas rendering', () => {
 		expect(label!.querySelector('img')).toBeNull();
 	});
 
+	it('renders multiple consecutive newlines with non-breaking spaces', () => {
+		const model = emptyModel('LR');
+		// Multiple consecutive newlines should create empty tspan elements with non-breaking spaces
+		model.nodes.push({ id: 'A', label: 'Line one\n\nLine three', shape: 'rect', x: 100, y: 60 });
+
+		const svg = render(model);
+		const label = svg.querySelector('.mermaid-flow-node-label');
+		expect(label).not.toBeNull();
+		const tspans = label!.querySelectorAll('tspan');
+		expect(tspans).toHaveLength(3);
+		expect(tspans[0]!.textContent).toBe('Line one');
+		// Empty line should contain non-breaking space (U+00A0)
+		expect(tspans[1]!.textContent).toBe('\u00A0');
+		expect(tspans[2]!.textContent).toBe('Line three');
+	});
+
 	it('paints node shapes with the theme palette by default', () => {
 		const model = emptyModel('LR');
 		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60 });

@@ -7,11 +7,13 @@ import {
 	DiagramEdge,
 	DiagramModel,
 	DiagramNode,
+	DiagramGroup,
 	EDGE_KINDS,
 	EDGE_LABELS,
 	NODE_SHAPES,
 	SHAPE_LABELS,
 	assignNodeToGroup,
+	canBeParentOf,
 	groupOf,
 	hasEdgeStyle,
 	hasStyle,
@@ -72,7 +74,7 @@ export class PropertiesPanel {
 		this.focusLabelOnBuild = true;
 	}
 
-	refresh(): HTMLInputElement | null {
+	refresh(): HTMLTextAreaElement | null {
 		this.sectionParent = null;
 		const canvas = this.getCanvas();
 		const model = this.getModel();
@@ -125,9 +127,9 @@ export class PropertiesPanel {
 		return null;
 	}
 
-	/** Returns the label input so the coordinator can focus it for F2. */
-	getLabelInput(): HTMLInputElement | null {
-		return this.panelEl.querySelector<HTMLInputElement>("input[type=text]");
+	/** Returns the label textarea so the coordinator can focus it for F2. */
+	getLabelInput(): HTMLTextAreaElement | null {
+		return this.panelEl.querySelector<HTMLTextAreaElement>("textarea.mermaid-flow-textarea");
 	}
 
 	// --- multi-select batch panel -------------------------------------------
@@ -343,6 +345,7 @@ export class PropertiesPanel {
 			this.ops.render();
 			this.ops.commit();
 		});
+		this.buildGroupParentField(group, model);
 		this.panelEl.createDiv({
 			cls: "mermaid-flow-hint",
 			text: "Drag the title bar to move the whole group. Assign more nodes from each node's panel.",
@@ -352,7 +355,7 @@ export class PropertiesPanel {
 
 	// --- node panel ---------------------------------------------------------
 
-	private buildNodePanel(id: string, model: DiagramModel): HTMLInputElement | null {
+	private buildNodePanel(id: string, model: DiagramModel): HTMLTextAreaElement | null {
 		const node = model.nodes.find((n) => n.id === id);
 		if (!node) return null;
 
@@ -468,6 +471,38 @@ export class PropertiesPanel {
 				assignNodeToGroup(model, node.id, id);
 			} else {
 				assignNodeToGroup(model, node.id, v === "__none__" ? null : v);
+			}
+			this.ops.render();
+			this.ops.commit();
+			this.refresh();
+		});
+	}
+
+	/** Parent subgraph selector for a subgraph (nested subgraphs). */
+	private buildGroupParentField(group: DiagramGroup, model: DiagramModel): void {
+		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
+		field.createEl("label", { text: "Parent subgraph" });
+		const select = field.createEl("select", { cls: "dropdown mermaid-flow-input" });
+		
+		// Add "(none)" option for root-level subgraphs
+		const noneOption = select.createEl("option", { text: "(none)", value: "__none__" });
+		if (!group.parentId) noneOption.selected = true;
+		
+		// Add all valid parent candidates (excluding self and descendants)
+		for (const g of model.groups) {
+			if (g.id === group.id) continue; // Skip self
+			if (!canBeParentOf(model, g.id, group.id)) continue; // Skip descendants
+			
+			const option = select.createEl("option", { text: g.title || g.id, value: g.id });
+			if (group.parentId === g.id) option.selected = true;
+		}
+		
+		select.addEventListener("change", () => {
+			const v = select.value;
+			if (v === "__none__") {
+				delete group.parentId;
+			} else {
+				group.parentId = v;
 			}
 			this.ops.render();
 			this.ops.commit();
@@ -638,17 +673,44 @@ export class PropertiesPanel {
 		label: string,
 		value: string,
 		onInput: (value: string) => void,
-	): HTMLInputElement {
+	): HTMLTextAreaElement {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
 		field.createEl("label", { text: label });
-		const input = field.createEl("input", { type: "text", cls: "mermaid-flow-input" });
-		input.value = value;
-		input.addEventListener("input", () => onInput(input.value));
+		const textarea = field.createEl("textarea", { cls: "mermaid-flow-textarea" });
+		textarea.value = value;
+		textarea.rows = 1;
+		
+		// Auto-resize textarea based on content
+		const autoResize = () => {
+			textarea.style.height = "auto";
+			textarea.style.height = textarea.scrollHeight + "px";
+		};
+		
+		// Initial resize synchronously to avoid visual jump
+		autoResize();
+		
+		textarea.addEventListener("input", () => {
+			autoResize();
+			onInput(textarea.value);
+		});
+		
+		// Handle Enter key: plain Enter commits, Shift+Enter adds newline
+		textarea.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" && !e.shiftKey) {
+				e.preventDefault();
+				textarea.blur(); // Commit the change
+			}
+		});
+		
 		if (this.focusLabelOnBuild) {
 			this.focusLabelOnBuild = false;
-			window.setTimeout(() => { input.focus(); input.select(); }, 0);
+			window.setTimeout(() => { 
+				textarea.focus(); 
+				textarea.select();
+			}, 0);
 		}
-		return input;
+		
+		return textarea;
 	}
 
 	/** Node hyperlink: a free-text target plus a note picker and an open button. */

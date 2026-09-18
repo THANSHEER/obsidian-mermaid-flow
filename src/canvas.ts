@@ -183,10 +183,34 @@ export class DiagramCanvas {
 	// drag state (delta-based)
 	private dragId: string | null = null;
 	private dragLast = { x: 0, y: 0 };
+	private dragStart: { x: number; y: number } | null = null; // SVG coords where drag began
 	private isDragging = false;
+	private dragStarted = false; // Track if drag actually started (moved > threshold)
+	private dragStartPosition: { x: number; y: number } | null = null; // Save node position before drag
 
 	// space/middle-click pan
 	private panDrag: { startX: number; startY: number; scrollLeft: number; scrollTop: number } | null = null;
+
+	// Pointer tracking for multi-touch gestures (pinch-to-zoom and two-finger pan)
+	private pointerState: {
+		activePointers: Map<number, {
+			startX: number;
+			startY: number;
+			currentX: number;
+			currentY: number;
+			pointerType: string;
+		}>;
+		gestureStartDistance: number | null;
+		gestureStartZoom: number | null;
+		gestureStartScroll: { left: number; top: number } | null;
+		gestureStartMidpoint: { x: number; y: number } | null;
+	} = {
+		activePointers: new Map(),
+		gestureStartDistance: null,
+		gestureStartZoom: null,
+		gestureStartScroll: null,
+		gestureStartMidpoint: null,
+	};
 
 	// multi-selection
 	private multi = new Set<string>();
@@ -289,7 +313,8 @@ export class DiagramCanvas {
 		this.svg.addEventListener("contextmenu", (e) => this.onBackgroundContext(e));
 		this.svg.addEventListener("dblclick", (e) => this.onDblClick(e));
 		this.scroller.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
-		// Safari pinch-zoom via GestureChange events
+		
+		// Safari pinch-zoom via GestureChange events (fallback for older Safari versions)
 		this.scroller.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
 		this.scroller.addEventListener("gesturechange", (e) => {
 			e.preventDefault();
@@ -399,7 +424,8 @@ export class DiagramCanvas {
 	private onWheel(e: WheelEvent): void {
 		if (!(e.ctrlKey || e.metaKey)) return; // plain scroll keeps native panning
 		e.preventDefault();
-		const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+		// Reduced zoom factor for smoother desktop mouse wheel control (was 1.1)
+		const factor = e.deltaY < 0 ? 1.05 : 1 / 1.05;
 		this.setZoom(this.zoom * factor, e.clientX, e.clientY);
 	}
 
@@ -1040,7 +1066,8 @@ export class DiagramCanvas {
 					"dy",
 					String(i === 0 ? -((lines.length - 1) / 2) * lineHeight : lineHeight),
 				);
-				this.appendInlineRuns(tspan, line);
+				// Empty lines need a non-breaking space to preserve vertical spacing
+				this.appendInlineRuns(tspan, line || "\u00A0");
 				text.appendChild(tspan);
 			});
 		}
@@ -1341,20 +1368,46 @@ export class DiagramCanvas {
 		const fontSize = edge.style?.fontSize ?? 11;
 		const g = activeDocument.createElementNS(SVG_NS, "g");
 		const rect = activeDocument.createElementNS(SVG_NS, "rect");
-		const approxW = measureTextWidth(plainTextFromMarkup(label), `${fontSize}px sans-serif`) + 12;
-		const half = fontSize * 0.85;
+		
+		// Support multi-line edge labels
+		const lines = label.split("\n");
+		const lineHeight = fontSize * 1.2;
+		const maxLineWidth = Math.max(
+			...lines.map(line => measureTextWidth(plainTextFromMarkup(line), `${fontSize}px sans-serif`))
+		);
+		const approxW = maxLineWidth + 12;
+		const approxH = lines.length * lineHeight + 8;
+		
 		rect.setAttribute("x", String(x - approxW / 2));
-		rect.setAttribute("y", String(y - half));
+		rect.setAttribute("y", String(y - approxH / 2));
 		rect.setAttribute("width", String(approxW));
-		rect.setAttribute("height", String(half * 2));
+		rect.setAttribute("height", String(approxH));
 		rect.classList.add("mermaid-flow-edge-label-bg");
+		
 		const text = activeDocument.createElementNS(SVG_NS, "text");
 		text.setAttribute("x", String(x));
 		text.setAttribute("y", String(y));
 		text.setAttribute("text-anchor", "middle");
 		text.setAttribute("dominant-baseline", "central");
 		text.classList.add("mermaid-flow-edge-label");
-		this.appendInlineRuns(text, label);
+		
+		// Render multi-line labels with tspans
+		if (lines.length <= 1) {
+			this.appendInlineRuns(text, label);
+		} else {
+			lines.forEach((line, i) => {
+				const tspan = activeDocument.createElementNS(SVG_NS, "tspan");
+				tspan.setAttribute("x", String(x));
+				tspan.setAttribute(
+					"dy",
+					String(i === 0 ? -((lines.length - 1) / 2) * lineHeight : lineHeight),
+				);
+				// Empty lines need a non-breaking space to preserve vertical spacing
+				this.appendInlineRuns(tspan, line || "\u00A0");
+				text.appendChild(tspan);
+			});
+		}
+		
 		if (edge.style?.textColor) text.setAttribute("fill", edge.style.textColor);
 		if (edge.style?.fontSize) text.setAttribute("font-size", `${edge.style.fontSize}px`);
 		g.appendChild(rect);
@@ -1402,6 +1455,14 @@ export class DiagramCanvas {
 		e.stopPropagation();
 		e.preventDefault();
 
+		// Register this pointer
+		this.registerPointer(e);
+
+		// If a two-finger gesture is already active, ignore this
+		if (this.isGestureActive()) {
+			return;
+		}
+
 		if (this.mode === "connect") {
 			this.handleConnectClick(id);
 			return;
@@ -1433,7 +1494,11 @@ export class DiagramCanvas {
 		const dragNode = this.model.nodes.find((n) => n.id === id);
 		if (!dragNode) return;
 		this.dragId = id;
-		this.dragLast = this.toSvgPoint(e);
+		const svgPoint = this.toSvgPoint(e);
+		this.dragLast = svgPoint;
+		this.dragStart = svgPoint; // Save starting point for threshold check
+		this.dragStarted = false;
+		this.dragStartPosition = { x: dragNode.x, y: dragNode.y };
 		try {
 			this.svg.setPointerCapture(e.pointerId);
 		} catch {
@@ -1571,6 +1636,22 @@ export class DiagramCanvas {
 	}
 
 	private onBackgroundDown(e: PointerEvent): void {
+		// Register this pointer
+		this.registerPointer(e);
+		
+		// Check if this is a second touch pointer → initiate two-finger gesture
+		const touchPointers = this.getTouchPointers();
+		if (touchPointers.length === 2) {
+			e.preventDefault();
+			this.handleTwoFingerGestureStart(touchPointers);
+			return;
+		}
+		
+		// Skip other interactions if gesture is active
+		if (this.isGestureActive()) {
+			return;
+		}
+		
 		// Middle-click or Space+left-click: start pan
 		if (e.button === 1 || (e.button === 0 && this.spaceDown)) {
 			e.preventDefault();
@@ -1795,6 +1876,26 @@ export class DiagramCanvas {
 	}
 
 	private onPointerMove(e: PointerEvent): void {
+		// Update pointer position tracking
+		const ptr = this.pointerState.activePointers.get(e.pointerId);
+		if (ptr) {
+			ptr.currentX = e.clientX;
+			ptr.currentY = e.clientY;
+		}
+
+		// Handle two-finger gesture
+		const touchPointers = this.getTouchPointers();
+		if (touchPointers.length === 2 && this.isGestureActive()) {
+			e.preventDefault();
+			this.handleTwoFingerGestureMove(touchPointers);
+			return;
+		}
+
+		// Block other interactions during gesture
+		if (this.isGestureActive()) {
+			return;
+		}
+
 		if (this.panDrag) {
 			this.scroller.scrollLeft = this.panDrag.scrollLeft - (e.clientX - this.panDrag.startX);
 			this.scroller.scrollTop  = this.panDrag.scrollTop  - (e.clientY - this.panDrag.startY);
@@ -1828,11 +1929,27 @@ export class DiagramCanvas {
 			return;
 		}
 
-		if (this.dragId) {
+		if (this.dragId && this.dragStart) {
 			const p = this.toSvgPoint(e);
+			
+			// Check if drag threshold has been reached (distance from start point)
+			if (!this.dragStarted) {
+				const DRAG_START_THRESHOLD = 5; // pixels in SVG space
+				const totalDx = p.x - this.dragStart.x;
+				const totalDy = p.y - this.dragStart.y;
+				const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+				
+				if (totalDist < DRAG_START_THRESHOLD) {
+					return; // Not enough movement yet
+				}
+				this.dragStarted = true; // Mark drag as officially started
+			}
+			
+			// Calculate delta from last position
 			const dx = p.x - this.dragLast.x;
 			const dy = p.y - this.dragLast.y;
 			this.dragLast = p;
+			
 			const moveIds =
 				this.multi.has(this.dragId) && this.multi.size > 1
 					? [...this.multi]
@@ -2071,6 +2188,24 @@ export class DiagramCanvas {
 	}
 
 	private onPointerUp(e: PointerEvent): void {
+		// Remove pointer from tracking
+		this.pointerState.activePointers.delete(e.pointerId);
+
+		// End gesture if fewer than 2 touch pointers remain
+		const touchPointers = this.getTouchPointers();
+		if (touchPointers.length < 2 && this.isGestureActive()) {
+			this.pointerState.gestureStartDistance = null;
+			this.pointerState.gestureStartZoom = null;
+			this.pointerState.gestureStartScroll = null;
+		}
+
+		// Full cleanup when no pointers remain
+		if (this.pointerState.activePointers.size === 0) {
+			this.dragStart = null;
+			this.dragStarted = false;
+			this.dragStartPosition = null;
+		}
+
 		if (this.isDragging) {
 			this.isDragging = false;
 			this.callbacks.onDragStateChange?.(false);
@@ -2209,6 +2344,25 @@ export class DiagramCanvas {
 			this.reconnectEdge !== null ||
 			this.linkHoverTarget !== null;
 
+		// Remove pointer from tracking
+		this.pointerState.activePointers.delete(e.pointerId);
+
+		// End gesture if fewer than 2 touch pointers remain
+		const touchPointers = this.getTouchPointers();
+		if (touchPointers.length < 2) {
+			this.pointerState.gestureStartDistance = null;
+			this.pointerState.gestureStartZoom = null;
+			this.pointerState.gestureStartScroll = null;
+		}
+
+		// Full cleanup when no pointers remain
+		if (this.pointerState.activePointers.size === 0) {
+			this.dragStart = null;
+			this.dragStarted = false;
+			this.dragStartPosition = null;
+			this.cancelRubberBand();
+		}
+
 		if (this.isDragging) {
 			this.isDragging = false;
 			this.callbacks.onDragStateChange?.(false);
@@ -2244,6 +2398,162 @@ export class DiagramCanvas {
 		}
 		if (hadModelMutation) {
 			this.callbacks.onChange();
+		}
+	}
+
+	// --- Pointer API helpers for multi-touch gestures --------------------
+	// MOBILE TESTING CHECKLIST (when testing on mobile devices):
+	// 1. Fast 1-2-1 finger alternation → gesture should start/stop cleanly
+	// 2. Slow drag (< 5px per event) → drag should eventually start after 5px total
+	// 3. Drag → second finger before threshold → node returns to start, gesture begins
+	// 4. Drag → second finger after threshold → drag continues, second finger ignored
+	// 5. Locked nodes + gestures → gestures work, nodes don't move
+	// 6. Rubber-band → second finger → rubber-band cancels, gesture starts
+	// 7. pointercancel during gesture → full state cleanup
+	// 8. Gestures near screen edge → no system gesture conflicts (iOS swipe-back)
+	// 9. Three fingers → should be ignored (only 2-finger gestures supported)
+	// 10. Mouse on desktop → all existing interactions work unchanged
+
+	/** Register a pointer and track its position. */
+	private registerPointer(e: PointerEvent): void {
+		this.pointerState.activePointers.set(e.pointerId, {
+			startX: e.clientX,
+			startY: e.clientY,
+			currentX: e.clientX,
+			currentY: e.clientY,
+			pointerType: e.pointerType,
+		});
+	}
+
+	/** Get all active touch pointers (excludes mouse/pen). */
+	private getTouchPointers(): Array<{ id: number; data: { startX: number; startY: number; currentX: number; currentY: number; pointerType: string } }> {
+		const result = [];
+		for (const [id, data] of this.pointerState.activePointers) {
+			if (data.pointerType === 'touch') {
+				result.push({ id, data });
+			}
+		}
+		return result;
+	}
+
+	/** Check if a two-finger gesture is currently active. */
+	private isGestureActive(): boolean {
+		return this.pointerState.gestureStartDistance !== null;
+	}
+
+	/** Cancel rubber-band selection. */
+	private cancelRubberBand(): void {
+		if (this.rubberRect) {
+			this.rubberRect.remove();
+			this.rubberRect = null;
+		}
+		this.rubber = null;
+		this.rubberMoved = false;
+	}
+
+	/**
+	 * Handle the start of a two-finger gesture (pinch-to-zoom and pan).
+	 * Resolves conflicts with ongoing drag operations.
+	 */
+	private handleTwoFingerGestureStart(pointers: Array<{ id: number; data: { startX: number; startY: number; currentX: number; currentY: number; pointerType: string } }>): void {
+		// Scenario A: drag hasn't started yet → cancel and restore node position
+		if (this.dragId && !this.dragStarted && this.dragStartPosition) {
+			const node = this.model.nodes.find((n) => n.id === this.dragId);
+			if (node) {
+				node.x = this.dragStartPosition.x;
+				node.y = this.dragStartPosition.y;
+				this.geomCache.delete(this.dragId);
+			}
+
+			// Release pointer capture for all gesture pointers
+			for (const ptr of pointers) {
+				try {
+					this.svg.releasePointerCapture(ptr.id);
+				} catch { /* ignore */ }
+			}
+
+			// Clear drag state
+			this.dragId = null;
+			this.dragStarted = false;
+			this.dragStartPosition = null;
+			this.dragStart = null;
+		}
+
+		// Scenario B: drag already started → ignore second finger, continue drag
+		if (this.dragId && this.dragStarted) {
+			return;
+		}
+
+		// Cancel any existing rubber-band selection
+		this.cancelRubberBand();
+
+		// Initialize gesture
+		const [p0, p1] = pointers;
+		if (!p0 || !p1) return;
+
+		const dx = p1.data.currentX - p0.data.currentX;
+		const dy = p1.data.currentY - p0.data.currentY;
+		const midX = (p0.data.currentX + p1.data.currentX) / 2;
+		const midY = (p0.data.currentY + p1.data.currentY) / 2;
+
+		this.pointerState.gestureStartDistance = Math.sqrt(dx * dx + dy * dy);
+		this.pointerState.gestureStartZoom = this.zoom;
+		this.pointerState.gestureStartScroll = {
+			left: this.scroller.scrollLeft,
+			top: this.scroller.scrollTop,
+		};
+		this.pointerState.gestureStartMidpoint = { x: midX, y: midY };
+	}
+
+	/**
+	 * Handle movement during a two-finger gesture.
+	 * Applies pan first (two-finger drag), then zoom around midpoint.
+	 */
+	private handleTwoFingerGestureMove(pointers: Array<{ id: number; data: { startX: number; startY: number; currentX: number; currentY: number; pointerType: string } }>): void {
+		if (this.pointerState.gestureStartDistance === null) return;
+
+		const [p0, p1] = pointers;
+		if (!p0 || !p1) return;
+
+		// Current state
+		const currentDx = p1.data.currentX - p0.data.currentX;
+		const currentDy = p1.data.currentY - p0.data.currentY;
+		const currentDistance = Math.sqrt(currentDx * currentDx + currentDy * currentDy);
+		const currentMidX = (p0.data.currentX + p1.data.currentX) / 2;
+		const currentMidY = (p0.data.currentY + p1.data.currentY) / 2;
+
+		// Apply pan first (two-finger drag to move canvas)
+		if (this.pointerState.gestureStartScroll && this.pointerState.gestureStartMidpoint) {
+			const panDx = currentMidX - this.pointerState.gestureStartMidpoint.x;
+			const panDy = currentMidY - this.pointerState.gestureStartMidpoint.y;
+			this.scroller.scrollLeft = this.pointerState.gestureStartScroll.left - panDx;
+			this.scroller.scrollTop = this.pointerState.gestureStartScroll.top - panDy;
+		}
+
+		// Then apply zoom around the current midpoint
+		if (this.pointerState.gestureStartZoom && this.pointerState.gestureStartDistance) {
+			const scale = currentDistance / this.pointerState.gestureStartDistance;
+			const newZoom = Math.max(0.1, Math.min(MAX_ZOOM, this.pointerState.gestureStartZoom * scale));
+			
+			// Save current scroll before zoom
+			const scrollBeforeZoom = {
+				left: this.scroller.scrollLeft,
+				top: this.scroller.scrollTop,
+			};
+			
+			// Apply zoom (this will modify scroll)
+			this.setZoom(newZoom, currentMidX, currentMidY);
+			
+			// Update the stored scroll position to account for zoom changes
+			// This ensures pan stays correct for the next frame
+			const scrollAfterZoom = {
+				left: this.scroller.scrollLeft,
+				top: this.scroller.scrollTop,
+			};
+			if (this.pointerState.gestureStartScroll) {
+				this.pointerState.gestureStartScroll.left += scrollAfterZoom.left - scrollBeforeZoom.left;
+				this.pointerState.gestureStartScroll.top += scrollAfterZoom.top - scrollBeforeZoom.top;
+			}
 		}
 	}
 

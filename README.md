@@ -8,15 +8,13 @@
 
 Build and rearrange diagrams by moving nodes and drawing connections — Mermaid Flow writes the underlying `mermaid` code for you, so no syntax knowledge is required.
 
-[![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7C3AED?logo=obsidian&logoColor=white)](https://community.obsidian.md/plugins/mermaid-flow)
-[![GitHub Repo stars](https://img.shields.io/github/stars/THANSHEER/obsidian-mermaid-flow?color=yellow)](https://github.com/THANSHEER/obsidian-mermaid-flow)
-[![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22mermaid-flow%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)](https://community.obsidian.md/plugins/mermaid-flow)
+> **Note:** This is a fork of [THANSHEER/obsidian-mermaid-flow](https://github.com/THANSHEER/obsidian-mermaid-flow) with additional improvements for mobile support and text editing. Check [New Features ✨✨✨](#new-features-) for more information😁.
+
+[![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md/)
+[![GitHub Repo stars](https://img.shields.io/github/stars/Glb-Lit/obsidian-mermaid-flow?color=yellow)](https://github.com/Glb-Lit/obsidian-mermaid-flow)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E78?logo=kofi&logoColor=white)](https://ko-fi.com/P0R02009G7)
 
 <img src="assets/animated-webp/obsidian-meramaid-create-mermaid-daigram.webp" alt="Building a Mermaid flowchart visually in Obsidian" width="780" />
-
-**☕ Like Mermaid Flow?** [Support me on Ko-fi](https://ko-fi.com/P0R02009G7) • Use the **Send feedback** command to share ideas
 
 </div>
 
@@ -34,6 +32,9 @@ Your edits **round-trip safely**: Mermaid Flow reads your existing Mermaid block
 - **Undo / redo, zoom & export** — full history, canvas zoom, and diagram export from the toolbar.
 - **Persistent layouts** — manual node positions are saved in hidden Mermaid comments, so your arrangement survives reloads (and the diagram still renders normally).
 - **Works everywhere** — edit from Reading mode, Live Preview, or Source mode.
+### new Features ✨✨✨
+- **Mobile-friendly** — improved touch controls for manipulating diagrams on mobile devices.
+- **Enhanced text editing** — use Shift+Enter to add line breaks in node labels.
 
 ## 🎬 See it in action
 
@@ -96,13 +97,7 @@ The editor focuses on flowchart structure. Advanced or unrecognized Mermaid synt
 
 ## 🤝 Contributing
 
-Contributions are welcome! See the [Contribution Guide](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/CONTRIBUTING.md) and [Architecture Overview](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/ARCHITECTURE.md) to get started.
-
-## ☕ Support
-
-If Mermaid Flow helps your notes, you can tip on Ko-fi:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/P0R02009G7)
+Contributions are welcome! See the [Contribution Guide](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/CONTRIBUTING.md) and [Architecture Overview](https://github.com/THANSHEER/obsidian-mermaid-flow/blob/main/docs/ARCHITECTURE.md) from the original repository to get started.
 
 ## 📄 License
 

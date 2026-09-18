@@ -11,6 +11,7 @@ import {
 	groupOf,
 	assignNodeToGroup,
 	resolveNodeStyle,
+	canBeParentOf,
 } from '../src/model';
 import type { DiagramModel } from '../src/model';
 
@@ -149,5 +150,55 @@ describe('resolveNodeStyle', () => {
 		const node = m.nodes[0]!;
 		node.classes = ['ghost'];
 		expect(resolveNodeStyle(m, node)).toBeUndefined();
+	});
+});
+
+describe('canBeParentOf', () => {
+	it('allows null as parent (root subgraph)', () => {
+		const m = emptyModel('LR');
+		m.groups.push({ id: 'g1', title: 'G1', nodeIds: [] });
+		expect(canBeParentOf(m, null, 'g1')).toBe(true);
+	});
+
+	it('prevents self-reference', () => {
+		const m = emptyModel('LR');
+		m.groups.push({ id: 'g1', title: 'G1', nodeIds: [] });
+		expect(canBeParentOf(m, 'g1', 'g1')).toBe(false);
+	});
+
+	it('prevents direct child from becoming parent (cycle)', () => {
+		const m = emptyModel('LR');
+		m.groups.push({ id: 'parent', title: 'Parent', nodeIds: [] });
+		m.groups.push({ id: 'child', title: 'Child', nodeIds: [], parentId: 'parent' });
+		// Child cannot be parent of its own parent
+		expect(canBeParentOf(m, 'child', 'parent')).toBe(false);
+	});
+
+	it('prevents nested descendant from becoming parent (deep cycle)', () => {
+		const m = emptyModel('LR');
+		m.groups.push({ id: 'root', title: 'Root', nodeIds: [] });
+		m.groups.push({ id: 'level1', title: 'Level1', nodeIds: [], parentId: 'root' });
+		m.groups.push({ id: 'level2', title: 'Level2', nodeIds: [], parentId: 'level1' });
+		// level2 cannot be parent of root (would create cycle)
+		expect(canBeParentOf(m, 'level2', 'root')).toBe(false);
+		// level2 cannot be parent of level1 (would create cycle)
+		expect(canBeParentOf(m, 'level2', 'level1')).toBe(false);
+	});
+
+	it('allows sibling as parent', () => {
+		const m = emptyModel('LR');
+		m.groups.push({ id: 'g1', title: 'G1', nodeIds: [] });
+		m.groups.push({ id: 'g2', title: 'G2', nodeIds: [] });
+		expect(canBeParentOf(m, 'g1', 'g2')).toBe(true);
+		expect(canBeParentOf(m, 'g2', 'g1')).toBe(true);
+	});
+
+	it('allows ancestor as parent (re-parenting)', () => {
+		const m = emptyModel('LR');
+		m.groups.push({ id: 'grandparent', title: 'GP', nodeIds: [] });
+		m.groups.push({ id: 'parent', title: 'P', nodeIds: [], parentId: 'grandparent' });
+		m.groups.push({ id: 'child', title: 'C', nodeIds: [], parentId: 'parent' });
+		// Child can be moved directly under grandparent
+		expect(canBeParentOf(m, 'grandparent', 'child')).toBe(true);
 	});
 });

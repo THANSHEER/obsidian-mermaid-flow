@@ -606,6 +606,19 @@
 	width: 100%;
 }
 
+.mermaid-flow-textarea {
+	width: 100%;
+	min-height: 28px;
+	max-height: 200px;
+	padding: 6px 8px;
+	font-family: var(--font-text);
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+	resize: vertical;
+	overflow-y: auto;
+	box-sizing: border-box;
+}
+
 .mermaid-flow-field-readonly {
 	font-family: var(--font-monospace);
 	font-size: var(--font-ui-smaller);
