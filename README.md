@@ -34,6 +34,9 @@ Your edits **round-trip safely**: Mermaid Flow reads your existing Mermaid block
 - **Undo / redo, zoom & export** — full history, canvas zoom, and diagram export from the toolbar.
 - **Persistent layouts** — manual node positions are saved in hidden Mermaid comments, so your arrangement survives reloads (and the diagram still renders normally).
 - **Works everywhere** — edit from Reading mode, Live Preview, or Source mode.
+- **Mobile-friendly touch gestures** — two-finger panning and pinch-to-zoom for manipulating diagrams on touch devices.
+- **Enhanced label editing** — multi-line labels with Shift+Enter for line breaks in node and edge properties.
+- **Nested subgraphs** — assign parent subgraphs with cycle-safe hierarchy management directly from the properties panel.
 
 ## 🎬 See it in action
 

@@ -667,4 +667,78 @@ describe('DiagramCanvas drag state notifications', () => {
 		expect(model.nodes[0]!.x).toBe(150);
 		expect(model.nodes[0]!.y).toBe(110);
 	});
+
+	it('isolates active drag to dragPointerId and ignores secondary pointers', () => {
+		const model = emptyModel('TB');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60, w: 80, h: 40 });
+		const parent = document.createElement('div');
+		document.body.appendChild(parent);
+		let changeCount = 0;
+		const canvas = new DiagramCanvas(parent, model, {
+			onSelect() {},
+			onChange() { changeCount++; },
+		});
+		const svg = canvas.getSVG();
+		const nodeA = [...svg.querySelectorAll('.mermaid-flow-node')].find((n) =>
+			n.querySelector('.mermaid-flow-node-label')?.textContent === 'A',
+		)!;
+
+		// Start drag with pointerId 1
+		nodeA.dispatchEvent(pointer('pointerdown', 100, 60, { pointerId: 1 }));
+		// Primary pointer moves > threshold
+		svg.dispatchEvent(pointer('pointermove', 120, 80, { pointerId: 1 }));
+		expect(model.nodes[0]!.x).toBe(120);
+		expect(model.nodes[0]!.y).toBe(80);
+
+		// Secondary pointer (pointerId 2) moves — must be completely ignored
+		svg.dispatchEvent(pointer('pointermove', 500, 500, { pointerId: 2 }));
+		expect(model.nodes[0]!.x).toBe(120);
+		expect(model.nodes[0]!.y).toBe(80);
+
+		// Secondary pointer lifts (pointerId 2) — active drag must NOT terminate
+		svg.dispatchEvent(pointer('pointerup', 500, 500, { pointerId: 2 }));
+		expect(changeCount).toBe(0); // not committed yet
+
+		// Primary pointer continues moving
+		svg.dispatchEvent(pointer('pointermove', 110, 70, { pointerId: 1 }));
+		expect(model.nodes[0]!.x).toBe(130);
+		expect(model.nodes[0]!.y).toBe(90);
+
+		// Primary pointer lifts — drag commits
+		svg.dispatchEvent(pointer('pointerup', 130, 90, { pointerId: 1 }));
+		expect(changeCount).toBe(1);
+	});
+
+	it('detects two-finger touch gestures in capture phase and cancels uncommitted pre-drag', () => {
+		const model = emptyModel('TB');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 100, y: 60, w: 80, h: 40 });
+		const parent = document.createElement('div');
+		document.body.appendChild(parent);
+		const canvas = new DiagramCanvas(parent, model, {
+			onSelect() {},
+			onChange() {},
+		});
+		const svg = canvas.getSVG();
+		const nodeA = [...svg.querySelectorAll('.mermaid-flow-node')].find((n) =>
+			n.querySelector('.mermaid-flow-node-label')?.textContent === 'A',
+		)!;
+
+		// First touch down on node (not moved yet)
+		nodeA.dispatchEvent(pointer('pointerdown', 100, 60, { pointerId: 1, pointerType: 'touch' }));
+		// Second touch down on canvas
+		svg.dispatchEvent(pointer('pointerdown', 200, 160, { pointerId: 2, pointerType: 'touch' }));
+
+		// When second finger touches, pre-drag must be cancelled and node restored
+		expect(model.nodes[0]!.x).toBe(100);
+		expect(model.nodes[0]!.y).toBe(60);
+
+		// Two-finger move adjusts zoom/pan without moving the node
+		svg.dispatchEvent(pointer('pointermove', 220, 180, { pointerId: 2, pointerType: 'touch' }));
+		expect(model.nodes[0]!.x).toBe(100);
+		expect(model.nodes[0]!.y).toBe(60);
+
+		// Lifting a finger ends the gesture cleanly
+		svg.dispatchEvent(pointer('pointerup', 220, 180, { pointerId: 2, pointerType: 'touch' }));
+		svg.dispatchEvent(pointer('pointerup', 100, 60, { pointerId: 1, pointerType: 'touch' }));
+	});
 });

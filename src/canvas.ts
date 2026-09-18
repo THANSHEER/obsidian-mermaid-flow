@@ -233,16 +233,6 @@ export class DiagramCanvas {
 	// drag-to-connect (from a hover anchor)
 	private linkFrom: string | null = null;
 	private linkHoverTarget: string | null = null;
-	private newEdgePickerCb: ((edgeId: string, e: MouseEvent) => void) | null = null;
-
-	// edge reconnection drag
-	private reconnectEdge: { edgeId: string; end: "from" | "to" } | null = null;
-
-	// in-place label editor (<foreignObject> overlaid on canvas)
-	private labelEditor: SVGForeignObjectElement | null = null;
-	private labelInput: HTMLTextAreaElement | null = null;
-	private editingEdgeId: string | null = null;
-	private editingNodeId: string | null = null;
 
 	// subgraph dragging & resizing
 	private groupDragId: string | null = null;
@@ -2227,12 +2217,12 @@ export class DiagramCanvas {
 		// Remove pointer from tracking
 		this.pointerState.activePointers.delete(e.pointerId);
 
-		// End gesture if fewer than 2 touch pointers remain
-		const touchPointers = this.getTouchPointers();
-		if (touchPointers.length < 2 && this.isGestureActive()) {
-			this.pointerState.gestureStartDistance = null;
-			this.pointerState.gestureStartZoom = null;
-			this.pointerState.gestureStartScroll = null;
+		// End gesture if one of the gesture pointers was released
+		if (this.isGestureActive()) {
+			const [id0, id1] = this.pointerState.gesturePointerIds!;
+			if (e.pointerId === id0 || e.pointerId === id1) {
+				this.endGesture();
+			}
 		}
 
 		// Full cleanup when no pointers remain
@@ -2240,9 +2230,10 @@ export class DiagramCanvas {
 			this.dragStart = null;
 			this.dragStarted = false;
 			this.dragStartPosition = null;
+			this.cancelRubberBand();
 		}
 
-		if (this.isDragging) {
+		if (this.isDragging && (!this.dragPointerId || this.dragPointerId === e.pointerId)) {
 			this.isDragging = false;
 			this.callbacks.onDragStateChange?.(false);
 		}
@@ -2267,7 +2258,15 @@ export class DiagramCanvas {
 		}
 
 		if (this.dragId) {
+			if (this.dragPointerId !== null && this.dragPointerId !== e.pointerId) {
+				// A secondary pointer lifted; active drag continues on dragPointerId
+				return;
+			}
 			this.dragId = null;
+			this.dragPointerId = null;
+			this.dragStart = null;
+			this.dragStarted = false;
+			this.dragStartPosition = null;
 			this.clearGuides();
 			try {
 				this.svg.releasePointerCapture(e.pointerId);
@@ -2369,6 +2368,35 @@ export class DiagramCanvas {
 	}
 
 	private onPointerCancel(e: PointerEvent): void {
+		// Remove pointer from tracking
+		this.pointerState.activePointers.delete(e.pointerId);
+
+		// End gesture if one of the gesture pointers was cancelled
+		if (this.isGestureActive()) {
+			const [id0, id1] = this.pointerState.gesturePointerIds!;
+			if (e.pointerId === id0 || e.pointerId === id1) {
+				this.endGesture();
+			}
+		}
+
+		// Full cleanup when no pointers remain
+		if (this.pointerState.activePointers.size === 0) {
+			this.dragStart = null;
+			this.dragStarted = false;
+			this.dragStartPosition = null;
+			this.cancelRubberBand();
+		}
+
+		if (this.dragId && this.dragPointerId !== null && this.dragPointerId !== e.pointerId) {
+			// Cancelled pointer was not the drag owner; ignore
+			try {
+				this.svg.releasePointerCapture(e.pointerId);
+			} catch {
+				/* ignore */
+			}
+			return;
+		}
+
 		const hadModelMutation =
 			(this.dragId !== null ||
 				this.resizeId !== null ||
@@ -2379,25 +2407,6 @@ export class DiagramCanvas {
 			this.linkFrom !== null ||
 			this.reconnectEdge !== null ||
 			this.linkHoverTarget !== null;
-
-		// Remove pointer from tracking
-		this.pointerState.activePointers.delete(e.pointerId);
-
-		// End gesture if fewer than 2 touch pointers remain
-		const touchPointers = this.getTouchPointers();
-		if (touchPointers.length < 2) {
-			this.pointerState.gestureStartDistance = null;
-			this.pointerState.gestureStartZoom = null;
-			this.pointerState.gestureStartScroll = null;
-		}
-
-		// Full cleanup when no pointers remain
-		if (this.pointerState.activePointers.size === 0) {
-			this.dragStart = null;
-			this.dragStarted = false;
-			this.dragStartPosition = null;
-			this.cancelRubberBand();
-		}
 
 		if (this.isDragging) {
 			this.isDragging = false;
@@ -2416,6 +2425,10 @@ export class DiagramCanvas {
 		this.rubberMoved = false;
 		this.resizeId = null;
 		this.dragId = null;
+		this.dragPointerId = null;
+		this.dragStart = null;
+		this.dragStarted = false;
+		this.dragStartPosition = null;
 		this.groupDragId = null;
 		this.groupResizeId = null;
 		this.groupResizeOrigin = null;
@@ -2472,9 +2485,18 @@ export class DiagramCanvas {
 		return result;
 	}
 
+	/** End any active two-finger gesture and clear gesture state. */
+	private endGesture(): void {
+		this.pointerState.gesturePointerIds = null;
+		this.pointerState.gestureStartDistance = null;
+		this.pointerState.gestureStartZoom = null;
+		this.pointerState.gestureStartScroll = null;
+		this.pointerState.gestureStartMidpoint = null;
+	}
+
 	/** Check if a two-finger gesture is currently active. */
 	private isGestureActive(): boolean {
-		return this.pointerState.gestureStartDistance !== null;
+		return this.pointerState.gesturePointerIds !== null;
 	}
 
 	/** Cancel rubber-band selection. */
@@ -2510,6 +2532,7 @@ export class DiagramCanvas {
 
 			// Clear drag state
 			this.dragId = null;
+			this.dragPointerId = null;
 			this.dragStarted = false;
 			this.dragStartPosition = null;
 			this.dragStart = null;
@@ -2527,12 +2550,13 @@ export class DiagramCanvas {
 		const [p0, p1] = pointers;
 		if (!p0 || !p1) return;
 
+		this.pointerState.gesturePointerIds = [p0.id, p1.id];
 		const dx = p1.data.currentX - p0.data.currentX;
 		const dy = p1.data.currentY - p0.data.currentY;
 		const midX = (p0.data.currentX + p1.data.currentX) / 2;
 		const midY = (p0.data.currentY + p1.data.currentY) / 2;
 
-		this.pointerState.gestureStartDistance = Math.sqrt(dx * dx + dy * dy);
+		this.pointerState.gestureStartDistance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
 		this.pointerState.gestureStartZoom = this.zoom;
 		this.pointerState.gestureStartScroll = {
 			left: this.scroller.scrollLeft,
@@ -2546,7 +2570,7 @@ export class DiagramCanvas {
 	 * Applies pan first (two-finger drag), then zoom around midpoint.
 	 */
 	private handleTwoFingerGestureMove(pointers: Array<{ id: number; data: { startX: number; startY: number; currentX: number; currentY: number; pointerType: string } }>): void {
-		if (this.pointerState.gestureStartDistance === null) return;
+		if (!this.pointerState.gesturePointerIds || this.pointerState.gestureStartDistance === null) return;
 
 		const [p0, p1] = pointers;
 		if (!p0 || !p1) return;
@@ -2554,7 +2578,7 @@ export class DiagramCanvas {
 		// Current state
 		const currentDx = p1.data.currentX - p0.data.currentX;
 		const currentDy = p1.data.currentY - p0.data.currentY;
-		const currentDistance = Math.sqrt(currentDx * currentDx + currentDy * currentDy);
+		const currentDistance = Math.max(1, Math.sqrt(currentDx * currentDx + currentDy * currentDy));
 		const currentMidX = (p0.data.currentX + p1.data.currentX) / 2;
 		const currentMidY = (p0.data.currentY + p1.data.currentY) / 2;
 
