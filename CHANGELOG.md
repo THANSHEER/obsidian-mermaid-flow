@@ -2,6 +2,21 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.9.0] - 2026-09-18
+
+### Features
+- **Mobile Touch Gestures**: Added support for two-finger panning and pinch-to-zoom on touch screens and mobile devices with dedicated capture-phase pointer management (#36)
+- **Multi-Line Label Editing**: Properties panel label fields upgraded to auto-expanding textareas with `Shift+Enter` support for inserting newlines, accompanied by SVG multi-line edge label rendering with centered `<tspan>` layout (#36)
+- **Nested Subgraph Management**: Added a parent subgraph dropdown selector in the properties panel with cycle-safe hierarchy validation (`canBeParentOf`) (#36)
+- **Layout-Independent Shortcuts**: Undo/Redo shortcuts now work reliably across international keyboard layouts (including Cyrillic) while strictly preserving standard shortcuts on French AZERTY (<kbd>Cmd</kbd>+<kbd>W</kbd>) and German QWERTZ (#36)
+
+### Improvements
+- **IME Input Stability**: Plain <kbd>Enter</kbd> commits in textareas now respect active IME composition (`e.isComposing`), preventing premature submission while typing in Chinese, Japanese, or Korean (#36)
+- **Multi-Touch Drag Isolation**: Node dragging is strictly isolated to the initiating pointer ID, preventing dragged nodes from teleporting or dropping when secondary touches occur (#36)
+- **Smoother Desktop Wheel Zoom**: Adjusted mouse wheel zoom sensitivity (from 1.1x to 1.05x) for smoother desktop canvas zooming (#36)
+
+---
+
 ## [1.8.2] - 2026-09-02
 
 ### Fixes
