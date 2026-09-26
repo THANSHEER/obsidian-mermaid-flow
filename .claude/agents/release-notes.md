@@ -20,6 +20,10 @@ the full flow.
   `gh release edit <version> --title "vX.Y.Z - Title" --notes "..."` — title
   picked from the CHANGELOG entry, never left as the auto-generated placeholder.
 
+## Execution Rules
+- Do ONLY what is explicitly asked. Do NOT run unprompted git commits, merges, or pushes.
+- Zero assumptions: if requirements or version targets are ambiguous, ask before proceeding.
+
 ## Quick checklist
 
 Before finalizing:

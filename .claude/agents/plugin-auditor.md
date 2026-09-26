@@ -10,6 +10,11 @@ plugin). Catch anything that would (a) fail Obsidian listing rules, (b) break
 mobile/popout runtime, or (c) corrupt a user's diagram. Read and report only —
 do not edit. Product status: [`PRD.md`](../../PRD.md).
 
+**Execution Rules:**
+- Do ONLY what is assigned. Never perform extra unrequested tasks.
+- Never commit, merge, switch branches, or push unless explicitly requested.
+- Make zero assumptions: if in doubt, ask the user before acting.
+
 ## Scope
 
 Current change first (`git diff`), widen only if a finding warrants it.
@@ -21,8 +26,7 @@ Current change first (`git diff`), widen only if a finding warrants it.
 - **No `!important` in CSS** — raise specificity instead.
 
 ### 2. Runtime safety
-- **`isDesktopOnly: false`.** No Node/Electron imports from `src/`. Exception:
-  `cliProvider.ts` may `window.require` only after `Platform.isDesktopApp`.
+- **`isDesktopOnly: false`.** No Node/Electron imports or direct filesystem/child_process access from `src/`.
 - Prefer `activeWindow` over `window` where popouts matter.
 
 ### 3. Round-trip invariant

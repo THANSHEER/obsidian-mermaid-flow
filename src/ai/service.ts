@@ -4,10 +4,8 @@
  * that the response parses as a flowchart before handing it back.
  */
 
-import { Platform } from "obsidian";
 import { mermaidToModel } from "../parser";
 import type { MermaidFlowSettings } from "../settings";
-import { CliProvider } from "./cliProvider";
 import {
 	AnthropicProvider,
 	GeminiProvider,
@@ -37,18 +35,11 @@ export class AiService {
 			case "anthropic": return ai.anthropicApiKey.trim().length > 0;
 			case "openai-compat": return ai.openaiBaseUrl.trim().length > 0;
 			case "gemini": return ai.geminiApiKey.trim().length > 0;
-			case "cli":
-				return Platform.isDesktopApp &&
-					(ai.cliPreset !== "custom" || ai.cliCustomTemplate.trim().length > 0);
 		}
 	}
 
 	/** Human-readable hint shown when isConfigured() is false. */
 	configurationHint(): string {
-		const ai = this.getSettings().ai;
-		if (ai.provider === "cli" && !Platform.isDesktopApp) {
-			return "CLI providers only work on desktop. Pick an API provider in settings.";
-		}
 		return "Configure the AI provider in the Mermaid Flow settings first.";
 	}
 
@@ -98,11 +89,6 @@ export class AiService {
 				);
 			case "gemini":
 				return new GeminiProvider(ai.geminiApiKey.trim(), ai.geminiModel.trim());
-			case "cli":
-				if (!Platform.isDesktopApp) {
-					throw new Error("CLI providers are only available on Obsidian desktop.");
-				}
-				return new CliProvider(ai.cliPreset, ai.cliCustomTemplate, ai.cliTimeoutSec);
 		}
 	}
 }

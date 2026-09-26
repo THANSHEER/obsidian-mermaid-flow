@@ -1,4 +1,4 @@
-import { App, Platform, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting } from "obsidian";
 import {
 	DIRECTIONS,
 	DIRECTION_LABELS,
@@ -9,8 +9,7 @@ import {
 } from "./model";
 import type { LibraryComponent } from "./componentLibrary";
 import type MermaidFlowPlugin from "./main";
-import { AiProviderId, AiSettings, CliPresetId, DEFAULT_AI_SETTINGS } from "./ai/types";
-import { CLI_PRESETS } from "./ai/cliProvider";
+import { AiProviderId, AiSettings, DEFAULT_AI_SETTINGS } from "./ai/types";
 import { openKofi } from "./kofi";
 import { ChangelogModal, WelcomeModal } from "./feedback";
 
@@ -490,7 +489,6 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				dd.addOption("anthropic", "Anthropic (Claude)");
 				dd.addOption("openai-compat", "OpenAI-compatible API");
 				dd.addOption("gemini", "Google Gemini");
-				dd.addOption("cli", "Local CLI tool (desktop only)");
 				dd.setValue(ai.provider);
 				dd.onChange(async (value) => {
 					ai.provider = value as AiProviderId;
@@ -532,19 +530,14 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				this.modelSetting(containerEl, DEFAULT_AI_SETTINGS.geminiModel,
 					() => ai.geminiModel, (v) => { ai.geminiModel = v; });
 				break;
-			case "cli":
-				this.displayCliSettings(containerEl, ai);
-				break;
 		}
 
-		if (ai.provider !== "cli") {
-			// configDir is usually ".obsidian" but the user can rename it, so read
-			// the live value rather than hardcoding it.
-			const dataPath = `${this.app.vault.configDir}/plugins/${this.plugin.manifest.id}/data.json`;
-			new Setting(containerEl).setDesc(
-				`API keys are stored unencrypted in this vault's ${dataPath}. Don't sync that file to untrusted locations.`,
-			);
-		}
+		// configDir is usually ".obsidian" but the user can rename it, so read
+		// the live value rather than hardcoding it.
+		const dataPath = `${this.app.vault.configDir}/plugins/${this.plugin.manifest.id}/data.json`;
+		new Setting(containerEl).setDesc(
+			`API keys are stored unencrypted in this vault's ${dataPath}. Don't sync that file to untrusted locations.`,
+		);
 
 		new Setting(containerEl).setName("AI entry points").setHeading();
 
@@ -577,64 +570,6 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				tg.onChange(async (value) => {
 					ai.enableImageDrop = value;
 					await save();
-				});
-			});
-	}
-
-	private displayCliSettings(containerEl: HTMLElement, ai: AiSettings): void {
-		if (!Platform.isDesktopApp) {
-			new Setting(containerEl).setDesc(
-				"CLI providers only work on Obsidian desktop. Pick an API provider instead.",
-			);
-			return;
-		}
-
-		new Setting(containerEl)
-			.setName("CLI tool")
-			.setDesc("The CLI must be installed and authenticated on this machine.")
-			.addDropdown((dd) => {
-				dd.addOption("claude", "Claude Code (claude)");
-				dd.addOption("codex", "Codex (codex)");
-				dd.addOption("gemini-cli", "Gemini CLI (gemini)");
-				dd.addOption("custom", "Custom command");
-				dd.setValue(ai.cliPreset);
-				dd.onChange(async (value) => {
-					ai.cliPreset = value as CliPresetId;
-					await this.plugin.saveSettings();
-					this.display();
-				});
-			});
-
-		if (ai.cliPreset === "custom") {
-			new Setting(containerEl)
-				.setName("Command template")
-				.setDesc(
-					"{{prompt}} is replaced with the full prompt, {{image}} with a temp image path. Wrap a {{image?...}} segment to include it only when an image is attached.",
-				)
-				.addText((text) => {
-					text.setPlaceholder("mycli --prompt {{prompt}}");
-					text.setValue(ai.cliCustomTemplate);
-					text.onChange(async (value) => {
-						ai.cliCustomTemplate = value;
-						await this.plugin.saveSettings();
-					});
-				});
-		} else {
-			new Setting(containerEl)
-				.setName("Effective command")
-				.setDesc(CLI_PRESETS[ai.cliPreset]);
-		}
-
-		new Setting(containerEl)
-			.setName("Timeout (seconds)")
-			.setDesc("How long to wait for the CLI before giving up.")
-			.addSlider((sl) => {
-				sl.setLimits(30, 300, 10);
-				sl.setValue(ai.cliTimeoutSec);
-				sl.setDynamicTooltip();
-				sl.onChange(async (value) => {
-					ai.cliTimeoutSec = value;
-					await this.plugin.saveSettings();
 				});
 			});
 	}

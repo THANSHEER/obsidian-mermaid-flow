@@ -3,9 +3,7 @@
  * settings block persisted under MermaidFlowSettings.ai.
  */
 
-export type AiProviderId = "anthropic" | "openai-compat" | "gemini" | "cli";
-
-export type CliPresetId = "claude" | "codex" | "gemini-cli" | "custom";
+export type AiProviderId = "anthropic" | "openai-compat" | "gemini";
 
 export interface AiRequest {
 	/** Full user prompt (task instructions + any user input/diagram code). */
@@ -32,9 +30,6 @@ export interface AiSettings {
 	openaiModel: string;
 	geminiApiKey: string;
 	geminiModel: string;
-	cliPreset: CliPresetId;
-	cliCustomTemplate: string;
-	cliTimeoutSec: number;
 	showCommands: boolean;
 	showToolbarButton: boolean;
 	enableImageDrop: boolean;
@@ -50,9 +45,6 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
 	openaiModel: "gpt-4o-mini",
 	geminiApiKey: "",
 	geminiModel: "gemini-2.0-flash",
-	cliPreset: "claude",
-	cliCustomTemplate: "",
-	cliTimeoutSec: 120,
 	showCommands: true,
 	showToolbarButton: true,
 	enableImageDrop: true,

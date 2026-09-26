@@ -33,12 +33,6 @@ import {
 	parseGeminiResponse,
 	parseOpenAiResponse,
 } from '../src/ai/httpProviders';
-import {
-	buildCliArgv,
-	resolveImageConditionals,
-	substituteTokens,
-	tokenizeTemplate,
-} from '../src/ai/cliProvider';
 import { AiService } from '../src/ai/service';
 import { DEFAULT_SETTINGS, MermaidFlowSettings } from '../src/settings';
 import { AiRequest } from '../src/ai/types';
@@ -176,54 +170,7 @@ describe('HTTP provider response parsing', () => {
 	});
 });
 
-describe('CLI template handling', () => {
-	it('tokenizes respecting double quotes', () => {
-		expect(tokenizeTemplate('claude -p "two words" {{prompt}}')).toEqual([
-			'claude', '-p', 'two words', '{{prompt}}',
-		]);
-	});
 
-	it('keeps a multi-word prompt as a single argv entry', () => {
-		const argv = substituteTokens(['claude', '-p', '{{prompt}}'], {
-			prompt: 'a "quoted" prompt; rm -rf /',
-			image: '',
-		});
-		expect(argv).toEqual(['claude', '-p', 'a "quoted" prompt; rm -rf /']);
-	});
-
-	it('keeps the image conditional when an image is present', () => {
-		const t = resolveImageConditionals('codex exec {{image?-i {{image}}}} {{prompt}}', true);
-		expect(t).toBe('codex exec -i {{image}} {{prompt}}');
-	});
-
-	it('drops the image conditional when no image is present', () => {
-		const t = resolveImageConditionals('codex exec {{image?-i {{image}}}} {{prompt}}', false);
-		expect(t).toBe('codex exec {{prompt}}');
-	});
-
-	it('builds full argv with image flag substituted', () => {
-		const argv = buildCliArgv(
-			'codex exec --skip-git-repo-check {{image?-i {{image}}}} {{prompt}}',
-			'make a diagram',
-			'/tmp/x.png',
-		);
-		expect(argv).toEqual([
-			'codex', 'exec', '--skip-git-repo-check', '-i', '/tmp/x.png', 'make a diagram',
-		]);
-	});
-
-	it('folds the image path into the prompt for CLIs without an image flag', () => {
-		const argv = buildCliArgv('claude -p {{prompt}}', 'make a diagram', '/tmp/x.png');
-		expect(argv[0]).toBe('claude');
-		expect(argv[2]).toContain('/tmp/x.png');
-		expect(argv[2]).toContain('make a diagram');
-	});
-
-	it('appends {{prompt}} when a custom template forgot it', () => {
-		const argv = buildCliArgv('mycli --flag', 'hello world', null);
-		expect(argv).toEqual(['mycli', '--flag', 'hello world']);
-	});
-});
 
 describe('AiService.generateDiagram', () => {
 	const settings = (): MermaidFlowSettings => ({

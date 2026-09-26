@@ -11,6 +11,13 @@ plugin folder. Reload the plugin (or hot-reload) to test.
 
 Product status / roadmap: [`PRD.md`](PRD.md), [`README.md`](README.md).
 
+## Working Guidelines & Execution Rules
+
+- **Strict Task Boundaries**: Do ONLY what is explicitly requested. Do NOT perform extra unrequested tasks.
+- **No Unrequested Git Operations**: When asked to make code or documentation changes, ONLY edit the files. Do NOT create git commits, switch branches, merge branches, or push to remotes unless the user explicitly requests it.
+- **Zero Assumptions**: Do what is instructed without guessing or making assumptions.
+- **Ask on Any Doubt**: If any instruction is ambiguous, incomplete, or open to multiple interpretations, ask clarifying questions before taking action.
+
 ## Commands
 
 ```bash
@@ -43,10 +50,9 @@ Mermaid text ──parser.ts──▶ DiagramModel ──serializer.ts──▶ 
 - **Editor hosts** — `DiagramEditorUI` in modal (`editorModal.ts`) or pane
   (`editorView.ts`). Canvas: `canvas.ts` (node.x/y = centre). Free drag —
   alignment guides are visual only (no forced snap).
-- **AI assist** (optional) — `src/ai/`: HTTP providers (OpenAI/Gemini/Anthropic,
-  `httpProviders.ts`) or desktop CLI (`cliProvider.ts`, gated behind
-  `Platform.isDesktopApp`) generate/improve a diagram from a prompt; UI in
-  `aiModal.ts`.
+- **AI assist** (optional) — `src/ai/`: HTTP providers (OpenAI / Gemini / Anthropic /
+  Ollama / OpenRouter / LM Studio, `httpProviders.ts`) generate/improve a diagram from
+  a prompt; UI in `aiModal.ts`.
 - **Feedback lifecycle** — `src/feedback/`: install/uninstall/version-change
   prompts route to web forms via command palette, no in-plugin modals.
 
@@ -57,8 +63,7 @@ Mermaid text ──parser.ts──▶ DiagramModel ──serializer.ts──▶ 
 3. No floating promises / bare `void` on promises — use `.catch()`.
 4. No `!important` in CSS — raise specificity (e.g. `.modal.mermaid-flow-modal`).
 
-**Mobile:** `isDesktopOnly: false`. No Node/Electron imports from `src/`.
-CLI AI may use `window.require` only after `Platform.isDesktopApp`.
+**Mobile:** `isDesktopOnly: false`. No Node/Electron imports or direct filesystem/child_process access from `src/`.
 
 **SVG colours:** never put unresolved `var(--…)` into SVG `fill`/`stroke`
 attributes — fall back to concrete hex (`VAR_FALLBACK` in `canvas.ts`). Tests
@@ -93,14 +98,9 @@ re-deriving.
    <prev-tag>..<tag>`, since commit messages here have historically been
    wrong about which version something shipped in.
 2. Run `npm version <v>` + push; wait for a green CI run on `main`.
-3. CI auto-creates the GitHub release (`main.js`, `manifest.json`,
-   `styles.css`) with a bare version title and `--generate-notes` placeholder
-   body — never leave that placeholder as the final release. Replace it with
-   the `gh release edit <version> --title "vX.Y.Z - Title" --notes "..."`:
-   title picked from the CHANGELOG entry (not auto-generated), notes rewritten
-   in public-friendly language — plain language, no emoji, no
-   code/implementation detail — what's new, what's better, what's fixed, how
-   to update.
+3. CI auto-creates the GitHub release (`main.js`, `manifest.json`, `styles.css`)
+   with the release title and curated notes automatically extracted from
+   `CHANGELOG.md` via `scripts/extract-release-notes.cjs`.
 4. Run `npm run validate` to check manifest version sync.
 5. Run `/code-review` before pushing.
 

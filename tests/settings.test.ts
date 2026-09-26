@@ -40,7 +40,6 @@ describe('DEFAULT_SETTINGS', () => {
 			enableImageDrop: true,
 		});
 		expect(DEFAULT_SETTINGS.ai.openaiBaseUrl).toContain('https://');
-		expect(DEFAULT_SETTINGS.ai.cliTimeoutSec).toBeGreaterThan(0);
 	});
 
 	it('merges loaded data over defaults like loadSettings does', () => {

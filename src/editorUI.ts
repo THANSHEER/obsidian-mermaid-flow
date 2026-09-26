@@ -834,26 +834,10 @@ export class DiagramEditorUI {
 		reader.readAsDataURL(file);
 	}
 
-	/** Ctrl+V on the canvas: paste copied nodes, else try a clipboard image. */
+	/** Ctrl+V on the canvas: paste copied nodes. */
 	private pasteFromKeyboard(): void {
 		if (this.copyBuffer.length > 0) {
 			this.pasteNodes();
-			return;
-		}
-		if (!this.host.ai?.enableImageDrop) return;
-		this.pasteClipboardImage().catch(() => {
-			/* clipboard unavailable or no permission — nothing to paste */
-		});
-	}
-
-	private async pasteClipboardImage(): Promise<void> {
-		const items = await navigator.clipboard.read();
-		for (const item of items) {
-			const mime = item.types.find((t) => t.startsWith("image/"));
-			if (!mime) continue;
-			const blob = await item.getType(mime);
-			this.handleImportImage(new File([blob], "pasted-image", { type: mime }));
-			return;
 		}
 	}
 
@@ -1317,7 +1301,9 @@ class LinkPickerModal extends FuzzySuggestModal<TFile> {
 	}
 
 	getItems(): TFile[] {
-		return this.app.vault.getMarkdownFiles();
+		return this.app.vault
+			.getAllLoadedFiles()
+			.filter((f): f is TFile => f instanceof TFile && f.extension === "md");
 	}
 
 	getItemText(file: TFile): string {

@@ -49,8 +49,7 @@ Your edits **round-trip safely**: Mermaid Flow reads your existing Mermaid block
 
 ### 🤖 AI Flowchart Assistant (Optional)
 - **Prompt-to-Diagram** — Describe a workflow in natural language to generate a Mermaid flowchart instantly.
-- **Diagram Refinement** — Prompt AI to improve, re-structure, shorten labels, or expand existing diagrams.
-- **Broad Provider Support** — Connect via OpenAI, Google Gemini, Anthropic Claude, Ollama (local), OpenRouter, LM Studio, or desktop CLI agents (Claude Code, Gemini CLI).
+- **Broad Provider Support** — Connect via OpenAI, Google Gemini, Anthropic Claude, Ollama (local), OpenRouter, or LM Studio.
 
 ### 🛠️ Workflow & Integration
 - **Zero Syntax Knowledge Needed** — Mermaid Flow generates clean, valid Mermaid code in the background as you draw.
@@ -146,7 +145,7 @@ The parser and serializer strictly adhere to a **"never drop a line"** design in
 - [x] Custom `classDef` creation, styling, and one-click deletion across diagrams
 - [x] Safe round-tripping for YAML frontmatter, scoped comments, and advanced Mermaid syntax
 - [x] Rich text formatting (`<b>`, `<i>`, `<font color="...">`) without innerHTML
-- [x] AI flowchart generation and prompt-based refinement (HTTP APIs + desktop CLIs)
+- [x] AI flowchart generation and prompt-based refinement (HTTP APIs: OpenAI, Claude, Gemini, Ollama, OpenRouter, LM Studio)
 - [x] Flexible editor layouts: Modal popup, Split pane, or New workspace tab
 - [x] Component snippet library for saving and reusing diagram blocks
 

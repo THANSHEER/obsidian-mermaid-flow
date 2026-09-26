@@ -67,12 +67,24 @@ jobs:
             manifest.json
             styles.css
 
+      - name: Extract release title and notes
+        id: notes
+        if: steps.check.outputs.exists == 'false'
+        run: node scripts/extract-release-notes.cjs "${{ steps.meta.outputs.version }}" --write-file release-notes.md
+
       - name: Create GitHub release
         if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.meta.outputs.version }}" \
-            --title "${{ steps.meta.outputs.version }}" \
-            --generate-notes \
-            main.js manifest.json styles.css
+          if [ -s release-notes.md ]; then
+            gh release create "${{ steps.meta.outputs.version }}" \
+              --title "${{ steps.notes.outputs.title }}" \
+              --notes-file release-notes.md \
+              main.js manifest.json styles.css
+          else
+            gh release create "${{ steps.meta.outputs.version }}" \
+              --title "${{ steps.notes.outputs.title }}" \
+              --generate-notes \
+              main.js manifest.json styles.css
+          fi
