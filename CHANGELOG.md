@@ -2,6 +2,21 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.10.0] - 2026-09-26
+
+### Features
+- **Edge Style Presets**: Added one-click semantic edge style presets (*Default*, *Dependency*, *Emphasis*, *Muted*, *Line*) in the Properties Panel for instant edge customization (#37)
+- **ClassDef Management & Deletion**: Added a dedicated delete action in the Properties Panel under the Classes section to safely remove obsolete, unused, or mistyped `classDef` styles, automatically cleaning up references across all nodes and subgraphs (#37)
+- **Automatic Subgraph Group Inheritance**: Creating connected nodes via quick actions ("Step after", "Parallel sibling", "Yes/No branch") from a node within a subgraph now automatically enrolls the new child/step block into the parent subgraph (#37)
+- **Node Duplication Subgraph Preservation**: Duplicating a node located within a subgraph automatically retains its subgraph membership (#37)
+- **Action Clarification ("Step" vs. "Parallel Sibling")**: Clarified and differentiated quick-action workflows — "Step after" creates a sequential downstream element along the flow direction, while "Parallel sibling" creates a parallel branch stemming from the same parent input with perpendicular offset (#37)
+
+### Fixes
+- **Marquee (Drag-to-Select) Selection Restoration**: Resolved a regression introduced in v1.9.0 where releasing the mouse after dragging a selection box prematurely cleared the rubber-band state before computing intersecting nodes (#37)
+- **Pointer Event Cleanup**: Eliminated redundant pointer-tracking cleanup handlers on canvas pointer cancellation
+
+---
+
 ## [1.9.0] - 2026-09-18
 
 ### Features

@@ -741,4 +741,72 @@ describe('DiagramCanvas drag state notifications', () => {
 		svg.dispatchEvent(pointer('pointerup', 220, 180, { pointerId: 2, pointerType: 'touch' }));
 		svg.dispatchEvent(pointer('pointerup', 100, 60, { pointerId: 1, pointerType: 'touch' }));
 	});
+
+	it('supports marquee (drag-to-select) rubber-band selection across multiple nodes', () => {
+		const model = emptyModel('TB');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 50, y: 50, w: 40, h: 30 });
+		model.nodes.push({ id: 'B', label: 'B', shape: 'rect', x: 120, y: 50, w: 40, h: 30 });
+		model.nodes.push({ id: 'C', label: 'C', shape: 'rect', x: 300, y: 300, w: 40, h: 30 });
+		let multiChanged = 0;
+		const parent = document.createElement('div');
+		document.body.appendChild(parent);
+		const canvas = new DiagramCanvas(parent, model, {
+			onSelect() {},
+			onChange() {},
+			onMultiChange() { multiChanged++; },
+		});
+		const svg = canvas.getSVG();
+
+		// Pointer down on background at (10, 10)
+		svg.dispatchEvent(pointer('pointerdown', 10, 10, { pointerId: 1 }));
+		// Pointer move to (200, 100) — encompasses A and B, but not C
+		svg.dispatchEvent(pointer('pointermove', 200, 100, { pointerId: 1 }));
+		// Pointer up at (200, 100)
+		svg.dispatchEvent(pointer('pointerup', 200, 100, { pointerId: 1 }));
+
+		expect(canvas.getMultiSelection()).toEqual(expect.arrayContaining(['A', 'B']));
+		expect(canvas.getMultiSelection()).not.toContain('C');
+		expect(multiChanged).toBeGreaterThan(0);
+	});
+
+	it('clears multi-selection when clicking on empty background without dragging', () => {
+		const model = emptyModel('TB');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 50, y: 50, w: 40, h: 30 });
+		const parent = document.createElement('div');
+		document.body.appendChild(parent);
+		const canvas = new DiagramCanvas(parent, model, {
+			onSelect() {},
+			onChange() {},
+		});
+		const svg = canvas.getSVG();
+
+		// Manually populate multi selection
+		(canvas as unknown as { multi: Set<string> }).multi.add('A');
+		expect(canvas.getMultiSelection()).toContain('A');
+
+		// Click without moving on background
+		svg.dispatchEvent(pointer('pointerdown', 10, 10, { pointerId: 1 }));
+		svg.dispatchEvent(pointer('pointerup', 10, 10, { pointerId: 1 }));
+
+		expect(canvas.getMultiSelection()).toHaveLength(0);
+	});
+
+	it('supports marquee selection dragged in reverse direction (bottom-right to top-left)', () => {
+		const model = emptyModel('TB');
+		model.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 50, y: 50, w: 40, h: 30 });
+		const parent = document.createElement('div');
+		document.body.appendChild(parent);
+		const canvas = new DiagramCanvas(parent, model, {
+			onSelect() {},
+			onChange() {},
+		});
+		const svg = canvas.getSVG();
+
+		// Pointer down at bottom-right (200, 200) and drag to top-left (0, 0)
+		svg.dispatchEvent(pointer('pointerdown', 200, 200, { pointerId: 1 }));
+		svg.dispatchEvent(pointer('pointermove', 0, 0, { pointerId: 1 }));
+		svg.dispatchEvent(pointer('pointerup', 0, 0, { pointerId: 1 }));
+
+		expect(canvas.getMultiSelection()).toContain('A');
+	});
 });

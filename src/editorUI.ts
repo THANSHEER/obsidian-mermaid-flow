@@ -571,8 +571,35 @@ export class DiagramEditorUI {
 	private quickAddChild(): void {
 		const sel = this.canvas.getSelection();
 		if (!sel || sel.type !== "node") return;
-		const id = this.addConnectedNode(sel.id, "Child", "rect", this.flowOffset());
-		if (!id) return;
+		const src = this.model.nodes.find((n) => n.id === sel.id);
+		if (!src) return;
+
+		const { dx } = this.flowOffset();
+		const horiz = dx !== 0;
+		const offset = horiz ? { dx: 0, dy: 90 } : { dx: 140, dy: 0 };
+
+		const incomingEdge = this.model.edges.find((e) => e.to === sel.id);
+		const parentId = incomingEdge ? incomingEdge.from : null;
+
+		const id = nextNodeId(this.model);
+		this.model.nodes.push({
+			id,
+			label: "Sibling",
+			shape: "rect",
+			x: Math.max(40, Math.round(src.x + offset.dx)),
+			y: Math.max(30, Math.round(src.y + offset.dy)),
+		});
+
+		const targetGroup = this.model.groups.find((g) => g.nodeIds.includes(src.id))
+			?? (parentId ? this.model.groups.find((g) => g.nodeIds.includes(parentId)) : null);
+		if (targetGroup && !targetGroup.nodeIds.includes(id)) {
+			targetGroup.nodeIds.push(id);
+		}
+
+		if (parentId) {
+			this.model.edges.push({ id: newEdgeId(), from: parentId, to: id, label: "", kind: incomingEdge?.kind ?? "arrow" });
+		}
+
 		this.canvas.render();
 		this.canvas.select({ type: "node", id });
 		this.commit();
@@ -611,6 +638,10 @@ export class DiagramEditorUI {
 			x: Math.max(40, Math.round(src.x + offset.dx)),
 			y: Math.max(30, Math.round(src.y + offset.dy)),
 		});
+		const parentGroup = this.model.groups.find((g) => g.nodeIds.includes(fromId));
+		if (parentGroup && !parentGroup.nodeIds.includes(id)) {
+			parentGroup.nodeIds.push(id);
+		}
 		this.model.edges.push({ id: newEdgeId(), from: fromId, to: id, label: "", kind: "arrow" });
 		return id;
 	}
@@ -1064,6 +1095,7 @@ export class DiagramEditorUI {
 			menu.addItem((item) => item.setTitle("Connect from here").setIcon("spline").onClick(() => this.setMode("connect")));
 			menu.addSeparator();
 			menu.addItem((item) => item.setTitle("Add step after").setIcon("plus").onClick(() => this.quickAddStep()));
+			menu.addItem((item) => item.setTitle("Add parallel sibling").setIcon("git-commit").onClick(() => this.quickAddChild()));
 			menu.addItem((item) => item.setTitle("Add Yes/No branch").setIcon("git-branch").onClick(() => this.quickAddBranch()));
 			menu.addItem((item) => item.setTitle("Group into new subgraph").setIcon("group").onClick(() => this.addSubgraph()));
 			if (this.host.getComponentLibrary && this.host.saveComponentLibrary) {
