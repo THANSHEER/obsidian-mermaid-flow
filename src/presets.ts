@@ -5,7 +5,7 @@
  *   - STYLE_PRESETS  -> node shape + node style (semantic roles)
  */
 
-import { Direction, NodeShape, NodeStyle } from "./model";
+import { Direction, EdgeKind, EdgeStyle, NodeShape, NodeStyle } from "./model";
 
 export interface ThemePreset {
 	id: string;
@@ -112,5 +112,46 @@ export const STYLE_PRESETS: StylePreset[] = [
 		label: "Data / IO",
 		shape: "parallelogram",
 		style: { fillColor: "#f3d9fa", strokeColor: "#9c36b5", textColor: "#3b0764" },
+	},
+];
+
+export interface EdgePreset {
+	id: string;
+	label: string;
+	kind: EdgeKind;
+	style: EdgeStyle;
+}
+
+/** Predefined semantic edge presets. */
+export const EDGE_PRESETS: EdgePreset[] = [
+	{
+		id: "default",
+		label: "Default",
+		kind: "arrow",
+		style: {},
+	},
+	{
+		id: "dependency",
+		label: "Dependency",
+		kind: "dotted",
+		style: { strokeColor: "#888888" },
+	},
+	{
+		id: "emphasis",
+		label: "Emphasis",
+		kind: "thick",
+		style: { strokeColor: "#1c7ed6", strokeWidth: 3 },
+	},
+	{
+		id: "muted",
+		label: "Muted",
+		kind: "arrow",
+		style: { strokeColor: "#aaaaaa", textColor: "#888888" },
+	},
+	{
+		id: "line",
+		label: "Line",
+		kind: "open",
+		style: {},
 	},
 ];

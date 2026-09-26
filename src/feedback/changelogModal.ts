@@ -18,6 +18,34 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
 	{
+		version: "1.10.0",
+		title: "Edge presets, classDef management, automatic subgraph grouping & marquee fix",
+		features: [
+			"Edge style presets: one-click semantic edge styling (Default, Dependency, Emphasis, Muted, Line) in the Properties Panel (#37).",
+			"ClassDef management: safely delete custom classDef styles with automatic cleanup across nodes and subgraphs (#37).",
+			"Automatic subgraph inheritance: quick-adding nodes ('Step after', 'Parallel sibling', 'Yes/No branch') within a subgraph automatically adds them to the parent subgraph (#37).",
+			"Duplicate within subgraph: duplicating a node inside a subgraph retains its subgraph container membership (#37).",
+			"Clarified quick actions: differentiated 'Step after' (sequential flow) vs 'Parallel sibling' (divergent branch) (#37).",
+		],
+		fixes: [
+			"Marquee selection: restored drag-to-select marquee box functionality after pointerup (#37).",
+		],
+	},
+	{
+		version: "1.9.0",
+		title: "Mobile touch gestures, multi-line labels & nested subgraphs",
+		features: [
+			"Mobile touch gestures: two-finger panning and pinch-to-zoom on touch screens (#36).",
+			"Multi-line label editing: Shift+Enter in label textareas and centered SVG multi-line rendering (#36).",
+			"Nested subgraph management: cycle-safe parent subgraph selector in properties panel (#36).",
+			"Layout-independent keyboard shortcuts for international layouts (#36).",
+		],
+		improvements: [
+			"IME composition safety for CJK text input (#36).",
+			"Smoother mouse wheel zoom on desktop (#36).",
+		],
+	},
+	{
 		version: "1.8.1",
 		title: "Semicolon & quote round-trip fixes, subgraph styling/direction & security hardening",
 		fixes: [

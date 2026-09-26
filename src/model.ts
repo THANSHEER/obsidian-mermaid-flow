@@ -454,6 +454,10 @@ export function duplicateNode(
 		classes: src.classes ? [...src.classes] : undefined,
 		link: src.link,
 	});
+	const group = model.groups.find((g) => g.nodeIds.includes(id));
+	if (group && !group.nodeIds.includes(newId)) {
+		group.nodeIds.push(newId);
+	}
 	return newId;
 }
 

@@ -9,17 +9,3 @@ export function openKofi(): void {
 	activeWindow.open(KOFI_URL, "_blank");
 }
 
-/**
- * Mounts a button that opens the Ko-fi support page.
- *
- * @param host - The element in which to place the support button
- */
-export function mountKofiWidget(host: HTMLElement): void {
-	host.empty();
-	const btn = host.createEl("button", {
-		text: "Support on Ko-fi",
-		cls: "mod-cta mermaid-flow-kofi-fallback",
-	});
-	btn.addEventListener("click", () => openKofi());
-}
-

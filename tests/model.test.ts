@@ -201,4 +201,60 @@ describe('canBeParentOf', () => {
 		// Child can be moved directly under grandparent
 		expect(canBeParentOf(m, 'grandparent', 'child')).toBe(true);
 	});
+
+	it('duplicateNode inherits group membership when source node belongs to a group', () => {
+		const m = emptyModel('TB');
+		m.nodes.push({ id: 'A', label: 'Node A', shape: 'rect', x: 50, y: 50 });
+		m.groups.push({ id: 'g1', title: 'Group 1', nodeIds: ['A'] });
+		const dupId = duplicateNode(m, 'A');
+		expect(dupId).toBeTruthy();
+		expect(m.groups[0]?.nodeIds).toContain('A');
+		expect(m.groups[0]?.nodeIds).toContain(dupId);
+	});
 });
+
+describe('classDef management and deletion', () => {
+	it('scrubs class names from nodes and groups when a classDef is deleted', () => {
+		const m = emptyModel('LR');
+		m.classDefs.push({ name: 'warn', style: { fillColor: '#f99' } });
+		m.classDefs.push({ name: 'highlight', style: { fillColor: '#ff9' } });
+		m.nodes.push({ id: 'A', label: 'A', shape: 'rect', x: 0, y: 0, classes: ['warn', 'highlight'] });
+		m.nodes.push({ id: 'B', label: 'B', shape: 'rect', x: 100, y: 0, classes: ['warn'] });
+		m.groups.push({ id: 'g1', title: 'G1', nodeIds: ['A'], classes: ['warn'] });
+
+		// Simulate deleting the 'warn' class
+		const target = 'warn';
+		m.classDefs = m.classDefs.filter((c) => c.name !== target);
+		for (const n of m.nodes) {
+			if (n.classes?.includes(target)) {
+				n.classes = n.classes.filter((c) => c !== target);
+				if (n.classes.length === 0) delete n.classes;
+			}
+		}
+		for (const g of m.groups) {
+			if (g.classes?.includes(target)) {
+				g.classes = g.classes.filter((c) => c !== target);
+				if (g.classes.length === 0) delete g.classes;
+			}
+		}
+
+		expect(m.classDefs.map((c) => c.name)).toEqual(['highlight']);
+		expect(m.nodes[0]!.classes).toEqual(['highlight']);
+		expect(m.nodes[1]!.classes).toBeUndefined();
+		expect(m.groups[0]!.classes).toBeUndefined();
+	});
+});
+
+describe('EDGE_PRESETS', () => {
+	it('defines valid semantic presets with kind and style', async () => {
+		const { EDGE_PRESETS } = await import('../src/presets');
+		expect(EDGE_PRESETS.length).toBeGreaterThanOrEqual(4);
+		for (const preset of EDGE_PRESETS) {
+			expect(preset.id).toBeTruthy();
+			expect(preset.label).toBeTruthy();
+			expect(['arrow', 'open', 'dotted', 'thick']).toContain(preset.kind);
+			expect(typeof preset.style).toBe('object');
+		}
+	});
+});
+

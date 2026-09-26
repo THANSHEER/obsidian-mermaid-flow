@@ -19,7 +19,7 @@ import {
 	hasStyle,
 	newGroupId,
 } from "./model";
-import { STYLE_PRESETS } from "./presets";
+import { EDGE_PRESETS, STYLE_PRESETS } from "./presets";
 
 export interface PanelOps {
 	commit(): void;
@@ -241,6 +241,11 @@ export class PropertiesPanel {
 				if (!names.includes(c)) names.push(c);
 			}
 		}
+		for (const g of model.groups) {
+			for (const c of g.classes ?? []) {
+				if (!names.includes(c)) names.push(c);
+			}
+		}
 
 		if (names.length > 0) {
 			const row = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
@@ -299,34 +304,54 @@ export class PropertiesPanel {
 		});
 
 		// Edit a classDef's colours (changes apply to every node using it).
-		const defNames = model.classDefs.map((c) => c.name);
-		if (defNames.length === 0) return;
+		const allClassNames = names;
+		if (allClassNames.length === 0) return;
 		const target =
-			this.classEditName && defNames.includes(this.classEditName)
+			this.classEditName && allClassNames.includes(this.classEditName)
 				? this.classEditName
-				: (node.classes?.find((c) => defNames.includes(c)) ?? defNames[0]);
+				: (node.classes?.find((c) => allClassNames.includes(c)) ?? allClassNames[0]);
 		if (!target) return;
 		this.classEditName = target;
 		const def = model.classDefs.find((c) => c.name === target);
-		if (!def) return;
-		this.selectField("Edit class", defNames, (n) => n, target, (v) => {
+		this.selectField("Edit class", allClassNames, (n) => n, target, (v) => {
 			this.classEditName = v;
 			this.refresh();
 		});
-		this.colorField("Class fill", def.style.fillColor, "#ffffff", (v) => {
-			def.style.fillColor = v;
+		if (def) {
+			this.colorField("Class fill", def.style.fillColor, "#ffffff", (v) => {
+				def.style.fillColor = v;
+				this.ops.render();
+				this.ops.commit();
+			});
+			this.colorField("Class border", def.style.strokeColor, "#888888", (v) => {
+				def.style.strokeColor = v;
+				this.ops.render();
+				this.ops.commit();
+			});
+			this.colorField("Class text", def.style.textColor, "#333333", (v) => {
+				def.style.textColor = v;
+				this.ops.render();
+				this.ops.commit();
+			});
+		}
+		this.dangerButton(`Delete class "${target}"`, () => {
+			model.classDefs = model.classDefs.filter((c) => c.name !== target);
+			for (const n of model.nodes) {
+				if (n.classes?.includes(target)) {
+					n.classes = n.classes.filter((c) => c !== target);
+					if (n.classes.length === 0) delete n.classes;
+				}
+			}
+			for (const g of model.groups) {
+				if (g.classes?.includes(target)) {
+					g.classes = g.classes.filter((c) => c !== target);
+					if (g.classes.length === 0) delete g.classes;
+				}
+			}
+			this.classEditName = null;
 			this.ops.render();
 			this.ops.commit();
-		});
-		this.colorField("Class border", def.style.strokeColor, "#888888", (v) => {
-			def.style.strokeColor = v;
-			this.ops.render();
-			this.ops.commit();
-		});
-		this.colorField("Class text", def.style.textColor, "#333333", (v) => {
-			def.style.textColor = v;
-			this.ops.render();
-			this.ops.commit();
+			this.refresh();
 		});
 	}
 
@@ -565,8 +590,8 @@ export class PropertiesPanel {
 			row.createEl("button", { cls: "mermaid-flow-chip", text: label })
 				.addEventListener("click", fn);
 		mk("Step after", () => this.ops.quickAddStep());
+		mk("Parallel sibling", () => this.ops.quickAddChild());
 		mk("Yes/No branch", () => this.ops.quickAddBranch());
-		mk("Child", () => this.ops.quickAddChild());
 	}
 
 	// --- edge panel ---------------------------------------------------------
@@ -592,6 +617,7 @@ export class PropertiesPanel {
 			this.ops.commit();
 		});
 
+		this.buildEdgePresetsRow(edge);
 		this.buildEdgeStyleSection(edge);
 
 		// Animated toggle
@@ -610,6 +636,21 @@ export class PropertiesPanel {
 			.addEventListener("click", () => this.ops.reverseSelectedEdge());
 
 		this.dangerButton("Delete edge", () => this.ops.deleteSelected());
+	}
+
+	private buildEdgePresetsRow(edge: DiagramEdge): void {
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Preset style" });
+		const row = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
+		for (const preset of EDGE_PRESETS) {
+			const chip = row.createEl("button", { cls: "mermaid-flow-chip", text: preset.label });
+			chip.addEventListener("click", () => {
+				edge.kind = preset.kind;
+				edge.style = { ...preset.style };
+				this.ops.render();
+				this.ops.commit();
+				this.refresh();
+			});
+		}
 	}
 
 	private buildEdgeStyleSection(edge: DiagramEdge): void {
