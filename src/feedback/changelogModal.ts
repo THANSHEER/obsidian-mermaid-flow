@@ -18,6 +18,17 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
 	{
+		version: "1.10.1",
+		title: "Tablet toolbar icon restoration & responsive tablet UI optimizations",
+		fixes: [
+			"Tablet toolbar icons: restored missing button icons on tablets in horizontal, fullscreen, and portrait modes caused by Obsidian core tablet button padding (#39).",
+			"Touch button protection: prevented shape palette grid buttons, property chips, and panel collapse toggles from ballooning on tablets (#39).",
+		],
+		improvements: [
+			"Tablet responsive layout: fluid modal sizing and optimized toolbar wrapping for medium and portrait tablets (#39).",
+		],
+	},
+	{
 		version: "1.10.0",
 		title: "Edge presets, classDef management, automatic subgraph grouping & marquee fix",
 		features: [

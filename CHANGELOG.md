@@ -2,6 +2,17 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.10.1] - 2026-11-04
+
+### Fixes
+- **Tablet Toolbar Icon Restoration**: Fixed an issue where toolbar icons disappeared in horizontal and fullscreen tablet modes due to Obsidian's `.is-tablet button:not(.clickable-icon)` padding override squashing fixed-width buttons and collapsing SVG widths (#39)
+- **Tablet Button & Shape Palette Protection**: Locked exact padding and minimum dimensions on icon buttons, shape palette items, properties panel collapse controls, and style chips to prevent layout blowout on tablets and touch devices (#39)
+
+### Improvements
+- **Responsive Tablet Modal Geometry**: Added dedicated tablet media queries (769px–1024px) providing fluid modal sizing (`95vw` / `92vh`) and reduced docked actions padding (`150px`) to prevent unnecessary toolbar wrapping and eliminate dead zones on tablets (#39)
+
+---
+
 ## [1.10.0] - 2026-09-26
 
 ### Features

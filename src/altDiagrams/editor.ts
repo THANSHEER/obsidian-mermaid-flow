@@ -161,7 +161,7 @@ export class AltDiagramModal extends Modal {
 
 	private toolBtn(bar: HTMLElement, icon: string, label: string, onClick: () => void): void {
 		const btn = bar.createEl("button", {
-			cls: "mermaid-flow-icon-btn",
+			cls: "mermaid-flow-icon-btn clickable-icon",
 			attr: { "aria-label": label, title: label },
 		});
 		setIcon(btn, icon);
