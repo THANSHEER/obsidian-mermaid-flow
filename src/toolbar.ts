@@ -174,7 +174,7 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 function buildShapeMenu(bar: HTMLElement, ops: ToolbarOps): void {
 	const menu = bar.createDiv({ cls: "mermaid-flow-tb-group mermaid-flow-shape-menu" });
 	const btn = menu.createEl("button", {
-		cls: "mermaid-flow-icon-btn",
+		cls: "mermaid-flow-icon-btn clickable-icon",
 		attr: { "aria-label": "Add shape" },
 	});
 	setIcon(btn, "shapes");
@@ -211,7 +211,7 @@ function buildShapeMenu(bar: HTMLElement, ops: ToolbarOps): void {
 
 	for (const shape of NODE_SHAPES) {
 		const item = grid.createEl("button", {
-			cls: "mermaid-flow-shape-btn",
+			cls: "mermaid-flow-shape-btn clickable-icon",
 			attr: {
 				"aria-label": SHAPE_LABELS[shape],
 				draggable: "true",
@@ -289,7 +289,7 @@ function iconButton(
 	onClick: () => void,
 ): HTMLButtonElement {
 	const btn = parent.createEl("button", {
-		cls: "mermaid-flow-icon-btn",
+		cls: "mermaid-flow-icon-btn clickable-icon",
 		attr: { "aria-label": tooltip },
 	});
 	setIcon(btn, icon);
@@ -304,7 +304,7 @@ function iconButtonEv(
 	onClick: (e: MouseEvent) => void,
 ): HTMLButtonElement {
 	const btn = parent.createEl("button", {
-		cls: "mermaid-flow-icon-btn",
+		cls: "mermaid-flow-icon-btn clickable-icon",
 		attr: { "aria-label": tooltip },
 	});
 	setIcon(btn, icon);

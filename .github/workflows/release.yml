@@ -58,6 +58,21 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: npm run build
 
+      - name: Package release zip & compute SHA-256
+        if: steps.check.outputs.exists == 'false'
+        id: zip
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          ZIP_NAME="obsidian-mermaid-flow-${VERSION}.zip"
+          FILES_TO_PACK="main.js manifest.json"
+          if [ -f "styles.css" ]; then
+            FILES_TO_PACK="$FILES_TO_PACK styles.css"
+          fi
+          zip -j "$ZIP_NAME" $FILES_TO_PACK
+          sha256sum "$ZIP_NAME" > "${ZIP_NAME}.sha256"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Generated checksum:"; cat "${ZIP_NAME}.sha256"
+
       - name: Attest build provenance
         if: steps.check.outputs.exists == 'false'
         uses: actions/attest-build-provenance@v2
@@ -66,6 +81,7 @@ jobs:
             main.js
             manifest.json
             styles.css
+            ${{ steps.zip.outputs.zip_name }}
 
       - name: Extract release title and notes
         id: notes
@@ -77,14 +93,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          ZIP_NAME="${{ steps.zip.outputs.zip_name }}"
           if [ -s release-notes.md ]; then
             gh release create "${{ steps.meta.outputs.version }}" \
               --title "${{ steps.notes.outputs.title }}" \
               --notes-file release-notes.md \
-              main.js manifest.json styles.css
+              main.js manifest.json styles.css "$ZIP_NAME" "${ZIP_NAME}.sha256"
           else
             gh release create "${{ steps.meta.outputs.version }}" \
               --title "${{ steps.notes.outputs.title }}" \
               --generate-notes \
-              main.js manifest.json styles.css
+              main.js manifest.json styles.css "$ZIP_NAME" "${ZIP_NAME}.sha256"
           fi

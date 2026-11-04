@@ -148,7 +148,7 @@ export class DiagramEditorUI {
 		const body = this.root.createDiv({ cls: "mermaid-flow-body" });
 		const canvasHost = body.createDiv({ cls: "mermaid-flow-canvas-host" });
 		const collapseBtn = body.createEl("button", {
-			cls: "mermaid-flow-panel-collapse",
+			cls: "mermaid-flow-panel-collapse clickable-icon",
 			attr: {
 				"aria-label": "Collapse properties panel",
 				title: "Collapse properties panel",
@@ -728,7 +728,7 @@ export class DiagramEditorUI {
 			cls: "mermaid-flow-find-input",
 			attr: { placeholder: "Find nodes…" },
 		});
-		const close = bar.createEl("button", { cls: "mermaid-flow-icon-btn" });
+		const close = bar.createEl("button", { cls: "mermaid-flow-icon-btn clickable-icon" });
 		setIcon(close, "x");
 		close.setAttribute("aria-label", "Close find bar");
 
