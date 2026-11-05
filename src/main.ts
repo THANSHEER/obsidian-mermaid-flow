@@ -345,7 +345,10 @@ export default class MermaidFlowPlugin extends Plugin {
 		if (!Array.isArray(this.settings.componentLibrary)) {
 			this.settings.componentLibrary = [];
 		}
-		setLocale(this.settings.language ?? "auto");
+		// Tolerate values written by older builds or hand-edited settings files.
+		const storedLanguage = this.settings.language;
+		this.settings.language = storedLanguage === "en" || storedLanguage === "zh-cn" ? storedLanguage : "auto";
+		setLocale(this.settings.language);
 	}
 
 	async saveSettings(): Promise<void> {
