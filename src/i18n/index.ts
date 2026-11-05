@@ -30,17 +30,16 @@ function normalizePreference(value: unknown): LanguagePreference {
 }
 
 function readObsidianLanguage(): string | null {
+	// getLanguage() shipped in Obsidian 1.8.7 while minAppVersion is lower, so
+	// probe before calling instead of raising the minimum app version.
+	const api = getLanguage as unknown as (() => string) | undefined;
 	try {
-		const language = getLanguage();
+		const language = api?.();
 		if (language) return language;
 	} catch {
 		/* not running inside Obsidian */
 	}
-	try {
-		return window.localStorage.getItem("language");
-	} catch {
-		return null;
-	}
+	return null;
 }
 
 /** Active locale, resolved from the user preference or the app language. */
