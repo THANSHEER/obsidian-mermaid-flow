@@ -230,7 +230,7 @@ export const zhCN: Dictionary = {
 	"Flow — Top to bottom": "流程 · 从上到下",
 	"flowchart": "流程图",
 	"Follow Obsidian": "跟随 Obsidian",
-	"Follow Obsidian uses the app language. Chinese and English force the plugin UI language.": "跟随 Obsidian 时使用应用语言；选择中文或英文会强制使用对应界面语言。",
+	"Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names.": "跟随 Obsidian 时使用应用语言；选中文或英文会强制使用对应语言。更改后需重载插件，命令面板与功能区的名称才会更新。",
 	"Font family": "字体",
 	"Font size (px)": "字号 (px)",
 	"Forest": "森林",
@@ -474,6 +474,9 @@ export const zhCN: Dictionary = {
 	"Snap nodes to a fixed grid while dragging for cleaner alignment.": "拖动时让节点吸附到固定网格，对齐更整齐。",
 	"Snap nodes to grid": "节点吸附到网格",
 	"Solarized": "Solarized",
+	"(none)": "（无）",
+	"{count} component(s) saved. Insert or delete them from the library button in the visual editor.":
+		"已保存 {count} 个组件。可在可视化编辑器的组件库按钮中插入或删除。",
 	"Spacing: {label}": "间距：{label}",
 	"Spacious": "宽松",
 	"Split": "分栏",

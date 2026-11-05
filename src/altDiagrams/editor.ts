@@ -369,7 +369,7 @@ export class AltDiagramModal extends Modal {
 				text: t("+ attr"),
 			});
 			addAttr.addEventListener("click", () => {
-				const name = activeWindow.prompt(t("Attribute name"), t("field"));
+				const name = activeWindow.prompt(t("Attribute name"), "field");
 				if (!name) return;
 				e.attributes.push({ type: "string", name: name.trim() });
 				this.refresh();

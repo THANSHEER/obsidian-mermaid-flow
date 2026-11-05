@@ -27,7 +27,6 @@ const ALLOW = new Set([
 	"◆",
 	"▾",
 	"100%",
-	"(none)",
 	"H",
 	"W",
 	"sk-…",

@@ -1,4 +1,3 @@
-import { t } from "../i18n";
 /*
  * Alternate diagram types: sequence, mindmap, and ER.
  * Each has a focused model + parse/serialize round-trip and a lightweight
@@ -94,7 +93,7 @@ export function emptySequence(): SequenceModel {
 export function emptyMindmap(): MindmapModel {
 	return {
 		kind: "mindmap",
-		root: { id: "root", label: t("Root"), children: [] },
+		root: { id: "root", label: "Root", children: [] },
 		extrasBeforeRoot: [],
 		extrasAfterRoot: [],
 	};

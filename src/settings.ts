@@ -82,6 +82,26 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		for (const shape of NODE_SHAPES) shapeOptions[shape] = t(SHAPE_LABELS[shape]);
 		return [
 			{
+				name: t("Language"),
+				desc: t("Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names."),
+				render: (setting: Setting) => {
+					setting.addDropdown((dd) => {
+						dd.addOption("auto", t("Follow Obsidian"));
+						dd.addOption("zh-cn", t("中文"));
+						dd.addOption("en", t("English"));
+						dd.setValue(this.plugin.settings.language);
+						dd.onChange(async (value) => {
+							this.plugin.settings.language = value as LanguagePreference;
+							setLocale(this.plugin.settings.language);
+							await this.plugin.saveSettings();
+							// The declarative tab re-renders through update(); display() is bypassed on 1.13+.
+							const tab = this as unknown as { update?: () => void };
+							if (typeof tab.update === "function") tab.update();
+						});
+					});
+				},
+			},
+			{
 				name: t("Open editor as"),
 				desc: t("Popup opens the editor in a centered dialog. Embedded pane opens it in a workspace tab beside your note."),
 				control: {
@@ -225,7 +245,7 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName(t("Interface language")).setHeading();
 		new Setting(containerEl)
 			.setName(t("Language"))
-			.setDesc(t("Follow Obsidian uses the app language. Chinese and English force the plugin UI language."))
+			.setDesc(t("Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names."))
 			.addDropdown((dd) => {
 				dd.addOption("auto", t("Follow Obsidian"));
 				dd.addOption("zh-cn", t("中文"));
@@ -469,7 +489,7 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			.setDesc(
 				count === 0
 					? t("No components yet. In the visual editor, select nodes and use the library button (or context menu) to save a reusable snippet.")
-					: `${count} component(s) saved. Insert or delete them from the library button in the visual editor.`,
+					: t("{count} component(s) saved. Insert or delete them from the library button in the visual editor.", { count }),
 			)
 			.addButton((btn) => {
 				btn.setButtonText(t("Clear all"));

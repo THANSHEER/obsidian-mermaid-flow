@@ -562,7 +562,7 @@ export class DiagramEditorUI {
 	private quickAddStep(): void {
 		const sel = this.canvas.getSelection();
 		if (!sel || sel.type !== "node") return;
-		const id = this.addConnectedNode(sel.id, t("Step"), "rect", this.flowOffset());
+		const id = this.addConnectedNode(sel.id, "Step", "rect", this.flowOffset());
 		if (!id) return;
 		this.canvas.render();
 		this.canvas.select({ type: "node", id });
@@ -585,7 +585,7 @@ export class DiagramEditorUI {
 		const id = nextNodeId(this.model);
 		this.model.nodes.push({
 			id,
-			label: t("Sibling"),
+			label: "Sibling",
 			shape: "rect",
 			x: Math.max(40, Math.round(src.x + offset.dx)),
 			y: Math.max(30, Math.round(src.y + offset.dy)),
@@ -613,13 +613,13 @@ export class DiagramEditorUI {
 		const horiz = dx !== 0;
 		const off1 = horiz ? { dx, dy: -90 } : { dx: -130, dy };
 		const off2 = horiz ? { dx, dy: 90 } : { dx: 130, dy };
-		const yes = this.addConnectedNode(sel.id, t("Yes path"), "rect", off1);
-		const no = this.addConnectedNode(sel.id, t("No path"), "rect", off2);
+		const yes = this.addConnectedNode(sel.id, "Yes path", "rect", off1);
+		const no = this.addConnectedNode(sel.id, "No path", "rect", off2);
 		const edges = this.model.edges.filter((e) => e.from === sel.id);
 		const yesEdge = edges.find((e) => e.to === yes);
 		const noEdge = edges.find((e) => e.to === no);
-		if (yesEdge) yesEdge.label = t("Yes");
-		if (noEdge) noEdge.label = t("No");
+		if (yesEdge) yesEdge.label = "Yes";
+		if (noEdge) noEdge.label = "No";
 		this.canvas.render();
 		this.canvas.select(null);
 		this.commit();
@@ -1015,7 +1015,7 @@ export class DiagramEditorUI {
 		menu.addSeparator();
 		for (const sp of SPACING_PRESETS) {
 			menu.addItem((item) =>
-				item.setTitle(t("Spacing: {label}", { label: sp.label })).onClick(() => {
+				item.setTitle(t("Spacing: {label}", { label: t(sp.label) })).onClick(() => {
 					if (this.guardLocked()) return;
 					this.model.config.nodeSpacing = sp.nodeSpacing;
 					this.model.config.rankSpacing = sp.rankSpacing;
