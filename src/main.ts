@@ -1,3 +1,4 @@
+import { setLocale, t } from "./i18n";
 import {
 	Editor,
 	MarkdownPostProcessorContext,
@@ -61,25 +62,25 @@ export default class MermaidFlowPlugin extends Plugin {
 			(leaf) => new MermaidEditorView(leaf),
 		);
 
-		this.addRibbonIcon("workflow", "Mermaid Flow Editor", () => {
+		this.addRibbonIcon("workflow", t("Mermaid Flow Editor"), () => {
 			this.editOrInsert();
 		});
 
 		this.addCommand({
 			id: "insert-visual-mermaid",
-			name: "Insert visual Mermaid diagram",
+			name: t("Insert visual Mermaid diagram"),
 			editorCallback: (editor) => this.openInsert(editor),
 		});
 
 		this.addCommand({
 			id: "edit-mermaid-visually",
-			name: "Edit Mermaid diagram visually",
+			name: t("Edit Mermaid diagram visually"),
 			editorCallback: (editor) => this.openEditAtCursor(editor),
 		});
 
 		this.addCommand({
 			id: "insert-from-template",
-			name: "Insert Mermaid diagram from template",
+			name: t("Insert Mermaid diagram from template"),
 			editorCallback: (editor) => this.openTemplatesPicker(editor),
 		});
 
@@ -87,7 +88,7 @@ export default class MermaidFlowPlugin extends Plugin {
 		// change — no plugin reload needed.
 		this.addCommand({
 			id: "ai-generate-from-image",
-			name: "AI: Generate diagram from image",
+			name: t("AI: Generate diagram from image"),
 			editorCheckCallback: (checking, editor) => {
 				if (!this.aiCommandsVisible()) return false;
 				if (!checking) this.openAiFlow("image", editor);
@@ -97,7 +98,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		this.addCommand({
 			id: "ai-generate-from-text",
-			name: "AI: Generate diagram from description",
+			name: t("AI: Generate diagram from description"),
 			editorCheckCallback: (checking, editor) => {
 				if (!this.aiCommandsVisible()) return false;
 				if (!checking) this.openAiFlow("text", editor);
@@ -107,7 +108,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		this.addCommand({
 			id: "ai-improve-at-cursor",
-			name: "AI: Improve Mermaid diagram at cursor",
+			name: t("AI: Improve Mermaid diagram at cursor"),
 			editorCheckCallback: (checking, editor) => {
 				if (!this.aiCommandsVisible()) return false;
 				if (!findMermaidBlockAtCursor(editor)) return false;
@@ -118,7 +119,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-feedback-form",
-			name: "Send feedback",
+			name: t("Send feedback"),
 			callback: () => {
 				window.open("https://geekstash.dev/mermaid-flow/feedback", "_blank");
 			},
@@ -126,7 +127,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-feature-request-form",
-			name: "Request a feature",
+			name: t("Request a feature"),
 			callback: () => {
 				window.open("https://geekstash.dev/mermaid-flow/feature-request", "_blank");
 			},
@@ -134,7 +135,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-uninstall-form",
-			name: "Send uninstall feedback",
+			name: t("Send uninstall feedback"),
 			callback: () => {
 				window.open("https://geekstash.dev/mermaid-flow/uninstall", "_blank");
 			},
@@ -142,7 +143,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		this.addCommand({
 			id: "show-changelog",
-			name: "Show what's new (Changelog)",
+			name: t("Show what's new (Changelog)"),
 			callback: () => {
 				new ChangelogModal(this.app, this, this.manifest.version).open();
 			},
@@ -150,7 +151,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		this.addCommand({
 			id: "show-welcome",
-			name: "Show welcome guide",
+			name: t("Show welcome guide"),
 			callback: () => {
 				new WelcomeModal(this.app, this).open();
 			},
@@ -173,7 +174,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 	private openTemplatesPicker(editor: Editor): void {
 		const modal = new Modal(this.app);
-		modal.titleEl.setText("Insert from template");
+		modal.titleEl.setText(t("Insert from template"));
 		const content = modal.contentEl;
 		content.addClass("mermaid-flow-templates-modal");
 
@@ -182,8 +183,8 @@ export default class MermaidFlowPlugin extends Plugin {
 			const card = grid.createDiv({ cls: "mermaid-flow-template-card" });
 			const icon = card.createDiv({ cls: "mermaid-flow-template-icon" });
 			setIcon(icon, tpl.icon);
-			card.createEl("strong", { text: tpl.label });
-			card.createEl("p", { text: tpl.description, cls: "mermaid-flow-template-desc" });
+			card.createEl("strong", { text: t(tpl.label) });
+			card.createEl("p", { text: t(tpl.description), cls: "mermaid-flow-template-desc" });
 			card.addEventListener("click", () => {
 				modal.close();
 				const model = cloneModel(tpl.model());
@@ -344,6 +345,7 @@ export default class MermaidFlowPlugin extends Plugin {
 		if (!Array.isArray(this.settings.componentLibrary)) {
 			this.settings.componentLibrary = [];
 		}
+		setLocale(this.settings.language ?? "auto");
 	}
 
 	async saveSettings(): Promise<void> {
@@ -359,7 +361,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	editOrInsert(): void {
 		const editor = this.getEditor();
 		if (!editor) {
-			new Notice("Open a note in editing mode first.");
+			new Notice(t("Open a note in editing mode first."));
 			return;
 		}
 		const block = findMermaidBlockAtCursor(editor);
@@ -383,7 +385,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	private openEditAtCursor(editor: Editor): void {
 		const block = findMermaidBlockAtCursor(editor);
 		if (!block) {
-			new Notice("No Mermaid block here — inserting a new one.");
+			new Notice(t("No Mermaid block here — inserting a new one."));
 			this.openInsert(editor);
 			return;
 		}
@@ -402,7 +404,7 @@ export default class MermaidFlowPlugin extends Plugin {
 		}
 		if (!isVisuallyEditable(type)) {
 			new Notice(
-				`This is a ${describeDiagramType(type)} — opening code view.`,
+				t("This is a {type} — opening code view.", { type: t(describeDiagramType(type)) }),
 			);
 			this.viewCodeForBlock(editor, block);
 			return;
@@ -437,7 +439,7 @@ export default class MermaidFlowPlugin extends Plugin {
 		// laid out before a label-size change) without discarding manual layout.
 		resolveOverlaps(model);
 		if (warnings.length > 0) {
-			new Notice(`Parsed diagram with ${warnings.length} warning(s).`);
+			new Notice(t("Parsed diagram with {count} warning(s).", { count: warnings.length }));
 		}
 		return model;
 	}
@@ -540,7 +542,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		const codeBtn = overlay.createEl("button", {
 			cls: "mermaid-flow-overlay-btn",
-			attr: { "aria-label": "Edit Mermaid code" },
+			attr: { "aria-label": t("Edit Mermaid code") },
 		});
 		setIcon(codeBtn, "code");
 		codeBtn.addEventListener("click", (e) => {
@@ -553,7 +555,7 @@ export default class MermaidFlowPlugin extends Plugin {
 
 		const editBtn = overlay.createEl("button", {
 			cls: "mermaid-flow-overlay-btn mermaid-flow-edit-btn mod-cta",
-			text: "Edit",
+			text: t("Edit"),
 		});
 		editBtn.addEventListener("click", (e) => {
 			e.preventDefault();
@@ -569,7 +571,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	): void {
 		const info = ctx.getSectionInfo(el);
 		if (!info) {
-			new Notice("Could not locate the diagram source.");
+			new Notice(t("Could not locate the diagram source."));
 			return;
 		}
 		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
@@ -607,7 +609,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	private editFromLines(range: MermaidBlockRange): void {
 		const editor = this.getEditor();
 		if (!editor) {
-			new Notice("Open the note in an editor pane to edit this diagram.");
+			new Notice(t("Open the note in an editor pane to edit this diagram."));
 			return;
 		}
 		const block: MermaidBlock = {
@@ -638,7 +640,7 @@ export default class MermaidFlowPlugin extends Plugin {
 	): Promise<void> {
 		const info = ctx.getSectionInfo(el);
 		if (!info) {
-			new Notice("Could not locate the diagram source.");
+			new Notice(t("Could not locate the diagram source."));
 			return;
 		}
 		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
@@ -666,7 +668,7 @@ export default class MermaidFlowPlugin extends Plugin {
 		}
 		if (!isVisuallyEditable(type)) {
 			new Notice(
-				`This is a ${describeDiagramType(type)} — opening code view.`,
+				t("This is a {type} — opening code view.", { type: t(describeDiagramType(type)) }),
 			);
 			this.viewCodeFromReading(el, ctx);
 			return;
