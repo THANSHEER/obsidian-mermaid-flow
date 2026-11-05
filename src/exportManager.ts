@@ -2,6 +2,7 @@
  * Export logic: PNG / SVG to vault, clipboard helpers.
  */
 
+import { t } from "./i18n";
 import { App, Menu, Modal, Notice, normalizePath } from "obsidian";
 import type { DiagramCanvas } from "./canvas";
 import { modelToMermaid } from "./serializer";
@@ -25,20 +26,20 @@ export class ExportManager {
 		const menu = new Menu();
 		menu.addItem((item) =>
 			item
-				.setTitle("Export as PNG…")
+				.setTitle(t("Export as PNG…"))
 				.setIcon("image")
 				.onClick(() => this.showExportDialog("png")),
 		);
 		menu.addItem((item) =>
 			item
-				.setTitle("Export as SVG…")
+				.setTitle(t("Export as SVG…"))
 				.setIcon("file-text")
 				.onClick(() => this.showExportDialog("svg")),
 		);
 		menu.addSeparator();
 		menu.addItem((item) =>
 			item
-				.setTitle("Copy PNG to clipboard")
+				.setTitle(t("Copy PNG to clipboard"))
 				.setIcon("clipboard-copy")
 				.onClick(() => {
 					this.copyPNG().catch((e) => console.error("[mermaid-flow]", e));
@@ -46,7 +47,7 @@ export class ExportManager {
 		);
 		menu.addItem((item) =>
 			item
-				.setTitle("Copy code to clipboard")
+				.setTitle(t("Copy code to clipboard"))
 				.setIcon("copy")
 				.onClick(() => this.copyCode()),
 		);
@@ -55,45 +56,45 @@ export class ExportManager {
 
 	private showExportDialog(format: "png" | "svg"): void {
 		const modal = new Modal(this.opts.app);
-		modal.titleEl.setText(`Export as ${format.toUpperCase()}`);
+		modal.titleEl.setText(t("Export as {format}", { format: format.toUpperCase() }));
 		const c = modal.contentEl;
 		c.addClass("mermaid-flow-export-settings");
 
 		const fnField = c.createDiv({ cls: "mermaid-flow-field" });
-		fnField.createEl("label", { text: "Filename" });
+		fnField.createEl("label", { text: t("Filename") });
 		const fnInput = fnField.createEl("input", { type: "text", cls: "mermaid-flow-input" });
 		const stamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
 		fnInput.value = `diagram-${stamp}`;
 		fnInput.placeholder = `diagram-${stamp}`;
 
 		const folderField = c.createDiv({ cls: "mermaid-flow-field" });
-		folderField.createEl("label", { text: "Save to folder" });
+		folderField.createEl("label", { text: t("Save to folder") });
 		const folderInput = folderField.createEl("input", { type: "text", cls: "mermaid-flow-input" });
 		folderInput.value = this.opts.getExportFolder();
-		folderInput.placeholder = "mermaid flow";
+		folderInput.placeholder = t("mermaid flow");
 
 		let scale = 2;
 		let transparent = false;
 
 		if (format === "png") {
 			const scaleField = c.createDiv({ cls: "mermaid-flow-field" });
-			scaleField.createEl("label", { text: "Scale" });
+			scaleField.createEl("label", { text: t("Scale") });
 			const scaleSelect = scaleField.createEl("select", { cls: "dropdown mermaid-flow-input" });
 			[["1×", "1"], ["2× (recommended)", "2"], ["3×", "3"]].forEach(([label, val]) => {
-				const o = scaleSelect.createEl("option", { text: label, value: val });
+				const o = scaleSelect.createEl("option", { text: t(label ?? ""), value: val });
 				if (val === "2") o.selected = true;
 			});
 			scaleSelect.addEventListener("change", () => { scale = parseInt(scaleSelect.value, 10); });
 
 			const transpField = c.createDiv({ cls: "mermaid-flow-field-inline" });
-			transpField.createEl("label", { text: "Transparent background" });
+			transpField.createEl("label", { text: t("Transparent background") });
 			const transpCheck = transpField.createEl("input", { type: "checkbox" });
 			transpCheck.addEventListener("change", () => { transparent = transpCheck.checked; });
 		}
 
 		const footer = c.createDiv({ cls: "mermaid-flow-footer" });
-		const exportBtn = footer.createEl("button", { text: "Export", cls: "mod-cta" });
-		const cancelBtn = footer.createEl("button", { text: "Cancel" });
+		const exportBtn = footer.createEl("button", { text: t("Export"), cls: "mod-cta" });
+		const cancelBtn = footer.createEl("button", { text: t("Cancel") });
 		cancelBtn.addEventListener("click", () => modal.close());
 		exportBtn.addEventListener("click", () => {
 			modal.close();
@@ -121,7 +122,7 @@ export class ExportManager {
 			const canvas = this.opts.getCanvas();
 			canvas.deselect();
 			const { svg: svgString, width, height, background } = canvas.getExportSVG();
-			if (!svgString) { new Notice("Could not export: SVG not available"); return; }
+			if (!svgString) { new Notice(t("Could not export: SVG not available")); return; }
 
 			let data: string | ArrayBuffer = svgString;
 			if (format === "png") {
@@ -129,7 +130,7 @@ export class ExportManager {
 			}
 			await this.saveToVault(format, data, filename, folder);
 		} catch (err) {
-			new Notice("Export failed: " + (err instanceof Error ? err.message : "Unknown error"));
+			new Notice(t("Export failed: {msg}", { msg: err instanceof Error ? err.message : t("Unknown error") }));
 		}
 	}
 
@@ -149,7 +150,7 @@ export class ExportManager {
 		}
 		if (typeof data === "string") await vault.create(path, data);
 		else await vault.createBinary(path, data);
-		new Notice(`${format.toUpperCase()} saved to ${path}`);
+		new Notice(t("{format} saved to {path}", { format: format.toUpperCase(), path }));
 	}
 
 	private rasterize(
@@ -163,7 +164,7 @@ export class ExportManager {
 		return new Promise((resolve, reject) => {
 			const canvasEl = createEl("canvas");
 			const ctx = canvasEl.getContext("2d");
-			if (!ctx) { reject(new Error("Canvas context unavailable")); return; }
+			if (!ctx) { reject(new Error(t("Canvas context unavailable"))); return; }
 			canvasEl.width  = Math.max(1, Math.round(width  * scale));
 			canvasEl.height = Math.max(1, Math.round(height * scale));
 
@@ -179,11 +180,11 @@ export class ExportManager {
 				ctx.drawImage(img, 0, 0, canvasEl.width, canvasEl.height);
 				URL.revokeObjectURL(url);
 				canvasEl.toBlob((pngBlob: Blob | null) => {
-					if (!pngBlob) { reject(new Error("Failed to render PNG")); return; }
+					if (!pngBlob) { reject(new Error(t("Failed to render PNG"))); return; }
 					pngBlob.arrayBuffer().then(resolve, reject);
 				}, "image/png");
 			};
-			img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load SVG")); };
+			img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(t("Failed to load SVG"))); };
 			img.src = url;
 		});
 	}
@@ -193,13 +194,13 @@ export class ExportManager {
 			const canvas = this.opts.getCanvas();
 			canvas.deselect();
 			const { svg: svgString, width, height, background } = canvas.getExportSVG();
-			if (!svgString) { new Notice("Could not export: SVG not available"); return; }
+			if (!svgString) { new Notice(t("Could not export: SVG not available")); return; }
 			const buf     = await this.rasterize(svgString, width, height, background);
 			const pngBlob = new Blob([buf], { type: "image/png" });
 			await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
-			new Notice("PNG copied to clipboard");
+			new Notice(t("PNG copied to clipboard"));
 		} catch (err) {
-			new Notice("Failed to copy PNG: " + (err instanceof Error ? err.message : "Unknown"));
+			new Notice(t("Failed to copy PNG: {msg}", { msg: err instanceof Error ? err.message : t("Unknown") }));
 		}
 	}
 
@@ -207,7 +208,7 @@ export class ExportManager {
 		const code = modelToMermaid(this.opts.getModel());
 		navigator.clipboard
 			.writeText(code)
-			.then(() => new Notice("Diagram code copied to clipboard"))
-			.catch(() => new Notice("Failed to copy code"));
+			.then(() => new Notice(t("Diagram code copied to clipboard")))
+			.catch(() => new Notice(t("Failed to copy code")));
 	}
 }

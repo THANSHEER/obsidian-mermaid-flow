@@ -1,3 +1,5 @@
+import { setLocale, t } from "./i18n";
+import type { LanguagePreference } from "./i18n";
 import { App, PluginSettingTab, Setting } from "obsidian";
 import {
 	DIRECTIONS,
@@ -19,6 +21,8 @@ export type PaneOpenMode = "split" | "tab";
 export type PanelStyle = "sidebar" | "floating";
 
 export interface MermaidFlowSettings {
+	/** UI language. "auto" follows the Obsidian language. */
+	language: LanguagePreference;
 	openMode: OpenMode;
 	toolbarStyle: ToolbarStyle;
 	panelStyle: PanelStyle;
@@ -40,6 +44,7 @@ export interface MermaidFlowSettings {
 }
 
 export const DEFAULT_SETTINGS: MermaidFlowSettings = {
+	language: "auto",
 	openMode: "modal",
 	toolbarStyle: "native",
 	panelStyle: "sidebar",
@@ -72,81 +77,101 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 	 */
 	getSettingDefinitions(): Array<Record<string, unknown>> {
 		const directionOptions: Record<string, string> = {};
-		for (const dir of DIRECTIONS) directionOptions[dir] = DIRECTION_LABELS[dir];
+		for (const dir of DIRECTIONS) directionOptions[dir] = t(DIRECTION_LABELS[dir]);
 		const shapeOptions: Record<string, string> = {};
-		for (const shape of NODE_SHAPES) shapeOptions[shape] = SHAPE_LABELS[shape];
+		for (const shape of NODE_SHAPES) shapeOptions[shape] = t(SHAPE_LABELS[shape]);
 		return [
 			{
-				name: "Open editor as",
-				desc: "Popup opens the editor in a centered dialog. Embedded pane opens it in a workspace tab beside your note.",
+				name: t("Language"),
+				desc: t("Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names."),
+				render: (setting: Setting) => {
+					setting.addDropdown((dd) => {
+						dd.addOption("auto", t("Follow Obsidian"));
+						dd.addOption("zh-cn", t("中文"));
+						dd.addOption("en", t("English"));
+						dd.setValue(this.plugin.settings.language);
+						dd.onChange(async (value) => {
+							this.plugin.settings.language = value as LanguagePreference;
+							setLocale(this.plugin.settings.language);
+							await this.plugin.saveSettings();
+							// The declarative tab re-renders through update(); display() is bypassed on 1.13+.
+							const tab = this as unknown as { update?: () => void };
+							if (typeof tab.update === "function") tab.update();
+						});
+					});
+				},
+			},
+			{
+				name: t("Open editor as"),
+				desc: t("Popup opens the editor in a centered dialog. Embedded pane opens it in a workspace tab beside your note."),
 				control: {
 					type: "dropdown",
 					key: "openMode",
 					defaultValue: DEFAULT_SETTINGS.openMode,
 					options: {
-						modal: "Popup (dialog)",
-						pane: "Embedded pane",
+						modal: t("Popup (dialog)"),
+						pane: t("Embedded pane"),
 					},
 				},
 			},
 			{
-				name: "Toolbar style",
-				desc: "Native docks the toolbar at the top. Floating shows it as a compact bar over the canvas.",
+				name: t("Toolbar style"),
+				desc: t("Native docks the toolbar at the top. Floating shows it as a compact bar over the canvas."),
 				control: {
 					type: "dropdown",
 					key: "toolbarStyle",
 					defaultValue: DEFAULT_SETTINGS.toolbarStyle,
 					options: {
-						native: "Native (docked)",
-						floating: "Floating",
+						native: t("Native (docked)"),
+						floating: t("Floating"),
 					},
 				},
 			},
 			{
-				name: "Properties panel style",
-				desc: "Sidebar docks the panel at the right edge. Floating shows it as an overlay near your selection, and hides when nothing is selected.",
+				name: t("Properties panel style"),
+				desc: t("Sidebar docks the panel at the right edge. Floating shows it as an overlay near your selection, and hides when nothing is selected."),
 				control: {
 					type: "dropdown",
 					key: "panelStyle",
 					defaultValue: DEFAULT_SETTINGS.panelStyle,
 					options: {
-						sidebar: "Sidebar (docked)",
-						floating: "Floating",
+						sidebar: t("Sidebar (docked)"),
+						floating: t("Floating"),
 					},
 				},
 			},
 			{
-				name: "Open embedded pane as",
-				desc: "Split opens the editor beside your note. New tab opens it in its own workspace tab.",
+				name: t("Open embedded pane as"),
+				desc: t("Split opens the editor beside your note. New tab opens it in its own workspace tab."),
 				control: {
 					type: "dropdown",
 					key: "paneOpenMode",
 					defaultValue: DEFAULT_SETTINGS.paneOpenMode,
 					options: {
-						split: "Split",
-						tab: "New tab",
+						split: t("Split"),
+						tab: t("New tab"),
 					},
 				},
 			},
 			{
-				name: "Collapse property sections by default",
-				desc: "Start each properties panel section (Content, Shape & size, Text & style, etc.) collapsed when you select a node or edge.",
+				name: t("Collapse property sections by default"),
+				desc: t("Start each properties panel section (Content, Shape & size, Text & style, etc.) collapsed when you select a node or edge."),
 				control: {
 					type: "toggle",
 					key: "collapsePropertySections",
 				},
 			},
 			{
-				name: "Auto-resize canvas to content",
-				desc: "Keep the canvas bounds fitted to your diagram as you move nodes. Turn off for a fixed viewport you can pan freely beyond the current content.",
+				name: t("Auto-resize canvas to content"),
+				desc: t("Keep the canvas bounds fitted to your diagram as you move nodes. Turn off for a fixed viewport you can pan freely beyond the current content."),
 				control: {
 					type: "toggle",
 					key: "autoResizeCanvas",
 				},
 			},
 			{
-				name: "Default direction",
-				desc: "Direction used for new diagrams.",
+				name: t("Default direction"),
+				desc: t("Direction used for new diagrams."),
 				control: {
 					type: "dropdown",
 					key: "defaultDirection",
@@ -155,8 +180,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				},
 			},
 			{
-				name: "Default node shape",
-				desc: "Shape applied to newly added nodes.",
+				name: t("Default node shape"),
+				desc: t("Shape applied to newly added nodes."),
 				control: {
 					type: "dropdown",
 					key: "defaultShape",
@@ -165,26 +190,26 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				},
 			},
 			{
-				name: "Export folder",
-				desc: "Vault folder where PNG/SVG exports are saved. Created automatically if it doesn't exist.",
+				name: t("Export folder"),
+				desc: t("Vault folder where PNG/SVG exports are saved. Created automatically if it doesn't exist."),
 				control: {
 					type: "text",
 					key: "exportFolder",
 					defaultValue: DEFAULT_SETTINGS.exportFolder,
-					placeholder: "mermaid flow",
+					placeholder: t("mermaid flow"),
 				},
 			},
 			{
-				name: "Snap nodes to grid",
-				desc: "Snap nodes to a fixed grid while dragging for cleaner alignment.",
+				name: t("Snap nodes to grid"),
+				desc: t("Snap nodes to a fixed grid while dragging for cleaner alignment."),
 				control: {
 					type: "toggle",
 					key: "snapToGrid",
 				},
 			},
 			{
-				name: "Grid size (px)",
-				desc: "Snap grid cell size in pixels (applies when Snap to grid is on).",
+				name: t("Grid size (px)"),
+				desc: t("Snap grid cell size in pixels (applies when Snap to grid is on)."),
 				control: {
 					type: "slider",
 					key: "snapSize",
@@ -195,16 +220,16 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				},
 			},
 			{
-				name: "Auto-save (embedded pane)",
-				desc: "When editing an existing diagram in an embedded pane, write changes back to the note automatically. Does not apply to the popup or to inserting new diagrams.",
+				name: t("Auto-save (embedded pane)"),
+				desc: t("When editing an existing diagram in an embedded pane, write changes back to the note automatically. Does not apply to the popup or to inserting new diagrams."),
 				control: {
 					type: "toggle",
 					key: "autoSave",
 				},
 			},
 			{
-				name: "Remember node positions",
-				desc: "Store manual node positions in a Mermaid comment so your layout survives edits. The comment is ignored by Mermaid when rendering.",
+				name: t("Remember node positions"),
+				desc: t("Store manual node positions in a Mermaid comment so your layout survives edits. The comment is ignored by Mermaid when rendering."),
 				control: {
 					type: "toggle",
 					key: "savePositions",
@@ -217,16 +242,33 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName("Editor").setHeading();
+		new Setting(containerEl).setName(t("Interface language")).setHeading();
+		new Setting(containerEl)
+			.setName(t("Language"))
+			.setDesc(t("Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names."))
+			.addDropdown((dd) => {
+				dd.addOption("auto", t("Follow Obsidian"));
+				dd.addOption("zh-cn", t("中文"));
+				dd.addOption("en", t("English"));
+				dd.setValue(this.plugin.settings.language);
+				dd.onChange(async (value) => {
+					this.plugin.settings.language = value as LanguagePreference;
+					setLocale(this.plugin.settings.language);
+					await this.plugin.saveSettings();
+					this.display();
+				});
+			});
+
+		new Setting(containerEl).setName(t("Editor")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Open editor as")
+			.setName(t("Open editor as"))
 			.setDesc(
-				"Popup opens the editor in a centered dialog. Embedded pane opens it in a workspace tab beside your note.",
+				t("Popup opens the editor in a centered dialog. Embedded pane opens it in a workspace tab beside your note."),
 			)
 			.addDropdown((dd) => {
-				dd.addOption("modal", "Popup (dialog)");
-				dd.addOption("pane", "Embedded pane");
+				dd.addOption("modal", t("Popup (dialog)"));
+				dd.addOption("pane", t("Embedded pane"));
 				dd.setValue(this.plugin.settings.openMode);
 				dd.onChange(async (value) => {
 					this.plugin.settings.openMode = value as "modal" | "pane";
@@ -235,13 +277,13 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Toolbar style")
+			.setName(t("Toolbar style"))
 			.setDesc(
-				"Native docks the toolbar at the top. Floating shows it as a compact bar over the canvas.",
+				t("Native docks the toolbar at the top. Floating shows it as a compact bar over the canvas."),
 			)
 			.addDropdown((dd) => {
-				dd.addOption("native", "Native (docked)");
-				dd.addOption("floating", "Floating");
+				dd.addOption("native", t("Native (docked)"));
+				dd.addOption("floating", t("Floating"));
 				dd.setValue(this.plugin.settings.toolbarStyle);
 				dd.onChange(async (value) => {
 					this.plugin.settings.toolbarStyle = value as ToolbarStyle;
@@ -250,13 +292,13 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Properties panel style")
+			.setName(t("Properties panel style"))
 			.setDesc(
-				"Sidebar docks the panel at the right edge. Floating shows it as an overlay near your selection, and hides when nothing is selected.",
+				t("Sidebar docks the panel at the right edge. Floating shows it as an overlay near your selection, and hides when nothing is selected."),
 			)
 			.addDropdown((dd) => {
-				dd.addOption("sidebar", "Sidebar (docked)");
-				dd.addOption("floating", "Floating");
+				dd.addOption("sidebar", t("Sidebar (docked)"));
+				dd.addOption("floating", t("Floating"));
 				dd.setValue(this.plugin.settings.panelStyle);
 				dd.onChange(async (value) => {
 					this.plugin.settings.panelStyle = value as PanelStyle;
@@ -265,11 +307,11 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Open embedded pane as")
-			.setDesc("Split opens the editor beside your note. New tab opens it in its own workspace tab.")
+			.setName(t("Open embedded pane as"))
+			.setDesc(t("Split opens the editor beside your note. New tab opens it in its own workspace tab."))
 			.addDropdown((dd) => {
-				dd.addOption("split", "Split");
-				dd.addOption("tab", "New tab");
+				dd.addOption("split", t("Split"));
+				dd.addOption("tab", t("New tab"));
 				dd.setValue(this.plugin.settings.paneOpenMode);
 				dd.onChange(async (value) => {
 					this.plugin.settings.paneOpenMode = value as PaneOpenMode;
@@ -277,14 +319,14 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl).setName("Diagram defaults").setHeading();
+		new Setting(containerEl).setName(t("Diagram defaults")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Default direction")
-			.setDesc("Direction used for new diagrams.")
+			.setName(t("Default direction"))
+			.setDesc(t("Direction used for new diagrams."))
 			.addDropdown((dd) => {
 				for (const dir of DIRECTIONS) {
-					dd.addOption(dir, DIRECTION_LABELS[dir]);
+					dd.addOption(dir, t(DIRECTION_LABELS[dir]));
 				}
 				dd.setValue(this.plugin.settings.defaultDirection);
 				dd.onChange(async (value) => {
@@ -294,11 +336,11 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Default node shape")
-			.setDesc("Shape applied to newly added nodes.")
+			.setName(t("Default node shape"))
+			.setDesc(t("Shape applied to newly added nodes."))
 			.addDropdown((dd) => {
 				for (const shape of NODE_SHAPES) {
-					dd.addOption(shape, SHAPE_LABELS[shape]);
+					dd.addOption(shape, t(SHAPE_LABELS[shape]));
 				}
 				dd.setValue(this.plugin.settings.defaultShape);
 				dd.onChange(async (value) => {
@@ -307,15 +349,15 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl).setName("Behavior").setHeading();
+		new Setting(containerEl).setName(t("Behavior")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Export folder")
+			.setName(t("Export folder"))
 			.setDesc(
-				"Vault folder where PNG/SVG exports are saved. Created automatically if it doesn't exist.",
+				t("Vault folder where PNG/SVG exports are saved. Created automatically if it doesn't exist."),
 			)
 			.addText((text) => {
-				text.setPlaceholder("mermaid flow");
+				text.setPlaceholder(t("mermaid flow"));
 				text.setValue(this.plugin.settings.exportFolder);
 				text.onChange(async (value) => {
 					this.plugin.settings.exportFolder = value.trim() || "mermaid flow";
@@ -324,8 +366,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Snap nodes to grid")
-			.setDesc("Snap nodes to a fixed grid while dragging for cleaner alignment.")
+			.setName(t("Snap nodes to grid"))
+			.setDesc(t("Snap nodes to a fixed grid while dragging for cleaner alignment."))
 			.addToggle((tg) => {
 				tg.setValue(this.plugin.settings.snapToGrid);
 				tg.onChange(async (value) => {
@@ -335,8 +377,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Grid size (px)")
-			.setDesc("Snap grid cell size in pixels (applies when Snap to grid is on).")
+			.setName(t("Grid size (px)"))
+			.setDesc(t("Snap grid cell size in pixels (applies when Snap to grid is on)."))
 			.addSlider((sl) => {
 				sl.setLimits(5, 40, 5);
 				sl.setValue(this.plugin.settings.snapSize);
@@ -348,9 +390,9 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Auto-save (embedded pane)")
+			.setName(t("Auto-save (embedded pane)"))
 			.setDesc(
-				"When editing an existing diagram in an embedded pane, write changes back to the note automatically. Does not apply to the popup or to inserting new diagrams.",
+				t("When editing an existing diagram in an embedded pane, write changes back to the note automatically. Does not apply to the popup or to inserting new diagrams."),
 			)
 			.addToggle((tg) => {
 				tg.setValue(this.plugin.settings.autoSave);
@@ -361,9 +403,9 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Collapse property sections by default")
+			.setName(t("Collapse property sections by default"))
 			.setDesc(
-				"Start each properties panel section (Content, Shape & size, Text & style, etc.) collapsed when you select a node or edge.",
+				t("Start each properties panel section (Content, Shape & size, Text & style, etc.) collapsed when you select a node or edge."),
 			)
 			.addToggle((tg) => {
 				tg.setValue(this.plugin.settings.collapsePropertySections);
@@ -374,9 +416,9 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Auto-resize canvas to content")
+			.setName(t("Auto-resize canvas to content"))
 			.setDesc(
-				"Keep the canvas bounds fitted to your diagram as you move nodes. Turn off for a fixed viewport you can pan freely beyond the current content.",
+				t("Keep the canvas bounds fitted to your diagram as you move nodes. Turn off for a fixed viewport you can pan freely beyond the current content."),
 			)
 			.addToggle((tg) => {
 				tg.setValue(this.plugin.settings.autoResizeCanvas);
@@ -387,9 +429,9 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Remember node positions")
+			.setName(t("Remember node positions"))
 			.setDesc(
-				"Store manual node positions in a Mermaid comment so your layout survives edits. The comment is ignored by Mermaid when rendering.",
+				t("Store manual node positions in a Mermaid comment so your layout survives edits. The comment is ignored by Mermaid when rendering."),
 			)
 			.addToggle((tg) => {
 				tg.setValue(this.plugin.settings.savePositions);
@@ -401,56 +443,56 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 
 		this.displayAiSection(containerEl);
 
-		new Setting(containerEl).setName("Support").setHeading();
+		new Setting(containerEl).setName(t("Support")).setHeading();
 		new Setting(containerEl)
-			.setName("Tip on Ko-fi")
-			.setDesc("If Mermaid Flow helps you, you can support development with a tip.")
+			.setName(t("Tip on Ko-fi"))
+			.setDesc(t("If Mermaid Flow helps you, you can support development with a tip."))
 			.addButton((btn) => {
 				btn.setCta();
-				btn.setButtonText("Support on Ko-fi");
+				btn.setButtonText(t("Support on Ko-fi"));
 				btn.onClick(() => {
 					openKofi();
 				});
 			});
 
-		new Setting(containerEl).setName("Changelog & help").setHeading();
+		new Setting(containerEl).setName(t("Changelog & help")).setHeading();
 		new Setting(containerEl)
-			.setName("What's new")
-			.setDesc("See what's new in this version and view recent changelogs.")
+			.setName(t("What's new"))
+			.setDesc(t("See what's new in this version and view recent changelogs."))
 			.addButton((btn) => {
-				btn.setButtonText("View changelog");
+				btn.setButtonText(t("View changelog"));
 				btn.onClick(() => {
 					new ChangelogModal(this.app, this.plugin, this.plugin.manifest.version).open();
 				});
 			})
 			.addButton((btn) => {
-				btn.setButtonText("View on GitHub");
+				btn.setButtonText(t("View on GitHub"));
 				btn.onClick(() => {
 					activeWindow.open("https://github.com/THANSHEER/obsidian-mermaid-flow/releases", "_blank");
 				});
 			});
 
 		new Setting(containerEl)
-			.setName("Welcome guide")
-			.setDesc("Revisit the getting started guide and feature overview.")
+			.setName(t("Welcome guide"))
+			.setDesc(t("Revisit the getting started guide and feature overview."))
 			.addButton((btn) => {
-				btn.setButtonText("Show welcome guide");
+				btn.setButtonText(t("Show welcome guide"));
 				btn.onClick(() => {
 					new WelcomeModal(this.app, this.plugin).open();
 				});
 			});
 
-		new Setting(containerEl).setName("Component library").setHeading();
+		new Setting(containerEl).setName(t("Component library")).setHeading();
 		const count = this.plugin.settings.componentLibrary?.length ?? 0;
 		new Setting(containerEl)
-			.setName("Saved components")
+			.setName(t("Saved components"))
 			.setDesc(
 				count === 0
-					? "No components yet. In the visual editor, select nodes and use the library button (or context menu) to save a reusable snippet."
-					: `${count} component(s) saved. Insert or delete them from the library button in the visual editor.`,
+					? t("No components yet. In the visual editor, select nodes and use the library button (or context menu) to save a reusable snippet.")
+					: t("{count} component(s) saved. Insert or delete them from the library button in the visual editor.", { count }),
 			)
 			.addButton((btn) => {
-				btn.setButtonText("Clear all");
+				btn.setButtonText(t("Clear all"));
 				btn.setDisabled(count === 0);
 				btn.onClick(async () => {
 					this.plugin.settings.componentLibrary = [];
@@ -464,12 +506,12 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		const ai = this.plugin.settings.ai;
 		const save = () => this.plugin.saveSettings();
 
-		new Setting(containerEl).setName("AI assistance").setHeading();
+		new Setting(containerEl).setName(t("AI assistance")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Enable AI features")
+			.setName(t("Enable AI features"))
 			.setDesc(
-				"Generate diagrams from images or text descriptions, and improve existing diagrams, using an AI provider.",
+				t("Generate diagrams from images or text descriptions, and improve existing diagrams, using an AI provider."),
 			)
 			.addToggle((tg) => {
 				tg.setValue(ai.enabled);
@@ -483,12 +525,12 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		if (!ai.enabled) return;
 
 		new Setting(containerEl)
-			.setName("Provider")
-			.setDesc("Which AI service generates the diagrams.")
+			.setName(t("Provider"))
+			.setDesc(t("Which AI service generates the diagrams."))
 			.addDropdown((dd) => {
-				dd.addOption("anthropic", "Anthropic (Claude)");
-				dd.addOption("openai-compat", "OpenAI-compatible API");
-				dd.addOption("gemini", "Google Gemini");
+				dd.addOption("anthropic", t("Anthropic (Claude)"));
+				dd.addOption("openai-compat", t("OpenAI-compatible API"));
+				dd.addOption("gemini", t("Google Gemini"));
 				dd.setValue(ai.provider);
 				dd.onChange(async (value) => {
 					ai.provider = value as AiProviderId;
@@ -506,9 +548,9 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 				break;
 			case "openai-compat":
 				new Setting(containerEl)
-					.setName("Base URL")
+					.setName(t("Base URL"))
 					.setDesc(
-						"OpenAI: https://api.openai.com/v1 · Ollama: http://localhost:11434/v1 · also OpenRouter, LM Studio, or any OpenAI-compatible server.",
+						t("OpenAI: https://api.openai.com/v1 · Ollama: http://localhost:11434/v1 · also OpenRouter, LM Studio, or any OpenAI-compatible server."),
 					)
 					.addText((text) => {
 						text.setPlaceholder(DEFAULT_AI_SETTINGS.openaiBaseUrl);
@@ -536,13 +578,13 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		// the live value rather than hardcoding it.
 		const dataPath = `${this.app.vault.configDir}/plugins/${this.plugin.manifest.id}/data.json`;
 		new Setting(containerEl).setDesc(
-			`API keys are stored unencrypted in this vault's ${dataPath}. Don't sync that file to untrusted locations.`,
+			t("API keys are stored unencrypted in this vault's {path}. Don't sync that file to untrusted locations.", { path: dataPath }),
 		);
 
-		new Setting(containerEl).setName("AI entry points").setHeading();
+		new Setting(containerEl).setName(t("AI entry points")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Show AI commands in the command palette")
+			.setName(t("Show AI commands in the command palette"))
 			.addToggle((tg) => {
 				tg.setValue(ai.showCommands);
 				tg.onChange(async (value) => {
@@ -552,8 +594,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Show AI button in the editor toolbar")
-			.setDesc("Applies the next time the editor opens.")
+			.setName(t("Show AI button in the editor toolbar"))
+			.setDesc(t("Applies the next time the editor opens."))
 			.addToggle((tg) => {
 				tg.setValue(ai.showToolbarButton);
 				tg.onChange(async (value) => {
@@ -563,8 +605,8 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Generate from images dropped or pasted onto the canvas")
-			.setDesc("Applies the next time the editor opens.")
+			.setName(t("Generate from images dropped or pasted onto the canvas"))
+			.setDesc(t("Applies the next time the editor opens."))
 			.addToggle((tg) => {
 				tg.setValue(ai.enableImageDrop);
 				tg.onChange(async (value) => {
@@ -581,11 +623,11 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		set: (v: string) => void,
 		desc?: string,
 	): void {
-		const setting = new Setting(containerEl).setName(name);
-		if (desc) setting.setDesc(desc);
+		const setting = new Setting(containerEl).setName(t(name));
+		if (desc) setting.setDesc(t(desc));
 		setting.addText((text) => {
 			text.inputEl.type = "password";
-			text.setPlaceholder("sk-…");
+			text.setPlaceholder(t("sk-…"));
 			text.setValue(get());
 			text.onChange(async (value) => {
 				set(value.trim());
@@ -601,7 +643,7 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		set: (v: string) => void,
 	): void {
 		new Setting(containerEl)
-			.setName("Model")
+			.setName(t("Model"))
 			.addText((text) => {
 				text.setPlaceholder(placeholder);
 				text.setValue(get());

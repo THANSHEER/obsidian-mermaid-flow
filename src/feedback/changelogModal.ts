@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 /*
  * Changelog modal displayed after a plugin update or opened via command/settings.
  */
@@ -137,14 +138,14 @@ export class ChangelogModal extends Modal {
 
 		header.createEl("h2", {
 			cls: "mermaid-flow-modal-title",
-			text: `What's new in Mermaid Flow v${this.version}`,
+			text: t("What's new in Mermaid Flow v{version}", { version: this.version }),
 		});
 
 		header.createEl("p", {
 			cls: "mermaid-flow-modal-desc",
 			text: this.previousVersion
-				? `Mermaid Flow updated from v${this.previousVersion} to v${this.version}. Here’s what changed:`
-				: `Here are the latest features, improvements, and fixes in Mermaid Flow:`,
+				? t("Mermaid Flow updated from v{from} to v{to}. Here’s what changed:", { from: this.previousVersion, to: this.version })
+				: t(`Here are the latest features, improvements, and fixes in Mermaid Flow:`),
 		});
 
 		const changelogBox = content.createDiv({ cls: "mermaid-flow-changelog-content" });
@@ -153,40 +154,40 @@ export class ChangelogModal extends Modal {
 		for (const item of CHANGELOG_DATA) {
 			const verBlock = changelogBox.createDiv({ cls: "mermaid-flow-changelog-item" });
 			const verHeader = verBlock.createDiv({ cls: "mermaid-flow-changelog-version" });
-			verHeader.createSpan({ cls: "mermaid-flow-changelog-tag", text: `v${item.version} — ${item.title}` });
+			verHeader.createSpan({ cls: "mermaid-flow-changelog-tag", text: `v${item.version} — ${t(item.title)}` });
 			if (item.version === this.version) {
-				verHeader.createSpan({ cls: "mermaid-flow-changelog-badge", text: "Current" });
+				verHeader.createSpan({ cls: "mermaid-flow-changelog-badge", text: t("Current") });
 			}
 
 			if (item.features && item.features.length > 0) {
-				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: "Features" });
+				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: t("Features") });
 				const ul = verBlock.createEl("ul", { cls: "mermaid-flow-changelog-list" });
 				for (const f of item.features) {
-					ul.createEl("li", { text: f });
+					ul.createEl("li", { text: t(f) });
 				}
 			}
 
 			if (item.improvements && item.improvements.length > 0) {
-				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: "Improvements" });
+				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: t("Improvements") });
 				const ul = verBlock.createEl("ul", { cls: "mermaid-flow-changelog-list" });
 				for (const imp of item.improvements) {
-					ul.createEl("li", { text: imp });
+					ul.createEl("li", { text: t(imp) });
 				}
 			}
 
 			if (item.fixes && item.fixes.length > 0) {
-				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: "Fixes" });
+				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: t("Fixes") });
 				const ul = verBlock.createEl("ul", { cls: "mermaid-flow-changelog-list" });
 				for (const fix of item.fixes) {
-					ul.createEl("li", { text: fix });
+					ul.createEl("li", { text: t(fix) });
 				}
 			}
 
 			if (item.security && item.security.length > 0) {
-				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: "Security" });
+				verBlock.createEl("h4", { cls: "mermaid-flow-changelog-section-title", text: t("Security") });
 				const ul = verBlock.createEl("ul", { cls: "mermaid-flow-changelog-list" });
 				for (const s of item.security) {
-					ul.createEl("li", { text: s });
+					ul.createEl("li", { text: t(s) });
 				}
 			}
 		}
@@ -194,14 +195,14 @@ export class ChangelogModal extends Modal {
 		const footer = content.createDiv({ cls: "mermaid-flow-modal-footer" });
 
 		const kofiBtn = footer.createEl("button", {
-			text: "Support on Ko-fi",
+			text: t("Support on Ko-fi"),
 		});
 		kofiBtn.addEventListener("click", () => {
 			openKofi();
 		});
 
 		const githubBtn = footer.createEl("button", {
-			text: "View on GitHub",
+			text: t("View on GitHub"),
 		});
 		githubBtn.addEventListener("click", () => {
 			activeWindow.open("https://github.com/THANSHEER/obsidian-mermaid-flow/releases", "_blank");
@@ -209,7 +210,7 @@ export class ChangelogModal extends Modal {
 
 		const closeBtn = footer.createEl("button", {
 			cls: "mod-cta",
-			text: "Got it",
+			text: t("Got it"),
 		});
 		closeBtn.addEventListener("click", () => {
 			this.close();

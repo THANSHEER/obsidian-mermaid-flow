@@ -100,3 +100,8 @@ export const Platform = {
 
 export const requestUrl = async () => ({ status: 200, json: async () => ({}) });
 export const setIcon = () => {};
+
+/** Obsidian app language, which the i18n layer follows when set to auto. */
+export function getLanguage(): string {
+	return "en";
+}
