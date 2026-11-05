@@ -2,6 +2,7 @@
  * The right-hand properties / inspector panel for the visual editor.
  */
 
+import { t } from "./i18n";
 import type { DiagramCanvas } from "./canvas";
 import {
 	DiagramEdge,
@@ -91,23 +92,23 @@ export class PropertiesPanel {
 
 		if (!sel) {
 			const empty = model.nodes.length === 0;
-			this.panelEl.createEl("h3", { text: empty ? "Get started" : "Properties" });
+			this.panelEl.createEl("h3", { text: empty ? t("Get started") : t("Properties") });
 			const hint = this.panelEl.createDiv({ cls: "mermaid-flow-hint" });
 			hint.createEl("p", {
 				text: empty
-					? "Build a flowchart visually — no Mermaid syntax needed."
-					: "Select a node or edge to edit it.",
+					? t("Build a flowchart visually — no Mermaid syntax needed.")
+					: t("Select a node or edge to edit it."),
 			});
 			const list = hint.createEl("ul");
-			list.createEl("li", { text: "Click a shape in the toolbar to add a node." });
-			list.createEl("li", { text: "Drag a node to move it; drag a blue edge dot to connect." });
-			list.createEl("li", { text: "Shift-click or drag a box to select several nodes." });
-			list.createEl("li", { text: "Right-click a node or edge for more actions." });
+			list.createEl("li", { text: t("Click a shape in the toolbar to add a node.") });
+			list.createEl("li", { text: t("Drag a node to move it; drag a blue edge dot to connect.") });
+			list.createEl("li", { text: t("Shift-click or drag a box to select several nodes.") });
+			list.createEl("li", { text: t("Right-click a node or edge for more actions.") });
 			this.buildDiagramSection(model);
 			this.endSection();
 			this.panelEl.createDiv({
 				cls: "mermaid-flow-stats",
-				text: `${model.nodes.length} nodes · ${model.edges.length} edges`,
+				text: t("{nodes} nodes · {edges} edges", { nodes: model.nodes.length, edges: model.edges.length }),
 			});
 			return null;
 		}
@@ -139,18 +140,18 @@ export class PropertiesPanel {
 			.map((id) => model.nodes.find((n) => n.id === id))
 			.filter((n): n is DiagramNode => n !== undefined);
 
-		this.panelEl.createEl("h3", { text: `${ids.length} nodes selected` });
+		this.panelEl.createEl("h3", { text: t("{count} nodes selected", { count: ids.length }) });
 		this.panelEl.createDiv({
 			cls: "mermaid-flow-hint",
-			text: "Style changes apply to all selected nodes.",
+			text: t("Style changes apply to all selected nodes."),
 		});
 
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Style as" });
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: t("Style as") });
 		const chipRow = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
 		for (const preset of STYLE_PRESETS) {
 			const chip = chipRow.createEl("button", {
 				cls: "mermaid-flow-chip",
-				text: preset.label,
+				text: t(preset.label),
 			});
 			chip.style.setProperty("border-color", preset.style.strokeColor ?? "");
 			chip.addEventListener("click", () => {
@@ -164,7 +165,7 @@ export class PropertiesPanel {
 			});
 		}
 
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Text & style" });
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: t("Text & style") });
 
 		this.colorField("Fill color", undefined, "#ffffff", (value) => {
 			for (const n of nodes) { if (!n.style) n.style = {}; n.style.fillColor = value; }
@@ -181,7 +182,7 @@ export class PropertiesPanel {
 
 		const resetRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons" });
 		resetRow.createEl("button", {
-			text: "Reset style for all",
+			text: t("Reset style for all"),
 			cls: "mermaid-flow-panel-btn mod-warning",
 		}).addEventListener("click", () => {
 			for (const n of nodes) n.style = undefined;
@@ -196,18 +197,18 @@ export class PropertiesPanel {
 	private buildDiagramSection(model: DiagramModel): void {
 		this.sectionHead("Diagram");
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field-inline" });
-		field.createEl("label", { text: "Background" });
+		field.createEl("label", { text: t("Background") });
 		const controls = field.createDiv({ cls: "mermaid-flow-bg-controls" });
 
 		const color = controls.createEl("input", {
 			type: "color",
-			attr: { "aria-label": "Diagram background color" },
+			attr: { "aria-label": t("Diagram background color") },
 		});
 		color.value = model.config.background ?? "#ffffff";
 
 		const transparent = controls.createEl("button", {
 			cls: "mermaid-flow-chip",
-			text: "Transparent",
+			text: t("Transparent"),
 		});
 		transparent.toggleClass("is-active", !model.config.background);
 
@@ -270,7 +271,7 @@ export class PropertiesPanel {
 		} else {
 			this.panelEl.createDiv({
 				cls: "mermaid-flow-hint",
-				text: "No classes yet — add one to create a reusable style shared by several nodes.",
+				text: t("No classes yet — add one to create a reusable style shared by several nodes."),
 			});
 		}
 
@@ -279,12 +280,12 @@ export class PropertiesPanel {
 		const input = addRow.createEl("input", {
 			type: "text",
 			cls: "mermaid-flow-input",
-			attr: { placeholder: "New class name", "aria-label": "New class name" },
+			attr: { placeholder: t("New class name"), "aria-label": t("New class name") },
 		});
 		const addBtn = addRow.createEl("button", {
-			text: "Add",
+			text: t("Add"),
 			cls: "mermaid-flow-panel-btn",
-			attr: { "aria-label": "Create class and assign to this node" },
+			attr: { "aria-label": t("Create class and assign to this node") },
 		});
 		const addClass = () => {
 			const name = input.value.trim();
@@ -360,10 +361,10 @@ export class PropertiesPanel {
 	private buildGroupPanel(id: string, model: DiagramModel): void {
 		const group = model.groups.find((g) => g.id === id);
 		if (!group) return;
-		this.panelEl.createEl("h3", { text: "Subgraph" });
+		this.panelEl.createEl("h3", { text: t("Subgraph") });
 		this.panelEl.createDiv({
 			cls: "mermaid-flow-field-readonly",
-			text: `id: ${group.id} · ${group.nodeIds.length} nodes`,
+			text: t("id: {id} · {count} nodes", { id: group.id, count: group.nodeIds.length }),
 		});
 		this.labelField("Title", group.title, (value) => {
 			group.title = value;
@@ -373,7 +374,7 @@ export class PropertiesPanel {
 		this.buildGroupParentField(group, model);
 		this.panelEl.createDiv({
 			cls: "mermaid-flow-hint",
-			text: "Drag the title bar to move the whole group. Assign more nodes from each node's panel.",
+			text: t("Drag the title bar to move the whole group. Assign more nodes from each node's panel."),
 		});
 		this.dangerButton("Ungroup (keep nodes)", () => this.ops.ungroupSelected());
 	}
@@ -384,7 +385,7 @@ export class PropertiesPanel {
 		const node = model.nodes.find((n) => n.id === id);
 		if (!node) return null;
 
-		this.panelEl.createEl("h3", { text: "Node" });
+		this.panelEl.createEl("h3", { text: t("Node") });
 		this.panelEl.createDiv({ cls: "mermaid-flow-field-readonly", text: `id: ${node.id}` });
 
 		this.sectionHead("Content");
@@ -396,7 +397,7 @@ export class PropertiesPanel {
 		this.linkField(node);
 
 		this.sectionHead("Shape & size");
-		this.selectField("Shape", NODE_SHAPES, (s) => SHAPE_LABELS[s], node.shape, (value) => {
+		this.selectField("Shape", NODE_SHAPES, (s) => t(SHAPE_LABELS[s]), node.shape, (value) => {
 			node.shape = value;
 			this.ops.render();
 			this.ops.commit();
@@ -412,7 +413,7 @@ export class PropertiesPanel {
 
 		// Lock toggle
 		const lockRow = this.panelEl.createDiv({ cls: "mermaid-flow-field-inline" });
-		lockRow.createEl("label", { text: "Lock position" });
+		lockRow.createEl("label", { text: t("Lock position") });
 		const lockToggle = lockRow.createEl("input", { type: "checkbox" });
 		lockToggle.checked = !!node.locked;
 		lockToggle.addEventListener("change", () => {
@@ -423,11 +424,11 @@ export class PropertiesPanel {
 
 		const actionsRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons mermaid-flow-panel-buttons-row" });
 		actionsRow.createEl("button", {
-			text: "Duplicate",
+			text: t("Duplicate"),
 			cls: "mermaid-flow-panel-btn",
 		}).addEventListener("click", () => this.ops.duplicateSelected());
 		actionsRow.createEl("button", {
-			text: "Delete node",
+			text: t("Delete node"),
 			cls: "mermaid-flow-panel-btn mod-warning",
 		}).addEventListener("click", () => this.ops.deleteSelected());
 
@@ -437,21 +438,21 @@ export class PropertiesPanel {
 	private buildNodeSizeField(node: DiagramNode): void {
 		const size = this.getCanvas().effectiveSize(node.id);
 		const row = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		row.createEl("label", { text: "Size" });
+		row.createEl("label", { text: t("Size") });
 		const inputs = row.createDiv({ cls: "mermaid-flow-size-row" });
 
-		inputs.createSpan({ cls: "mermaid-flow-size-affix", text: "W" });
+		inputs.createSpan({ cls: "mermaid-flow-size-affix", text: t("W") });
 		const wInput = inputs.createEl("input", {
 			type: "number",
 			cls: "mermaid-flow-input",
-			attr: { "aria-label": "Node width" },
+			attr: { "aria-label": t("Node width") },
 		});
 		wInput.value = String(node.w ?? size.w);
-		inputs.createSpan({ cls: "mermaid-flow-size-affix", text: "H" });
+		inputs.createSpan({ cls: "mermaid-flow-size-affix", text: t("H") });
 		const hInput = inputs.createEl("input", {
 			type: "number",
 			cls: "mermaid-flow-input",
-			attr: { "aria-label": "Node height" },
+			attr: { "aria-label": t("Node height") },
 		});
 		hInput.value = String(node.h ?? size.h);
 
@@ -466,7 +467,7 @@ export class PropertiesPanel {
 		wInput.addEventListener("change", apply);
 		hInput.addEventListener("change", apply);
 
-		row.createEl("button", { cls: "mermaid-flow-chip", text: "Auto size" })
+		row.createEl("button", { cls: "mermaid-flow-chip", text: t("Auto size") })
 			.addEventListener("click", () => {
 				delete node.w;
 				delete node.h;
@@ -478,15 +479,15 @@ export class PropertiesPanel {
 
 	private buildNodeGroupField(node: DiagramNode, model: DiagramModel): void {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		field.createEl("label", { text: "Subgraph" });
+		field.createEl("label", { text: t("Subgraph") });
 		const select = field.createEl("select", { cls: "dropdown mermaid-flow-input" });
 		const current = groupOf(model, node.id);
-		select.createEl("option", { text: "(none)", value: "__none__" });
+		select.createEl("option", { text: t("(none)"), value: "__none__" });
 		for (const g of model.groups) {
 			const o = select.createEl("option", { text: g.title || g.id, value: g.id });
 			if (current && current.id === g.id) o.selected = true;
 		}
-		select.createEl("option", { text: "+ New subgraph", value: "__new__" });
+		select.createEl("option", { text: t("+ New subgraph"), value: "__new__" });
 		select.addEventListener("change", () => {
 			const v = select.value;
 			if (v === "__new__") {
@@ -506,11 +507,11 @@ export class PropertiesPanel {
 	/** Parent subgraph selector for a subgraph (nested subgraphs). */
 	private buildGroupParentField(group: DiagramGroup, model: DiagramModel): void {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		field.createEl("label", { text: "Parent subgraph" });
+		field.createEl("label", { text: t("Parent subgraph") });
 		const select = field.createEl("select", { cls: "dropdown mermaid-flow-input" });
 		
 		// Add "(none)" option for root-level subgraphs
-		const noneOption = select.createEl("option", { text: "(none)", value: "__none__" });
+		const noneOption = select.createEl("option", { text: t("(none)"), value: "__none__" });
 		if (!group.parentId) noneOption.selected = true;
 		
 		// Add all valid parent candidates (excluding self and descendants)
@@ -536,17 +537,17 @@ export class PropertiesPanel {
 	}
 
 	private buildStyleAsRow(): void {
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Style as" });
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: t("Style as") });
 		const row = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
 		for (const preset of STYLE_PRESETS) {
-			const chip = row.createEl("button", { cls: "mermaid-flow-chip", text: preset.label });
+			const chip = row.createEl("button", { cls: "mermaid-flow-chip", text: t(preset.label) });
 			chip.style.setProperty("border-color", preset.style.strokeColor ?? "");
 			chip.addEventListener("click", () => this.ops.applyStylePreset(preset.id));
 		}
 	}
 
 	private buildNodeStyleSection(node: DiagramNode): void {
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Text & style" });
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: t("Text & style") });
 
 		this.numberField("Font size (px)", node.style?.fontSize, (value) => {
 			const s = this.ensureStyle(node);
@@ -574,7 +575,7 @@ export class PropertiesPanel {
 		});
 
 		const resetRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons" });
-		resetRow.createEl("button", { text: "Reset style", cls: "mermaid-flow-panel-btn" })
+		resetRow.createEl("button", { text: t("Reset style"), cls: "mermaid-flow-panel-btn" })
 			.addEventListener("click", () => {
 				node.style = undefined;
 				this.ops.render();
@@ -584,10 +585,10 @@ export class PropertiesPanel {
 	}
 
 	private buildQuickAddRow(): void {
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Quick add" });
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: t("Quick add") });
 		const row = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
 		const mk = (label: string, fn: () => void) =>
-			row.createEl("button", { cls: "mermaid-flow-chip", text: label })
+			row.createEl("button", { cls: "mermaid-flow-chip", text: t(label) })
 				.addEventListener("click", fn);
 		mk("Step after", () => this.ops.quickAddStep());
 		mk("Parallel sibling", () => this.ops.quickAddChild());
@@ -599,7 +600,7 @@ export class PropertiesPanel {
 	private buildEdgePanel(id: string, model: DiagramModel): void {
 		const edge = model.edges.find((e) => e.id === id);
 		if (!edge) return;
-		this.panelEl.createEl("h3", { text: "Edge" });
+		this.panelEl.createEl("h3", { text: t("Edge") });
 		this.panelEl.createDiv({
 			cls: "mermaid-flow-field-readonly",
 			text: `${edge.from} → ${edge.to}`,
@@ -611,7 +612,7 @@ export class PropertiesPanel {
 			this.ops.commit();
 		});
 
-		this.selectField("Type", EDGE_KINDS, (k) => EDGE_LABELS[k], edge.kind, (value) => {
+		this.selectField("Type", EDGE_KINDS, (k) => t(EDGE_LABELS[k]), edge.kind, (value) => {
 			edge.kind = value;
 			this.ops.render();
 			this.ops.commit();
@@ -622,7 +623,7 @@ export class PropertiesPanel {
 
 		// Animated toggle
 		const animRow = this.panelEl.createDiv({ cls: "mermaid-flow-field-inline" });
-		animRow.createEl("label", { text: "Animated" });
+		animRow.createEl("label", { text: t("Animated") });
 		const animToggle = animRow.createEl("input", { type: "checkbox" });
 		animToggle.checked = !!edge.animated;
 		animToggle.addEventListener("change", () => {
@@ -632,17 +633,17 @@ export class PropertiesPanel {
 		});
 
 		const btnRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons" });
-		btnRow.createEl("button", { text: "Reverse direction", cls: "mermaid-flow-panel-btn" })
+		btnRow.createEl("button", { text: t("Reverse direction"), cls: "mermaid-flow-panel-btn" })
 			.addEventListener("click", () => this.ops.reverseSelectedEdge());
 
 		this.dangerButton("Delete edge", () => this.ops.deleteSelected());
 	}
 
 	private buildEdgePresetsRow(edge: DiagramEdge): void {
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Preset style" });
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: t("Preset style") });
 		const row = this.panelEl.createDiv({ cls: "mermaid-flow-chip-row" });
 		for (const preset of EDGE_PRESETS) {
-			const chip = row.createEl("button", { cls: "mermaid-flow-chip", text: preset.label });
+			const chip = row.createEl("button", { cls: "mermaid-flow-chip", text: t(preset.label) });
 			chip.addEventListener("click", () => {
 				edge.kind = preset.kind;
 				edge.style = { ...preset.style };
@@ -654,7 +655,7 @@ export class PropertiesPanel {
 	}
 
 	private buildEdgeStyleSection(edge: DiagramEdge): void {
-		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: "Line & label style" });
+		this.panelEl.createEl("h4", { cls: "mermaid-flow-subhead", text: t("Line & label style") });
 
 		this.colorField("Line color", edge.style?.strokeColor, "#888888", (value) => {
 			this.ensureEdgeStyle(edge).strokeColor = value;
@@ -678,7 +679,7 @@ export class PropertiesPanel {
 		});
 
 		const resetRow = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons" });
-		resetRow.createEl("button", { text: "Reset style", cls: "mermaid-flow-panel-btn" })
+		resetRow.createEl("button", { text: t("Reset style"), cls: "mermaid-flow-panel-btn" })
 			.addEventListener("click", () => {
 				edge.style = undefined;
 				this.ops.render();
@@ -698,7 +699,7 @@ export class PropertiesPanel {
 			cls: "mermaid-flow-section",
 		});
 		details.open = !this.collapseSections;
-		details.createEl("summary", { cls: "mermaid-flow-subhead", text });
+		details.createEl("summary", { cls: "mermaid-flow-subhead", text: t(text) });
 		const body = details.createDiv({ cls: "mermaid-flow-section-body" });
 		this.sectionParent = this.panelEl;
 		this.panelEl = body;
@@ -716,7 +717,7 @@ export class PropertiesPanel {
 		onInput: (value: string) => void,
 	): HTMLTextAreaElement {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		field.createEl("label", { text: label });
+		field.createEl("label", { text: t(label) });
 		const textarea = field.createEl("textarea", { cls: "mermaid-flow-textarea" });
 		textarea.value = value;
 		textarea.rows = 1;
@@ -758,17 +759,17 @@ export class PropertiesPanel {
 	/** Node hyperlink: a free-text target plus a note picker and an open button. */
 	private linkField(node: DiagramNode): void {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		field.createEl("label", { text: "Link" });
+		field.createEl("label", { text: t("Link") });
 		const input = field.createEl("input", {
 			type: "text",
 			cls: "mermaid-flow-input",
-			attr: { placeholder: "[[Note]] or https://…" },
+			attr: { placeholder: t("[[Note]] or https://…") },
 		});
 		input.value = node.link ?? "";
 
 		const btnRow = field.createDiv({ cls: "mermaid-flow-link-buttons" });
-		const pickBtn = btnRow.createEl("button", { text: "Pick note", cls: "mermaid-flow-panel-btn" });
-		const openBtn = btnRow.createEl("button", { text: "Open", cls: "mermaid-flow-panel-btn" });
+		const pickBtn = btnRow.createEl("button", { text: t("Pick note"), cls: "mermaid-flow-panel-btn" });
+		const openBtn = btnRow.createEl("button", { text: t("Open"), cls: "mermaid-flow-panel-btn" });
 		openBtn.disabled = input.value.trim() === "";
 
 		input.addEventListener("input", () => {
@@ -805,9 +806,9 @@ export class PropertiesPanel {
 		onChange: (value: number | null) => void,
 	): void {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		field.createEl("label", { text: label });
+		field.createEl("label", { text: t(label) });
 		const input = field.createEl("input", { type: "number", cls: "mermaid-flow-input" });
-		input.placeholder = "auto";
+		input.placeholder = t("auto");
 		input.min = "6";
 		if (value !== undefined) input.value = String(value);
 		input.addEventListener("input", () => {
@@ -825,7 +826,7 @@ export class PropertiesPanel {
 		onChange: (value: string) => void,
 	): void {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field-inline" });
-		field.createEl("label", { text: label });
+		field.createEl("label", { text: t(label) });
 		const input = field.createEl("input", { type: "color" });
 		input.value = value ?? fallback;
 		input.addEventListener("input", () => onChange(input.value));
@@ -839,7 +840,7 @@ export class PropertiesPanel {
 		onChange: (value: T) => void,
 	): void {
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		field.createEl("label", { text: label });
+		field.createEl("label", { text: t(label) });
 		const select = field.createEl("select", { cls: "dropdown mermaid-flow-input" });
 		for (const opt of options) {
 			const o = select.createEl("option", { text: labelFor(opt), value: opt });
@@ -864,10 +865,10 @@ export class PropertiesPanel {
 			{ label: "Verdana", value: "Verdana" },
 		];
 		const field = this.panelEl.createDiv({ cls: "mermaid-flow-field" });
-		field.createEl("label", { text: "Font family" });
+		field.createEl("label", { text: t("Font family") });
 		const select = field.createEl("select", { cls: "dropdown mermaid-flow-input" });
 		for (const f of families) {
-			const o = select.createEl("option", { text: f.label, value: f.value });
+			const o = select.createEl("option", { text: t(f.label), value: f.value });
 			if ((current ?? "") === f.value) o.selected = true;
 		}
 		select.addEventListener("change", () => onChange(select.value));
@@ -875,7 +876,7 @@ export class PropertiesPanel {
 
 	private dangerButton(text: string, onClick: () => void): void {
 		const row = this.panelEl.createDiv({ cls: "mermaid-flow-panel-buttons" });
-		row.createEl("button", { text, cls: "mermaid-flow-panel-btn mod-warning" })
+		row.createEl("button", { text: t(text), cls: "mermaid-flow-panel-btn mod-warning" })
 			.addEventListener("click", onClick);
 	}
 

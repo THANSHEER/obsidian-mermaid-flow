@@ -12,6 +12,7 @@
  * Line ranges are read straight from editor state, so write-back is reliable.
  */
 
+import { t } from "./i18n";
 import { setIcon } from "obsidian";
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import {
@@ -144,7 +145,7 @@ export function mermaidLivePreviewExtension(cb: LivePreviewCallbacks) {
 
 				const codeBtn = overlay.createEl("button", {
 					cls: "mermaid-flow-overlay-btn",
-					attr: { "aria-label": "Edit Mermaid code" },
+					attr: { "aria-label": t("Edit Mermaid code") },
 				});
 				setIcon(codeBtn, "code");
 
@@ -165,7 +166,7 @@ export function mermaidLivePreviewExtension(cb: LivePreviewCallbacks) {
 
 				const editBtn = overlay.createEl("button", {
 					cls: "mermaid-flow-overlay-btn mermaid-flow-edit-btn mod-cta",
-					text: "Edit",
+					text: t("Edit"),
 				});
 				editBtn.addEventListener("click", (e) => {
 					guard(e);

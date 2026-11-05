@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 /*
  * Lightweight visual editor modal for sequence / mindmap / ER diagrams.
  */
@@ -82,7 +83,7 @@ export class AltDiagramModal extends Modal {
 			mindmap: "Mindmap editor",
 			er: "Entity-relationship editor",
 		};
-		this.titleEl.setText(titles[this.kind]);
+		this.titleEl.setText(t(titles[this.kind]));
 
 		const root = this.contentEl;
 		root.addClass("mermaid-flow-alt-editor");
@@ -95,19 +96,19 @@ export class AltDiagramModal extends Modal {
 		this.canvasHost = body.createDiv({ cls: "mermaid-flow-alt-canvas" });
 
 		const footer = root.createDiv({ cls: "mermaid-flow-footer" });
-		const discard = footer.createEl("button", { text: "Discard" });
+		const discard = footer.createEl("button", { text: t("Discard") });
 		discard.addEventListener("click", () => this.close());
-		const save = footer.createEl("button", { text: "Save", cls: "mod-cta" });
+		const save = footer.createEl("button", { text: t("Save"), cls: "mod-cta" });
 		save.addEventListener("click", () => {
 			save.disabled = true;
 			this.onSave(serializeAltDiagram(this.model))
 				.then(() => {
-					new Notice("Diagram saved to note.");
+					new Notice(t("Diagram saved to note."));
 					this.close();
 				})
 				.catch((e) => {
 					const msg = e instanceof Error ? e.message : String(e);
-					new Notice(`Failed to save diagram: ${msg}`);
+					new Notice(t("Failed to save diagram: {msg}", { msg }));
 				})
 				.finally(() => {
 					save.disabled = false;
@@ -124,7 +125,7 @@ export class AltDiagramModal extends Modal {
 	private buildToolbar(bar: HTMLElement): void {
 		if (this.kind === "sequence") {
 			this.toolBtn(bar, "plus", "Add participant", () => {
-				const id = activeWindow.prompt("Participant id", `P${(this.model as SequenceModel).participants.length + 1}`);
+				const id = activeWindow.prompt(t("Participant id"), `P${(this.model as SequenceModel).participants.length + 1}`);
 				if (!id) return;
 				addSequenceParticipant(this.model as SequenceModel, id.trim());
 				this.refresh();
@@ -132,25 +133,25 @@ export class AltDiagramModal extends Modal {
 			this.toolBtn(bar, "arrow-right", "Add message", () => {
 				const m = this.model as SequenceModel;
 				if (m.participants.length < 2) {
-					new Notice("Add at least two participants first.");
+					new Notice(t("Add at least two participants first."));
 					return;
 				}
 				const from = m.participants[0]!.id;
 				const to = m.participants[1]!.id;
-				const text = activeWindow.prompt("Message text", "message") ?? "message";
+				const text = activeWindow.prompt(t("Message text"), t("message")) ?? t("message");
 				addSequenceMessage(m, { from, to, text, arrow: "->>" });
 				this.refresh();
 			});
 		} else if (this.kind === "mindmap") {
 			this.toolBtn(bar, "plus", "Add child to root", () => {
-				const label = activeWindow.prompt("Node label", "Idea");
+				const label = activeWindow.prompt(t("Node label"), t("Idea"));
 				if (!label) return;
 				addMindmapChild((this.model as MindmapModel).root, label.trim());
 				this.refresh();
 			});
 		} else {
 			this.toolBtn(bar, "plus", "Add entity", () => {
-				const id = activeWindow.prompt("Entity name", `Entity${(this.model as ErModel).entities.length + 1}`);
+				const id = activeWindow.prompt(t("Entity name"), `Entity${(this.model as ErModel).entities.length + 1}`);
 				if (!id) return;
 				const e = addErEntity(this.model as ErModel, id.trim().replace(/\s+/g, "_"));
 				e.attributes.push({ type: "string", name: "id", pk: true });
@@ -162,7 +163,7 @@ export class AltDiagramModal extends Modal {
 	private toolBtn(bar: HTMLElement, icon: string, label: string, onClick: () => void): void {
 		const btn = bar.createEl("button", {
 			cls: "mermaid-flow-icon-btn clickable-icon",
-			attr: { "aria-label": label, title: label },
+			attr: { "aria-label": t(label), title: t(label) },
 		});
 		setIcon(btn, icon);
 		btn.addEventListener("click", onClick);
@@ -178,12 +179,12 @@ export class AltDiagramModal extends Modal {
 
 	private renderSequence(): void {
 		const m = this.model as SequenceModel;
-		this.listHost.createEl("h4", { text: "Participants" });
+		this.listHost.createEl("h4", { text: t("Participants") });
 		for (const p of m.participants) {
 			const row = this.listHost.createDiv({ cls: "mermaid-flow-alt-row" });
 			row.createSpan({ text: p.alias ? `${p.id} (${p.alias})` : p.id });
 		}
-		this.listHost.createEl("h4", { text: "Messages" });
+		this.listHost.createEl("h4", { text: t("Messages") });
 		m.messages.forEach((msg, i) => {
 			const row = this.listHost.createDiv({ cls: "mermaid-flow-alt-row" });
 			const input = row.createEl("input", {
@@ -195,7 +196,7 @@ export class AltDiagramModal extends Modal {
 				msg.text = input.value;
 				this.drawSequenceSvg();
 			});
-			const del = row.createEl("button", { cls: "mermaid-flow-panel-btn mod-warning", text: "×" });
+			const del = row.createEl("button", { cls: "mermaid-flow-panel-btn mod-warning", text: t("×") });
 			del.addEventListener("click", () => {
 				m.messages.splice(i, 1);
 				this.refresh();
@@ -279,7 +280,7 @@ export class AltDiagramModal extends Modal {
 
 	private renderMindmap(): void {
 		const m = this.model as MindmapModel;
-		this.listHost.createEl("h4", { text: "Tree" });
+		this.listHost.createEl("h4", { text: t("Tree") });
 		const walk = (node: MindmapNode, depth: number) => {
 			const row = this.listHost.createDiv({ cls: "mermaid-flow-alt-row" });
 			row.createSpan({
@@ -287,11 +288,11 @@ export class AltDiagramModal extends Modal {
 			});
 			const add = row.createEl("button", {
 				cls: "mermaid-flow-panel-btn",
-				text: "+",
-				attr: { title: "Add child" },
+				text: t("+"),
+				attr: { title: t("Add child") },
 			});
 			add.addEventListener("click", () => {
-				const label = activeWindow.prompt("Child label", "Idea");
+				const label = activeWindow.prompt(t("Child label"), t("Idea"));
 				if (!label) return;
 				addMindmapChild(node, label.trim());
 				this.refresh();
@@ -359,22 +360,22 @@ export class AltDiagramModal extends Modal {
 
 	private renderEr(): void {
 		const m = this.model as ErModel;
-		this.listHost.createEl("h4", { text: "Entities" });
+		this.listHost.createEl("h4", { text: t("Entities") });
 		for (const e of m.entities) {
 			const row = this.listHost.createDiv({ cls: "mermaid-flow-alt-row" });
-			row.createSpan({ text: `${e.id} (${e.attributes.length} attrs)` });
+			row.createSpan({ text: t("{id} ({count} attrs)", { id: e.id, count: e.attributes.length }) });
 			const addAttr = row.createEl("button", {
 				cls: "mermaid-flow-panel-btn",
-				text: "+ attr",
+				text: t("+ attr"),
 			});
 			addAttr.addEventListener("click", () => {
-				const name = activeWindow.prompt("Attribute name", "field");
+				const name = activeWindow.prompt(t("Attribute name"), t("field"));
 				if (!name) return;
 				e.attributes.push({ type: "string", name: name.trim() });
 				this.refresh();
 			});
 		}
-		this.listHost.createEl("h4", { text: "Relations" });
+		this.listHost.createEl("h4", { text: t("Relations") });
 		for (const r of m.relations) {
 			this.listHost.createDiv({
 				cls: "mermaid-flow-alt-row",
@@ -384,7 +385,7 @@ export class AltDiagramModal extends Modal {
 		if (m.entities.length >= 2) {
 			const btn = this.listHost.createEl("button", {
 				cls: "mermaid-flow-panel-btn",
-				text: "Link first two entities",
+				text: t("Link first two entities"),
 			});
 			btn.addEventListener("click", () => {
 				const a = m.entities[0]!;

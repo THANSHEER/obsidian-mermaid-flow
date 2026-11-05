@@ -6,6 +6,7 @@
  * node.x / node.y are treated as the CENTRE of each node.
  */
 
+import { t } from "./i18n";
 import {
 	DiagramEdge,
 	DiagramModel,
@@ -716,14 +717,14 @@ export class DiagramCanvas {
 		const inner = this.emptyState.createDiv({
 			cls: "mermaid-flow-canvas-empty-inner",
 		});
-		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
+		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: t("◆") });
 		inner.createEl("p", {
 			cls: "mermaid-flow-canvas-empty-title",
-			text: "Start your diagram",
+			text: t("Start your diagram"),
 		});
 		inner.createEl("p", {
 			cls: "mermaid-flow-canvas-empty-hint",
-			text: "Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect.",
+			text: t("Use the Add shape button in the toolbar to place your first node, then drag from a node's edge dot to connect."),
 		});
 	}
 
@@ -742,7 +743,7 @@ export class DiagramCanvas {
 		);
 		if (!inner) return;
 		clearChildren(inner);
-		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: "◆" });
+		inner.createDiv({ cls: "mermaid-flow-canvas-empty-glyph", text: t("◆") });
 		inner.createEl("p", { cls: "mermaid-flow-canvas-empty-title", text: opts.title });
 		inner.createEl("p", { cls: "mermaid-flow-canvas-empty-hint", text: opts.hint });
 		if (opts.actionLabel && opts.onAction) {

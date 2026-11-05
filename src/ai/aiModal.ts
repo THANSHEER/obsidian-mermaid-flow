@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 /*
  * AiGenerateModal — one modal for all three AI tasks:
  *   "image"   pick / drop / paste a diagram screenshot
@@ -53,7 +54,7 @@ export class AiGenerateModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("mermaid-flow-ai-modal");
-		this.titleEl.setText(TITLES[this.mode]);
+		this.titleEl.setText(t(TITLES[this.mode]));
 		const content = this.contentEl;
 
 		if (!this.ai.isConfigured()) {
@@ -74,7 +75,7 @@ export class AiGenerateModal extends Modal {
 		const footer = content.createDiv({ cls: "mermaid-flow-ai-footer" });
 		this.statusEl = footer.createSpan({ cls: "mermaid-flow-ai-status" });
 		this.statusEl.hide();
-		this.generateBtn = footer.createEl("button", { text: "Generate", cls: "mod-cta" });
+		this.generateBtn = footer.createEl("button", { text: t("Generate"), cls: "mod-cta" });
 		this.generateBtn.addEventListener("click", () => {
 			this.generate().catch((e) => console.error("[mermaid-flow]", e));
 		});
@@ -97,7 +98,7 @@ export class AiGenerateModal extends Modal {
 		setIcon(icon, "image-plus");
 		zone.createDiv({
 			cls: "mermaid-flow-ai-dropzone-hint",
-			text: "Click to pick an image, drop one here, or paste from the clipboard",
+			text: t("Click to pick an image, drop one here, or paste from the clipboard"),
 		});
 		this.thumb = zone.createEl("img", { cls: "mermaid-flow-ai-thumb" });
 		this.thumb.hide();
@@ -135,9 +136,9 @@ export class AiGenerateModal extends Modal {
 		activeDocument.addEventListener("paste", this.pasteHandler);
 
 		new Setting(content)
-			.setName("Extra instructions (optional)")
+			.setName(t("Extra instructions (optional)"))
 			.addText((text) => {
-				text.setPlaceholder("e.g. use left-to-right direction");
+				text.setPlaceholder(t("e.g. use left-to-right direction"));
 				this.hintInput = text.inputEl;
 			});
 
@@ -147,11 +148,11 @@ export class AiGenerateModal extends Modal {
 	private buildTextInputs(content: HTMLElement): void {
 		content.createEl("p", {
 			cls: "setting-item-description",
-			text: "Describe the flowchart you want — steps, decisions, branches.",
+			text: t("Describe the flowchart you want — steps, decisions, branches."),
 		});
 		this.textInput = content.createEl("textarea", {
 			cls: "mermaid-flow-ai-textarea",
-			attr: { rows: "6", placeholder: "e.g. user login flow with retry on wrong password" },
+			attr: { rows: "6", placeholder: t("e.g. user login flow with retry on wrong password") },
 		});
 		this.textInput.focus();
 	}
@@ -159,16 +160,16 @@ export class AiGenerateModal extends Modal {
 	private buildImproveInputs(content: HTMLElement): void {
 		content.createEl("p", {
 			cls: "setting-item-description",
-			text: "The AI will fix syntax, clarify labels and simplify structure while keeping the diagram's meaning.",
+			text: t("The AI will fix syntax, clarify labels and simplify structure while keeping the diagram's meaning."),
 		});
 		const details = content.createEl("details", { cls: "mermaid-flow-ai-code-preview" });
-		details.createEl("summary", { text: "Current diagram code" });
+		details.createEl("summary", { text: t("Current diagram code") });
 		details.createEl("pre", { text: this.opts.currentCode ?? "" });
 
 		new Setting(content)
-			.setName("Instructions (optional)")
+			.setName(t("Instructions (optional)"))
 			.addText((text) => {
-				text.setPlaceholder("e.g. make the labels shorter");
+				text.setPlaceholder(t("e.g. make the labels shorter"));
 				this.hintInput = text.inputEl;
 			});
 	}
@@ -177,7 +178,7 @@ export class AiGenerateModal extends Modal {
 
 	private loadImageFile(file: File): void {
 		if (!ACCEPTED_MIMES.includes(file.type)) {
-			this.showError("Unsupported image type. Use PNG, JPEG, WebP or GIF.");
+			this.showError(t("Unsupported image type. Use PNG, JPEG, WebP or GIF."));
 			return;
 		}
 		const reader = new FileReader();
@@ -210,19 +211,19 @@ export class AiGenerateModal extends Modal {
 		this.showError(null);
 		this.generateBtn?.setAttribute("disabled", "true");
 		if (this.statusEl) {
-			this.statusEl.setText("Generating…");
+			this.statusEl.setText(t("Generating…"));
 			this.statusEl.show();
 		}
 
 		try {
 			const { code, warnings } = await this.ai.generateDiagram(task);
 			if (warnings.length > 0) {
-				new Notice(`Generated with ${warnings.length} parser warning(s).`);
+				new Notice(t("Generated with {count} parser warning(s).", { count: warnings.length }));
 			}
 			this.opts.onResult(code);
 			this.close();
 		} catch (err) {
-			this.showError(err instanceof Error ? err.message : "AI generation failed.");
+			this.showError(err instanceof Error ? err.message : t("AI generation failed."));
 		} finally {
 			this.generating = false;
 			this.generateBtn?.removeAttribute("disabled");
@@ -237,7 +238,7 @@ export class AiGenerateModal extends Modal {
 		switch (this.mode) {
 			case "image":
 				if (!this.image) {
-					this.showError("Pick, drop or paste an image first.");
+					this.showError(t("Pick, drop or paste an image first."));
 					return null;
 				}
 				return {
@@ -249,7 +250,7 @@ export class AiGenerateModal extends Modal {
 			case "text": {
 				const description = this.textInput?.value.trim() ?? "";
 				if (!description) {
-					this.showError("Describe the diagram first.");
+					this.showError(t("Describe the diagram first."));
 					return null;
 				}
 				return { kind: "text", description };

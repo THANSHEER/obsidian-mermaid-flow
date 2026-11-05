@@ -6,6 +6,7 @@
  * handles the change pipeline (undo/redo, auto-save) and keyboard shortcuts.
  */
 
+import { t } from "./i18n";
 import { App, FuzzySuggestModal, Menu, Modal, Notice, TFile, loadMermaid, setIcon } from "obsidian";
 import type { AlignDir, DistributeDir } from "./alignTools";
 import { alignNodes, distributeNodes } from "./alignTools";
@@ -150,8 +151,8 @@ export class DiagramEditorUI {
 		const collapseBtn = body.createEl("button", {
 			cls: "mermaid-flow-panel-collapse clickable-icon",
 			attr: {
-				"aria-label": "Collapse properties panel",
-				title: "Collapse properties panel",
+				"aria-label": t("Collapse properties panel"),
+				title: t("Collapse properties panel"),
 			},
 		});
 		setIcon(collapseBtn, "chevrons-right");
@@ -160,11 +161,11 @@ export class DiagramEditorUI {
 			this.root.toggleClass("is-panel-collapsed", next);
 			collapseBtn.setAttribute(
 				"aria-label",
-				next ? "Expand properties panel" : "Collapse properties panel",
+				next ? t("Expand properties panel") : t("Collapse properties panel"),
 			);
 			collapseBtn.setAttribute(
 				"title",
-				next ? "Expand properties panel" : "Collapse properties panel",
+				next ? t("Expand properties panel") : t("Collapse properties panel"),
 			);
 			setIcon(collapseBtn, next ? "chevrons-left" : "chevrons-right");
 		});
@@ -269,7 +270,7 @@ export class DiagramEditorUI {
 			save: () => this.save(),
 			getCanvas: () => this.canvas,
 			getMultiCount: () => this.canvas.getMultiSelection().length,
-			getSaveLabel: () => this.host.saveLabel ?? "Save",
+			getSaveLabel: () => this.host.saveLabel ?? t("Save"),
 		};
 		if (this.host.ai?.showToolbarButton) {
 			tbOps.showAiMenu = (e) => this.showAiMenu(e);
@@ -278,7 +279,7 @@ export class DiagramEditorUI {
 
 		const footer = this.root.createDiv({ cls: "mermaid-flow-footer" });
 		if (this.host.autoSave) {
-			footer.createSpan({ cls: "mermaid-flow-autosave-note", text: "✓ Auto-saving enabled" });
+			footer.createSpan({ cls: "mermaid-flow-autosave-note", text: t("✓ Auto-saving enabled") });
 		}
 
 		this.registerKeys();
@@ -296,22 +297,22 @@ export class DiagramEditorUI {
 			const type = detectDiagramType(this.model.extras.join("\n"));
 			if (!isVisuallyEditable(type)) {
 				this.canvas.setEmptyState({
-					title: `This looks like a ${describeDiagramType(type)}`,
-					hint: "The visual editor supports flowcharts only. Your text is preserved — use the code view to edit it.",
-					actionLabel: "Open code view",
+					title: t("This looks like a {type}", { type: t(describeDiagramType(type)) }),
+					hint: t("The visual editor supports flowcharts only. Your text is preserved — use the code view to edit it."),
+					actionLabel: t("Open code view"),
 					onAction: () => this.codeView.toggle(),
 				});
 			} else {
 				this.canvas.setEmptyState({
-					title: "Nothing here is visually editable",
-					hint: "This block's content isn't recognized as flowchart nodes or edges. It is preserved as-is and re-emitted on save; use the code view to edit it.",
-					actionLabel: "Open code view",
+					title: t("Nothing here is visually editable"),
+					hint: t("This block's content isn't recognized as flowchart nodes or edges. It is preserved as-is and re-emitted on save; use the code view to edit it."),
+					actionLabel: t("Open code view"),
 					onAction: () => this.codeView.toggle(),
 				});
 			}
 		} else if (this.model.extras.length > 0) {
 			new Notice(
-				`${this.model.extras.length} advanced Mermaid line(s) preserved but not shown on the canvas.`,
+				t("{count} advanced Mermaid line(s) preserved but not shown on the canvas.", { count: this.model.extras.length }),
 				5000,
 			);
 		}
@@ -469,7 +470,7 @@ export class DiagramEditorUI {
 			.map((id) => this.model.nodes.find((n) => n.id === id))
 			.filter((n): n is DiagramModel["nodes"][number] => n !== undefined)
 			.map((n) => ({ ...n, style: n.style ? { ...n.style } : undefined }));
-		new Notice(`${this.copyBuffer.length} node(s) copied`);
+		new Notice(t("{count} node(s) copied", { count: this.copyBuffer.length }));
 	}
 
 	private pasteNodes(): void {
@@ -509,7 +510,7 @@ export class DiagramEditorUI {
 			return;
 		}
 		const sel = this.canvas.getSelection();
-		if (!sel) { new Notice("Nothing selected."); return; }
+		if (!sel) { new Notice(t("Nothing selected.")); return; }
 		if (sel.type === "node") removeNode(this.model, sel.id);
 		else removeEdge(this.model, sel.id);
 		this.canvas.select(null);
@@ -523,7 +524,7 @@ export class DiagramEditorUI {
 		const sel = this.canvas.getSelection();
 		const members = multi.length > 0 ? multi : sel?.type === "node" ? [sel.id] : [];
 		if (members.length === 0) {
-			new Notice("Select one or more nodes (Shift-click or drag a box), then group.");
+			new Notice(t("Select one or more nodes (Shift-click or drag a box), then group."));
 			return;
 		}
 		const id = newGroupId(this.model);
@@ -561,7 +562,7 @@ export class DiagramEditorUI {
 	private quickAddStep(): void {
 		const sel = this.canvas.getSelection();
 		if (!sel || sel.type !== "node") return;
-		const id = this.addConnectedNode(sel.id, "Step", "rect", this.flowOffset());
+		const id = this.addConnectedNode(sel.id, t("Step"), "rect", this.flowOffset());
 		if (!id) return;
 		this.canvas.render();
 		this.canvas.select({ type: "node", id });
@@ -584,7 +585,7 @@ export class DiagramEditorUI {
 		const id = nextNodeId(this.model);
 		this.model.nodes.push({
 			id,
-			label: "Sibling",
+			label: t("Sibling"),
 			shape: "rect",
 			x: Math.max(40, Math.round(src.x + offset.dx)),
 			y: Math.max(30, Math.round(src.y + offset.dy)),
@@ -612,13 +613,13 @@ export class DiagramEditorUI {
 		const horiz = dx !== 0;
 		const off1 = horiz ? { dx, dy: -90 } : { dx: -130, dy };
 		const off2 = horiz ? { dx, dy: 90 } : { dx: 130, dy };
-		const yes = this.addConnectedNode(sel.id, "Yes path", "rect", off1);
-		const no = this.addConnectedNode(sel.id, "No path", "rect", off2);
+		const yes = this.addConnectedNode(sel.id, t("Yes path"), "rect", off1);
+		const no = this.addConnectedNode(sel.id, t("No path"), "rect", off2);
 		const edges = this.model.edges.filter((e) => e.from === sel.id);
 		const yesEdge = edges.find((e) => e.to === yes);
 		const noEdge = edges.find((e) => e.to === no);
-		if (yesEdge) yesEdge.label = "Yes";
-		if (noEdge) noEdge.label = "No";
+		if (yesEdge) yesEdge.label = t("Yes");
+		if (noEdge) noEdge.label = t("No");
 		this.canvas.render();
 		this.canvas.select(null);
 		this.commit();
@@ -709,7 +710,7 @@ export class DiagramEditorUI {
 		];
 		for (const { label, kind, icon } of kinds) {
 			menu.addItem((item) =>
-				item.setTitle(label).setIcon(icon).onClick(() => {
+				item.setTitle(t(label)).setIcon(icon).onClick(() => {
 					edge.kind = kind;
 					this.canvas.render();
 					this.refreshPanel();
@@ -726,11 +727,11 @@ export class DiagramEditorUI {
 		const input = bar.createEl("input", {
 			type: "text",
 			cls: "mermaid-flow-find-input",
-			attr: { placeholder: "Find nodes…" },
+			attr: { placeholder: t("Find nodes…") },
 		});
 		const close = bar.createEl("button", { cls: "mermaid-flow-icon-btn clickable-icon" });
 		setIcon(close, "x");
-		close.setAttribute("aria-label", "Close find bar");
+		close.setAttribute("aria-label", t("Close find bar"));
 
 		let lastQuery = "";
 		const run = () => {
@@ -798,13 +799,13 @@ export class DiagramEditorUI {
 		if (!this.host.ai) return;
 		const menu = new Menu();
 		menu.addItem((item) =>
-			item.setTitle("From image…").setIcon("image-plus").onClick(() => this.openAiModal("image")),
+			item.setTitle(t("From image…")).setIcon("image-plus").onClick(() => this.openAiModal("image")),
 		);
 		menu.addItem((item) =>
-			item.setTitle("From description…").setIcon("text-cursor-input").onClick(() => this.openAiModal("text")),
+			item.setTitle(t("From description…")).setIcon("text-cursor-input").onClick(() => this.openAiModal("text")),
 		);
 		menu.addItem((item) =>
-			item.setTitle("Improve diagram").setIcon("wand-2").onClick(() => this.openAiModal("improve")),
+			item.setTitle(t("Improve diagram")).setIcon("wand-2").onClick(() => this.openAiModal("improve")),
 		);
 		menu.showAtMouseEvent(e);
 	}
@@ -850,10 +851,10 @@ export class DiagramEditorUI {
 			this.refreshPanel();
 			this.codeView.sync();
 			this.pushHistory();
-			if (warnings.length > 0) new Notice(`Imported with ${warnings.length} warning(s).`);
-			else new Notice("Diagram imported.");
+			if (warnings.length > 0) new Notice(t("Imported with {count} warning(s).", { count: warnings.length }));
+			else new Notice(t("Diagram imported."));
 		} catch {
-			new Notice("Could not import: invalid Mermaid syntax.");
+			new Notice(t("Could not import: invalid Mermaid syntax."));
 		}
 	}
 
@@ -867,7 +868,7 @@ export class DiagramEditorUI {
 
 	private distributeSelected(dir: DistributeDir): void {
 		const ids = this.canvas.getMultiSelection();
-		if (ids.length < 3) { new Notice("Select at least 3 nodes to distribute."); return; }
+		if (ids.length < 3) { new Notice(t("Select at least 3 nodes to distribute.")); return; }
 		distributeNodes(this.model, ids, dir);
 		this.canvas.render();
 		this.commit();
@@ -887,13 +888,13 @@ export class DiagramEditorUI {
 		if (btn) {
 			setIcon(btn, this.lockLayout ? "lock" : "lock-open");
 			btn.toggleClass("is-active", this.lockLayout);
-			btn.setAttribute("aria-label", this.lockLayout ? "Layout locked" : "Lock layout");
+			btn.setAttribute("aria-label", this.lockLayout ? t("Layout locked") : t("Lock layout"));
 		}
-		new Notice(this.lockLayout ? "Layout locked." : "Layout unlocked.");
+		new Notice(this.lockLayout ? t("Layout locked.") : t("Layout unlocked."));
 	}
 
 	private guardLocked(): boolean {
-		if (this.lockLayout) { new Notice("Layout is locked. Unlock it to change layout."); return true; }
+		if (this.lockLayout) { new Notice(t("Layout is locked. Unlock it to change layout.")); return true; }
 		return false;
 	}
 
@@ -925,7 +926,7 @@ export class DiagramEditorUI {
 		const menu = new Menu();
 		const lib = this.host.getComponentLibrary?.() ?? [];
 		menu.addItem((item) =>
-			item.setTitle("Save selection as component…").setIcon("plus").onClick(() => {
+			item.setTitle(t("Save selection as component…")).setIcon("plus").onClick(() => {
 				this.saveSelectionAsComponent().catch((err) =>
 					console.error("[mermaid-flow]", err),
 				);
@@ -935,33 +936,33 @@ export class DiagramEditorUI {
 			menu.addSeparator();
 			for (const comp of lib) {
 				menu.addItem((item) =>
-					item.setTitle(`Insert: ${comp.name}`).setIcon("box").onClick(() => {
+					item.setTitle(t("Insert: {name}", { name: comp.name })).setIcon("box").onClick(() => {
 						const placed = insertComponent(this.model, comp);
 						this.canvas.render();
 						if (placed.length > 0) this.canvas.selectIds(placed);
 						this.refreshPanel();
 						this.commit();
-						new Notice(`Inserted “${comp.name}”`);
+						new Notice(t("Inserted “{name}”", { name: comp.name }));
 					}),
 				);
 			}
 			menu.addSeparator();
 			for (const comp of lib) {
 				menu.addItem((item) =>
-					item.setTitle(`Delete “${comp.name}”`).setIcon("trash-2").onClick(() => {
+					item.setTitle(t("Delete “{name}”", { name: comp.name })).setIcon("trash-2").onClick(() => {
 						const next = lib.filter((c) => c.id !== comp.id);
 						this.persistComponentLibrary(next)
-							.then(() => new Notice(`Removed “${comp.name}”`))
+							.then(() => new Notice(t("Removed “{name}”", { name: comp.name })))
 							.catch((err) => {
 								console.error("[mermaid-flow]", err);
-								new Notice(`Failed to remove “${comp.name}”.`);
+								new Notice(t("Failed to remove “{name}”.", { name: comp.name }));
 							});
 					}),
 				);
 			}
 		} else {
 			menu.addItem((item) =>
-				item.setTitle("No saved components yet").setDisabled(true),
+				item.setTitle(t("No saved components yet")).setDisabled(true),
 			);
 		}
 		menu.showAtMouseEvent(e);
@@ -975,7 +976,7 @@ export class DiagramEditorUI {
 
 	private async saveSelectionAsComponent(): Promise<void> {
 		if (!this.host.saveComponentLibrary || !this.host.getComponentLibrary) {
-			new Notice("Component library is not available.");
+			new Notice(t("Component library is not available."));
 			return;
 		}
 		const multi = this.canvas.getMultiSelection();
@@ -983,26 +984,26 @@ export class DiagramEditorUI {
 		const members =
 			multi.length > 0 ? multi : sel?.type === "node" ? [sel.id] : [];
 		if (members.length === 0) {
-			new Notice("Select one or more nodes to save as a component.");
+			new Notice(t("Select one or more nodes to save as a component."));
 			return;
 		}
-		const name = activeWindow.prompt("Component name", `Component ${members.length}`);
+		const name = activeWindow.prompt(t("Component name"), t("Component {count}", { count: members.length }));
 		if (name === null) return;
 		const comp = componentFromSelection(this.model, members, name);
 		if (!comp) {
-			new Notice("Could not build component from selection.");
+			new Notice(t("Could not build component from selection."));
 			return;
 		}
 		const next = [...this.host.getComponentLibrary(), comp];
 		await this.persistComponentLibrary(next);
-		new Notice(`Saved “${comp.name}” to the component library.`);
+		new Notice(t("Saved “{name}” to the component library.", { name: comp.name }));
 	}
 
 	private showLayoutMenu(e: MouseEvent): void {
 		const menu = new Menu();
 		for (const preset of LAYOUT_PRESETS) {
 			menu.addItem((item) =>
-				item.setTitle(preset.label).onClick(() => {
+				item.setTitle(t(preset.label)).onClick(() => {
 					if (this.guardLocked()) return;
 					this.model.direction = preset.direction;
 					autoLayout(this.model);
@@ -1014,7 +1015,7 @@ export class DiagramEditorUI {
 		menu.addSeparator();
 		for (const sp of SPACING_PRESETS) {
 			menu.addItem((item) =>
-				item.setTitle(`Spacing: ${sp.label}`).onClick(() => {
+				item.setTitle(t("Spacing: {label}", { label: sp.label })).onClick(() => {
 					if (this.guardLocked()) return;
 					this.model.config.nodeSpacing = sp.nodeSpacing;
 					this.model.config.rankSpacing = sp.rankSpacing;
@@ -1026,7 +1027,7 @@ export class DiagramEditorUI {
 		}
 		menu.addSeparator();
 		menu.addItem((item) =>
-			item.setTitle("Clean up layout").setIcon("sparkles").onClick(() => {
+			item.setTitle(t("Clean up layout")).setIcon("sparkles").onClick(() => {
 				if (this.guardLocked()) return;
 				autoLayout(this.model);
 				this.canvas.render();
@@ -1047,22 +1048,22 @@ export class DiagramEditorUI {
 			const svgY = hasCanvasPoint(e) ? e.svgY ?? 200 : 200;
 			const menu = new Menu();
 			menu.addItem((item) =>
-				item.setTitle("Add node here").setIcon("plus-circle").onClick(() => this.addNodeAt(this.defaultNodeShape(), svgX, svgY)),
+				item.setTitle(t("Add node here")).setIcon("plus-circle").onClick(() => this.addNodeAt(this.defaultNodeShape(), svgX, svgY)),
 			);
 			menu.addItem((item) =>
-				item.setTitle("Select all (Ctrl+A)").setIcon("square-dashed").onClick(() => {
+				item.setTitle(t("Select all (Ctrl+A)")).setIcon("square-dashed").onClick(() => {
 					this.canvas.selectAll();
 					this.refreshPanel();
 				}),
 			);
 			if (this.copyBuffer.length > 0) {
 				menu.addItem((item) =>
-					item.setTitle(`Paste ${this.copyBuffer.length} node(s)`).setIcon("clipboard").onClick(() => this.pasteNodes()),
+					item.setTitle(t("Paste {count} node(s)", { count: this.copyBuffer.length })).setIcon("clipboard").onClick(() => this.pasteNodes()),
 				);
 			}
 			menu.addSeparator();
 			menu.addItem((item) =>
-				item.setTitle("Auto-layout").setIcon("sparkles").onClick(() => {
+				item.setTitle(t("Auto-layout")).setIcon("sparkles").onClick(() => {
 					if (this.guardLocked()) return;
 					autoLayout(this.model);
 					this.canvas.render();
@@ -1075,16 +1076,16 @@ export class DiagramEditorUI {
 
 		const menu = new Menu();
 		if (sel.type === "node") {
-			menu.addItem((item) => item.setTitle("Duplicate").setIcon("copy").onClick(() => this.duplicateSelected()));
-			menu.addItem((item) => item.setTitle("Connect from here").setIcon("spline").onClick(() => this.setMode("connect")));
+			menu.addItem((item) => item.setTitle(t("Duplicate")).setIcon("copy").onClick(() => this.duplicateSelected()));
+			menu.addItem((item) => item.setTitle(t("Connect from here")).setIcon("spline").onClick(() => this.setMode("connect")));
 			menu.addSeparator();
-			menu.addItem((item) => item.setTitle("Add step after").setIcon("plus").onClick(() => this.quickAddStep()));
-			menu.addItem((item) => item.setTitle("Add parallel sibling").setIcon("git-commit").onClick(() => this.quickAddChild()));
-			menu.addItem((item) => item.setTitle("Add Yes/No branch").setIcon("git-branch").onClick(() => this.quickAddBranch()));
-			menu.addItem((item) => item.setTitle("Group into new subgraph").setIcon("group").onClick(() => this.addSubgraph()));
+			menu.addItem((item) => item.setTitle(t("Add step after")).setIcon("plus").onClick(() => this.quickAddStep()));
+			menu.addItem((item) => item.setTitle(t("Add parallel sibling")).setIcon("git-commit").onClick(() => this.quickAddChild()));
+			menu.addItem((item) => item.setTitle(t("Add Yes/No branch")).setIcon("git-branch").onClick(() => this.quickAddBranch()));
+			menu.addItem((item) => item.setTitle(t("Group into new subgraph")).setIcon("group").onClick(() => this.addSubgraph()));
 			if (this.host.getComponentLibrary && this.host.saveComponentLibrary) {
 				menu.addItem((item) =>
-					item.setTitle("Save selection as component…").setIcon("library").onClick(() => {
+					item.setTitle(t("Save selection as component…")).setIcon("library").onClick(() => {
 						this.saveSelectionAsComponent().catch((err) =>
 							console.error("[mermaid-flow]", err),
 						);
@@ -1092,16 +1093,16 @@ export class DiagramEditorUI {
 				);
 			}
 			menu.addSeparator();
-			menu.addItem((item) => item.setTitle("Bring to front").setIcon("layers").onClick(() => this.bringToFront()));
-			menu.addItem((item) => item.setTitle("Send to back").setIcon("layers").onClick(() => this.sendToBack()));
+			menu.addItem((item) => item.setTitle(t("Bring to front")).setIcon("layers").onClick(() => this.bringToFront()));
+			menu.addItem((item) => item.setTitle(t("Send to back")).setIcon("layers").onClick(() => this.sendToBack()));
 			menu.addSeparator();
-			menu.addItem((item) => item.setTitle("Delete node").setIcon("trash-2").onClick(() => this.deleteSelected()));
+			menu.addItem((item) => item.setTitle(t("Delete node")).setIcon("trash-2").onClick(() => this.deleteSelected()));
 		} else if (sel.type === "edge") {
-			menu.addItem((item) => item.setTitle("Reverse direction").setIcon("arrow-left-right").onClick(() => this.reverseSelectedEdge()));
+			menu.addItem((item) => item.setTitle(t("Reverse direction")).setIcon("arrow-left-right").onClick(() => this.reverseSelectedEdge()));
 			menu.addSeparator();
-			menu.addItem((item) => item.setTitle("Delete edge").setIcon("trash-2").onClick(() => this.deleteSelected()));
+			menu.addItem((item) => item.setTitle(t("Delete edge")).setIcon("trash-2").onClick(() => this.deleteSelected()));
 		} else {
-			menu.addItem((item) => item.setTitle("Ungroup").setIcon("ungroup").onClick(() => this.ungroupSelected()));
+			menu.addItem((item) => item.setTitle(t("Ungroup")).setIcon("ungroup").onClick(() => this.ungroupSelected()));
 		}
 		menu.showAtMouseEvent(e);
 	}
@@ -1119,12 +1120,12 @@ export class DiagramEditorUI {
 			.then((mermaid: MermaidApi) =>
 				Promise.resolve(mermaid.parse(code)).catch((err: unknown) => {
 					const msg = err instanceof Error ? err.message : String(err);
-					new Notice(`Saved, but Mermaid reports a syntax error: ${msg}`);
+					new Notice(t("Saved, but Mermaid reports a syntax error: {msg}", { msg }));
 				}),
 			)
 			.catch(() => { /* mermaid unavailable — validation is best-effort */ });
 		if (this.host.closeOnSave) this.host.close();
-		else new Notice("Diagram saved to note.");
+		else new Notice(t("Diagram saved to note."));
 	}
 
 	// --- keyboard shortcuts -------------------------------------------------
@@ -1226,11 +1227,11 @@ export class DiagramEditorUI {
 
 	private showHelpDialog(): void {
 		const modal = new Modal(this.app);
-		modal.titleEl.setText("Keyboard Shortcuts & Help");
+		modal.titleEl.setText(t("Keyboard Shortcuts & Help"));
 		const content = modal.contentEl;
 		content.addClass("mermaid-flow-help-modal");
 
-		content.createEl("h3", { text: "⌨️ Keyboard Shortcuts" });
+		content.createEl("h3", { text: t("⌨️ Keyboard Shortcuts") });
 		const shortcuts = [
 			{ key: "Ctrl+Z / Cmd+Z", action: "Undo" },
 			{ key: "Ctrl+Shift+Z / Cmd+Shift+Z", action: "Redo" },
@@ -1254,10 +1255,10 @@ export class DiagramEditorUI {
 		for (const { key, action } of shortcuts) {
 			const row = table.createEl("tr");
 			row.createEl("td", { text: key, cls: "mermaid-flow-key" });
-			row.createEl("td", { text: action });
+			row.createEl("td", { text: t(action) });
 		}
 
-		content.createEl("h3", { text: "🖱️ Canvas Controls" });
+		content.createEl("h3", { text: t("🖱️ Canvas Controls") });
 		const controls = [
 			"Scroll or use scrollbars to pan; Space+drag also pans",
 			"Ctrl/Cmd+Scroll to zoom, or use toolbar +/− buttons",
@@ -1269,9 +1270,9 @@ export class DiagramEditorUI {
 			"Right-click anywhere for context actions",
 		];
 		const ul = content.createEl("ul");
-		for (const c of controls) ul.createEl("li", { text: c });
+		for (const c of controls) ul.createEl("li", { text: t(c) });
 
-		content.createEl("h3", { text: "💡 Tips" });
+		content.createEl("h3", { text: t("💡 Tips") });
 		const tips = [
 			"Select 2+ nodes to access Align & Distribute in the toolbar",
 			"Use the Code button to view and edit raw Mermaid",
@@ -1279,9 +1280,9 @@ export class DiagramEditorUI {
 			"Subgraphs keep related nodes visually grouped",
 		];
 		const tipsList = content.createEl("ul");
-		for (const tip of tips) tipsList.createEl("li", { text: tip });
+		for (const tip of tips) tipsList.createEl("li", { text: t(tip) });
 
-		const closeBtn = content.createEl("button", { text: "Close", cls: "mermaid-flow-modal-close-btn" });
+		const closeBtn = content.createEl("button", { text: t("Close"), cls: "mermaid-flow-modal-close-btn" });
 		closeBtn.addEventListener("click", () => modal.close());
 		modal.open();
 	}
@@ -1297,7 +1298,7 @@ class LinkPickerModal extends FuzzySuggestModal<TFile> {
 		private onResolve: (value: string | null) => void,
 	) {
 		super(app);
-		this.setPlaceholder("Link this node to a note…");
+		this.setPlaceholder(t("Link this node to a note…"));
 	}
 
 	getItems(): TFile[] {

@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 /*
  * AiService — the single entry point the UI talks to. Picks the provider from
  * current settings, builds the prompt for the requested task, and validates
@@ -40,7 +41,7 @@ export class AiService {
 
 	/** Human-readable hint shown when isConfigured() is false. */
 	configurationHint(): string {
-		return "Configure the AI provider in the Mermaid Flow settings first.";
+		return t("Configure the AI provider in the Mermaid Flow settings first.");
 	}
 
 	async generateDiagram(task: AiTask): Promise<{ code: string; warnings: string[] }> {
@@ -50,7 +51,7 @@ export class AiService {
 		const code = extractMermaid(raw);
 		const { model, warnings } = mermaidToModel(code);
 		if (model.nodes.length === 0) {
-			throw new Error("The AI did not return a recognizable flowchart. Try again or rephrase.");
+			throw new Error(t("The AI did not return a recognizable flowchart. Try again or rephrase."));
 		}
 		return { code, warnings };
 	}

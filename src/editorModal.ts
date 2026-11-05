@@ -2,6 +2,7 @@
  * Popup (Modal) host for the visual editor.
  */
 
+import { t } from "./i18n";
 import { App, Modal } from "obsidian";
 import type { LibraryComponent } from "./componentLibrary";
 import { AiHostBridge, DiagramEditorUI } from "./editorUI";
@@ -54,7 +55,7 @@ export class MermaidEditorModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("mermaid-flow-modal");
-		this.titleEl.setText("Visual Mermaid Editor");
+		this.titleEl.setText(t("Visual Mermaid Editor"));
 		// Same docked "Discard" / "Save" toolbar buttons as the embedded pane
 		// (omitting actionsSlot keeps the toolbar off title-bar icon mode).
 		// The native close X stays — Esc and the X both act as Discard.
