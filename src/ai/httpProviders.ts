@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 /*
  * HTTP AI providers: Anthropic, OpenAI-compatible (OpenAI / OpenRouter /
  * Ollama / LM Studio / any custom base URL) and Google Gemini.
@@ -62,7 +63,7 @@ export function buildAnthropicRequest(
 
 export function parseAnthropicResponse(json: unknown): string {
 	const blocks = (json as { content?: Array<{ type: string; text?: string }> })?.content;
-	if (!Array.isArray(blocks)) throw new Error("Unexpected Anthropic response shape.");
+	if (!Array.isArray(blocks)) throw new Error(t("Unexpected Anthropic response shape."));
 	return blocks
 		.filter((b) => b.type === "text")
 		.map((b) => b.text ?? "")
@@ -117,7 +118,7 @@ export function buildOpenAiRequest(
 export function parseOpenAiResponse(json: unknown): string {
 	const text = (json as { choices?: Array<{ message?: { content?: string } }> })
 		?.choices?.[0]?.message?.content;
-	if (typeof text !== "string") throw new Error("Unexpected OpenAI-compatible response shape.");
+	if (typeof text !== "string") throw new Error(t("Unexpected OpenAI-compatible response shape."));
 	return text;
 }
 
@@ -159,7 +160,7 @@ export function parseGeminiResponse(json: unknown): string {
 	const parts = (json as {
 		candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
 	})?.candidates?.[0]?.content?.parts;
-	if (!Array.isArray(parts)) throw new Error("Unexpected Gemini response shape.");
+	if (!Array.isArray(parts)) throw new Error(t("Unexpected Gemini response shape."));
 	return parts.map((p) => p.text ?? "").join("");
 }
 

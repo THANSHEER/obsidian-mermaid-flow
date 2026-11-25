@@ -3,6 +3,7 @@
  * All toolbar DOM construction and palette drag-to-canvas lives here.
  */
 
+import { t } from "./i18n";
 import { Menu, setIcon } from "obsidian";
 import { AlignDir, DistributeDir } from "./alignTools";
 import type { DiagramCanvas, EditorMode } from "./canvas";
@@ -61,13 +62,13 @@ export interface ToolbarRefs {
 export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 	// Undo / redo
 	const historyGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	const undoBtn = iconButton(historyGroup, "undo-2", "Undo (Ctrl+Z)", () => ops.undo());
-	const redoBtn = iconButton(historyGroup, "redo-2", "Redo (Ctrl+Shift+Z)", () => ops.redo());
+	const undoBtn = iconButton(historyGroup, "undo-2", t("Undo (Ctrl+Z)"), () => ops.undo());
+	const redoBtn = iconButton(historyGroup, "redo-2", t("Redo (Ctrl+Shift+Z)"), () => ops.redo());
 
 	// Mode toggle
 	const modeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	const selectModeBtn = iconButton(modeGroup, "mouse-pointer-2", "Select / move (S)", () => ops.setMode("select"));
-	const connectModeBtn = iconButton(modeGroup, "spline", "Connect nodes (C)", () => ops.setMode("connect"));
+	const selectModeBtn = iconButton(modeGroup, "mouse-pointer-2", t("Select / move (S)"), () => ops.setMode("select"));
+	const connectModeBtn = iconButton(modeGroup, "spline", t("Connect nodes (C)"), () => ops.setMode("connect"));
 
 	const updateModeButtons = () => {
 		const mode = ops.getMode();
@@ -81,8 +82,8 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 
 	// Layout + lock
 	const layoutGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	iconButtonEv(layoutGroup, "layout-template", "Layout presets", (e) => ops.showLayoutMenu(e));
-	const lockBtn = iconButton(layoutGroup, "lock-open", "Lock layout", () => ops.toggleLock());
+	iconButtonEv(layoutGroup, "layout-template", t("Layout presets"), (e) => ops.showLayoutMenu(e));
+	const lockBtn = iconButton(layoutGroup, "lock-open", t("Lock layout"), () => ops.toggleLock());
 
 	// Align & distribute (always visible; dims when < 2 nodes selected)
 	const alignGroup = bar.createDiv({ cls: "mermaid-flow-tb-group mermaid-flow-align-group" });
@@ -96,39 +97,39 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 
 	// Group + delete
 	const opsGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	iconButton(opsGroup, "group", "Group selected node into a subgraph (Ctrl+G)", () => ops.addSubgraph());
-	iconButton(opsGroup, "trash-2", "Delete selected (Del)", () => ops.deleteSelected());
+	iconButton(opsGroup, "group", t("Group selected node into a subgraph (Ctrl+G)"), () => ops.addSubgraph());
+	iconButton(opsGroup, "trash-2", t("Delete selected (Del)"), () => ops.deleteSelected());
 
 	// Code + export
 	const codeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	iconButton(codeGroup, "code", "Toggle code view", () => ops.toggleCode());
-	iconButtonEv(codeGroup, "download", "Export diagram", (e) => ops.showExportMenu(e));
+	iconButton(codeGroup, "code", t("Toggle code view"), () => ops.toggleCode());
+	iconButtonEv(codeGroup, "download", t("Export diagram"), (e) => ops.showExportMenu(e));
 	if (ops.showComponentMenu) {
-		iconButtonEv(codeGroup, "library", "Component library", (e) => ops.showComponentMenu!(e));
+		iconButtonEv(codeGroup, "library", t("Component library"), (e) => ops.showComponentMenu!(e));
 	}
 
 	// AI assist (only when the host enabled AI for this session)
 	const showAiMenu = ops.showAiMenu?.bind(ops);
 	if (showAiMenu) {
 		const aiGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-		iconButtonEv(aiGroup, "sparkles", "AI assist", (e) => showAiMenu(e));
+		iconButtonEv(aiGroup, "sparkles", t("AI assist"), (e) => showAiMenu(e));
 	}
 
 	// Help
 	const helpGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	iconButton(helpGroup, "help-circle", "Keyboard shortcuts & Help", () => ops.showHelpDialog());
+	iconButton(helpGroup, "help-circle", t("Keyboard shortcuts & Help"), () => ops.showHelpDialog());
 
 	// Zoom controls
 	const zoomGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	iconButton(zoomGroup, "zoom-out", "Zoom out (Ctrl/Cmd −)", () => ops.getCanvas().zoomOut());
+	iconButton(zoomGroup, "zoom-out", t("Zoom out (Ctrl/Cmd −)"), () => ops.getCanvas().zoomOut());
 	const zoomLabel = zoomGroup.createEl("button", {
 		cls: "mermaid-flow-tb-btn mermaid-flow-zoom-label",
-		text: "100%",
-		attr: { "aria-label": "Reset zoom to 100%" },
+		text: t("100%"),
+		attr: { "aria-label": t("Reset zoom to 100%") },
 	});
 	zoomLabel.addEventListener("click", () => ops.getCanvas().zoomReset());
-	iconButton(zoomGroup, "zoom-in", "Zoom in (Ctrl/Cmd +)", () => ops.getCanvas().zoomIn());
-	iconButton(zoomGroup, "maximize-2", "Zoom to fit (Ctrl+Shift+F)", () => ops.zoomToFit());
+	iconButton(zoomGroup, "zoom-in", t("Zoom in (Ctrl/Cmd +)"), () => ops.getCanvas().zoomIn());
+	iconButton(zoomGroup, "maximize-2", t("Zoom to fit (Ctrl+Shift+F)"), () => ops.zoomToFit());
 
 	const updateZoomLabel = (zoom: number) => {
 		zoomLabel.setText(`${Math.round(zoom * 100)}%`);
@@ -139,26 +140,26 @@ export function buildToolbar(bar: HTMLElement, ops: ToolbarOps): ToolbarRefs {
 
 	// Direction dropdown
 	const dirGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	dirGroup.createSpan({ cls: "mermaid-flow-tb-label", text: "Direction" });
+	dirGroup.createSpan({ cls: "mermaid-flow-tb-label", text: t("Direction") });
 	const dirSelect = dirGroup.createEl("select", {
 		cls: "dropdown mermaid-flow-select",
-		attr: { "aria-label": "Select direction" },
+		attr: { "aria-label": t("Select direction") },
 	});
 	for (const dir of DIRECTIONS) {
-		const opt = dirSelect.createEl("option", { text: DIRECTION_LABELS[dir], value: dir });
+		const opt = dirSelect.createEl("option", { text: t(DIRECTION_LABELS[dir]), value: dir });
 		if (dir === ops.getCurrentDirection()) opt.selected = true;
 	}
 	dirSelect.addEventListener("change", () => ops.applyDirection(dirSelect.value as Direction));
 
 	// Theme dropdown
 	const themeGroup = bar.createDiv({ cls: "mermaid-flow-tb-group" });
-	themeGroup.createSpan({ cls: "mermaid-flow-tb-label", text: "Theme" });
+	themeGroup.createSpan({ cls: "mermaid-flow-tb-label", text: t("Theme") });
 	const themeSelect = themeGroup.createEl("select", {
 		cls: "dropdown mermaid-flow-select",
-		attr: { "aria-label": "Select theme" },
+		attr: { "aria-label": t("Select theme") },
 	});
 	for (const preset of THEME_PRESETS) {
-		const o = themeSelect.createEl("option", { text: preset.label, value: preset.id });
+		const o = themeSelect.createEl("option", { text: t(preset.label), value: preset.id });
 		if (ops.matchesTheme(preset.id)) o.selected = true;
 	}
 	themeSelect.addEventListener("change", () => ops.applyTheme(themeSelect.value));
@@ -175,10 +176,10 @@ function buildShapeMenu(bar: HTMLElement, ops: ToolbarOps): void {
 	const menu = bar.createDiv({ cls: "mermaid-flow-tb-group mermaid-flow-shape-menu" });
 	const btn = menu.createEl("button", {
 		cls: "mermaid-flow-icon-btn clickable-icon",
-		attr: { "aria-label": "Add shape" },
+		attr: { "aria-label": t("Add shape") },
 	});
 	setIcon(btn, "shapes");
-	btn.createSpan({ cls: "mermaid-flow-caret", text: "▾" });
+	btn.createSpan({ cls: "mermaid-flow-caret", text: t("▾") });
 
 	const popup = menu.createDiv({ cls: "mermaid-flow-shape-popup" });
 	const grid = popup.createDiv({ cls: "mermaid-flow-palette-grid" });
@@ -213,7 +214,7 @@ function buildShapeMenu(bar: HTMLElement, ops: ToolbarOps): void {
 		const item = grid.createEl("button", {
 			cls: "mermaid-flow-shape-btn clickable-icon",
 			attr: {
-				"aria-label": SHAPE_LABELS[shape],
+				"aria-label": t(SHAPE_LABELS[shape]),
 				draggable: "true",
 			},
 		});
@@ -247,19 +248,19 @@ function buildAlignGroup(group: HTMLElement, ops: ToolbarOps): void {
 	const alignMenu = (e: MouseEvent) => {
 		if (ops.getMultiCount() < 2) return;
 		const menu = new Menu();
-		menu.addItem((item) => item.setTitle("Align left edges").setIcon("align-left").onClick(() => ops.alignSelected("left")));
-		menu.addItem((item) => item.setTitle("Align right edges").setIcon("align-right").onClick(() => ops.alignSelected("right")));
-		menu.addItem((item) => item.setTitle("Align top edges").setIcon("align-start-horizontal").onClick(() => ops.alignSelected("top")));
-		menu.addItem((item) => item.setTitle("Align bottom edges").setIcon("align-end-horizontal").onClick(() => ops.alignSelected("bottom")));
-		menu.addItem((item) => item.setTitle("Centre horizontally").setIcon("align-center-horizontal").onClick(() => ops.alignSelected("center-x")));
-		menu.addItem((item) => item.setTitle("Centre vertically").setIcon("align-center-vertical").onClick(() => ops.alignSelected("center-y")));
+		menu.addItem((item) => item.setTitle(t("Align left edges")).setIcon("align-left").onClick(() => ops.alignSelected("left")));
+		menu.addItem((item) => item.setTitle(t("Align right edges")).setIcon("align-right").onClick(() => ops.alignSelected("right")));
+		menu.addItem((item) => item.setTitle(t("Align top edges")).setIcon("align-start-horizontal").onClick(() => ops.alignSelected("top")));
+		menu.addItem((item) => item.setTitle(t("Align bottom edges")).setIcon("align-end-horizontal").onClick(() => ops.alignSelected("bottom")));
+		menu.addItem((item) => item.setTitle(t("Centre horizontally")).setIcon("align-center-horizontal").onClick(() => ops.alignSelected("center-x")));
+		menu.addItem((item) => item.setTitle(t("Centre vertically")).setIcon("align-center-vertical").onClick(() => ops.alignSelected("center-y")));
 		menu.addSeparator();
-		menu.addItem((item) => item.setTitle("Distribute horizontally").setIcon("columns-3").onClick(() => ops.distributeSelected("horizontal")));
-		menu.addItem((item) => item.setTitle("Distribute vertically").setIcon("rows-3").onClick(() => ops.distributeSelected("vertical")));
+		menu.addItem((item) => item.setTitle(t("Distribute horizontally")).setIcon("columns-3").onClick(() => ops.distributeSelected("horizontal")));
+		menu.addItem((item) => item.setTitle(t("Distribute vertically")).setIcon("rows-3").onClick(() => ops.distributeSelected("vertical")));
 		menu.showAtMouseEvent(e);
 	};
 
-	iconButtonEv(group, "layout-panel-left", "Align & distribute", alignMenu);
+	iconButtonEv(group, "layout-panel-left", t("Align & distribute"), alignMenu);
 }
 
 // --- docked save/discard actions --------------------------------------------
@@ -267,15 +268,15 @@ function buildAlignGroup(group: HTMLElement, ops: ToolbarOps): void {
 function buildDockedActions(bar: HTMLElement, ops: ToolbarOps): void {
 	const group = bar.createDiv({ cls: "mermaid-flow-tb-group mermaid-flow-actions" });
 	const discardBtn = group.createEl("button", {
-		text: "Discard",
+		text: t("Discard"),
 		cls: "mermaid-flow-tb-btn",
-		attr: { "aria-label": "Discard changes and close" },
+		attr: { "aria-label": t("Discard changes and close") },
 	});
 	discardBtn.addEventListener("click", () => ops.discard());
 	const saveBtn = group.createEl("button", {
 		text: ops.getSaveLabel(),
 		cls: "mermaid-flow-tb-btn mod-cta",
-		attr: { "aria-label": "Save diagram to note" },
+		attr: { "aria-label": t("Save diagram to note") },
 	});
 	saveBtn.addEventListener("click", () => ops.save());
 }

@@ -4,6 +4,7 @@
  * edit and save directly; otherwise it falls back to a read-only copy-only view.
  */
 
+import { t } from "./i18n";
 import { App, Modal, Notice } from "obsidian";
 
 export class CodeViewModal extends Modal {
@@ -17,7 +18,7 @@ export class CodeViewModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.titleEl.setText("Mermaid code");
+		this.titleEl.setText(t("Mermaid code"));
 		this.contentEl.addClass("mermaid-flow-code-modal");
 
 		const area = this.contentEl.createEl("textarea", {
@@ -29,17 +30,17 @@ export class CodeViewModal extends Modal {
 
 		const footer = this.contentEl.createDiv({ cls: "mermaid-flow-footer" });
 
-		const copy = footer.createEl("button", { text: "Copy" });
+		const copy = footer.createEl("button", { text: t("Copy") });
 		copy.addEventListener("click", () => {
 			navigator.clipboard.writeText(area.value).then(
-				() => new Notice("Mermaid code copied."),
-				() => new Notice("Copy failed."),
-			).catch(() => new Notice("Copy failed."));
+				() => new Notice(t("Mermaid code copied.")),
+				() => new Notice(t("Copy failed.")),
+			).catch(() => new Notice(t("Copy failed.")));
 		});
 
 		if (this.onSave) {
 			const save = footer.createEl("button", {
-				text: "Save",
+				text: t("Save"),
 				cls: "mod-cta",
 			});
 			save.addEventListener("click", () => {
@@ -47,10 +48,10 @@ export class CodeViewModal extends Modal {
 				this.close();
 			});
 
-			const cancel = footer.createEl("button", { text: "Cancel" });
+			const cancel = footer.createEl("button", { text: t("Cancel") });
 			cancel.addEventListener("click", () => this.close());
 		} else {
-			const close = footer.createEl("button", { text: "Close", cls: "mod-cta" });
+			const close = footer.createEl("button", { text: t("Close"), cls: "mod-cta" });
 			close.addEventListener("click", () => this.close());
 		}
 	}

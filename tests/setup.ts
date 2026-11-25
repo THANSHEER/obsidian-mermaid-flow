@@ -1,9 +1,14 @@
+import { setLocale } from "../src/i18n";
+
 /**
  * Vitest global setup — polyfills Obsidian globals that jsdom does not provide.
  *
  * Run before every test file via vitest.config.ts `setupFiles`.
  * Guards with `typeof document` so it is safe in the default node environment too.
  */
+
+// Tests must be deterministic regardless of the host machine locale.
+setLocale("en");
 
 if (typeof document !== "undefined") {
 	// activeDocument / activeWindow — Obsidian globals for popout-window support.

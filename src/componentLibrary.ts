@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 /*
  * User-saved reusable diagram snippets (component library).
  * Stored in plugin settings and inserted as Mermaid fragments.
@@ -82,7 +83,7 @@ export function componentFromSelection(
 
 	return {
 		id: `comp-${Date.now().toString(36)}`,
-		name: name.trim() || "Untitled component",
+		name: name.trim() || t("Untitled component"),
 		mermaid: modelToMermaid(snippet, { includePositions: true }),
 		createdAt: Date.now(),
 	};

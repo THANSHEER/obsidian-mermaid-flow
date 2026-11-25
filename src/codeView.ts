@@ -2,6 +2,7 @@
  * The raw-Mermaid code view panel (toggle with the toolbar Code button).
  */
 
+import { t } from "./i18n";
 import { Notice, setIcon } from "obsidian";
 import { layoutMissing } from "./layout";
 import type { DiagramCanvas } from "./canvas";
@@ -35,14 +36,14 @@ export class CodeView {
 		this.wrap.hide();
 
 		const header = this.wrap.createDiv({ cls: "mermaid-flow-code-header" });
-		header.createSpan({ text: "Mermaid code" });
+		header.createSpan({ text: t("Mermaid code") });
 
 		const toggleDiv = header.createDiv({ cls: "mermaid-flow-code-controls" });
-		toggleDiv.createSpan({ text: "Auto-apply: " });
+		toggleDiv.createSpan({ text: t("Auto-apply: ") });
 		const autoToggle = toggleDiv.createEl("input", {
 			type: "checkbox",
 			cls: "mermaid-flow-auto-apply-toggle",
-			attr: { "aria-label": "Toggle auto-apply for code changes" },
+			attr: { "aria-label": t("Toggle auto-apply for code changes") },
 		});
 		autoToggle.addEventListener("change", () => {
 			this.autoApply = autoToggle.checked;
@@ -50,28 +51,28 @@ export class CodeView {
 
 		const actions = header.createDiv({ cls: "mermaid-flow-code-actions" });
 		const apply = actions.createEl("button", {
-			text: "Apply to diagram",
+			text: t("Apply to diagram"),
 			cls: "mermaid-flow-panel-btn",
-			attr: { "aria-label": "Apply code changes to diagram" },
+			attr: { "aria-label": t("Apply code changes to diagram") },
 		});
 		apply.addEventListener("click", () => this.applyCode());
 
 		const copyBtn = actions.createEl("button", {
-			text: "Copy",
+			text: t("Copy"),
 			cls: "mermaid-flow-panel-btn",
-			attr: { "aria-label": "Copy diagram code to clipboard" },
+			attr: { "aria-label": t("Copy diagram code to clipboard") },
 		});
 		copyBtn.addEventListener("click", () => {
 			const code = modelToMermaid(this.ops.getModel());
 			navigator.clipboard
 				.writeText(code)
-				.then(() => new Notice("Diagram code copied to clipboard"))
-				.catch(() => new Notice("Failed to copy code"));
+				.then(() => new Notice(t("Diagram code copied to clipboard")))
+				.catch(() => new Notice(t("Failed to copy code")));
 		});
 
 		this.area = this.wrap.createEl("textarea", {
 			cls: "mermaid-flow-code",
-			attr: { spellcheck: "false", "aria-label": "Edit Mermaid diagram code" },
+			attr: { spellcheck: "false", "aria-label": t("Edit Mermaid diagram code") },
 		});
 		this.area.addEventListener("input", () => this.scheduleAutoApply());
 
@@ -125,16 +126,16 @@ export class CodeView {
 			if (!isAuto) this.ops.pushHistory();
 			this.errorEl.hide();
 			if (!isAuto && warnings.length > 0) {
-				new Notice(`Applied with ${warnings.length} warning(s).`);
+				new Notice(t("Applied with {count} warning(s).", { count: warnings.length }));
 			}
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Unknown parsing error";
+			const msg = err instanceof Error ? err.message : t("Unknown parsing error");
 			this.errorEl.empty();
 			const icon = this.errorEl.createSpan({ cls: "mermaid-flow-error-icon" });
 			setIcon(icon, "alert-triangle");
-			this.errorEl.createSpan({ text: ` Syntax Error: ${msg}` });
+			this.errorEl.createSpan({ text: t(" Syntax Error: {msg}", { msg }) });
 			this.errorEl.show();
-			if (!isAuto) new Notice("Invalid Mermaid code. Check the error below.");
+			if (!isAuto) new Notice(t("Invalid Mermaid code. Check the error below."));
 		}
 	}
 }

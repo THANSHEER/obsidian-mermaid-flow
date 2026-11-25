@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 /*
  * Welcome modal displayed after plugin installation.
  */
@@ -24,12 +25,12 @@ export class WelcomeModal extends Modal {
 
 		header.createEl("h2", {
 			cls: "mermaid-flow-modal-title",
-			text: "Welcome to Mermaid Flow",
+			text: t("Welcome to Mermaid Flow"),
 		});
 
 		header.createEl("p", {
 			cls: "mermaid-flow-modal-desc",
-			text: "A visual, drag-and-drop editor for Mermaid flowcharts inside Obsidian. Create and rearrange diagrams without writing code.",
+			text: t("A visual, drag-and-drop editor for Mermaid flowcharts inside Obsidian. Create and rearrange diagrams without writing code."),
 		});
 
 		const features = content.createDiv({ cls: "mermaid-flow-welcome-features" });
@@ -37,23 +38,23 @@ export class WelcomeModal extends Modal {
 		const featureList = [
 			{
 				icon: "🎯",
-				title: "Visual canvas",
-				desc: "Drag nodes, connect via edge anchor dots, resize, and group into subgraphs.",
+				title: t("Visual canvas"),
+				desc: t("Drag nodes, connect via edge anchor dots, resize, and group into subgraphs."),
 			},
 			{
 				icon: "🔄",
-				title: "Safe round-trip",
-				desc: "Edit existing Mermaid blocks visually without losing custom styling or syntax.",
+				title: t("Safe round-trip"),
+				desc: t("Edit existing Mermaid blocks visually without losing custom styling or syntax."),
 			},
 			{
 				icon: "⚡",
-				title: "Quick access",
-				desc: "Click the workflow ribbon icon, the Edit button above diagrams, or use the command palette.",
+				title: t("Quick access"),
+				desc: t("Click the workflow ribbon icon, the Edit button above diagrams, or use the command palette."),
 			},
 			{
 				icon: "🎨",
-				title: "Themes & layouts",
-				desc: "Switch themes, change flow direction, apply auto-layout, or edit live Mermaid code side-by-side.",
+				title: t("Themes & layouts"),
+				desc: t("Switch themes, change flow direction, apply auto-layout, or edit live Mermaid code side-by-side."),
 			},
 		];
 
@@ -68,7 +69,7 @@ export class WelcomeModal extends Modal {
 		const footer = content.createDiv({ cls: "mermaid-flow-modal-footer" });
 
 		const settingsBtn = footer.createEl("button", {
-			text: "Open settings",
+			text: t("Open settings"),
 		});
 		settingsBtn.addEventListener("click", () => {
 			this.close();
@@ -86,7 +87,7 @@ export class WelcomeModal extends Modal {
 		});
 
 		const insertBtn = footer.createEl("button", {
-			text: "Insert diagram",
+			text: t("Insert diagram"),
 		});
 		insertBtn.addEventListener("click", () => {
 			this.close();
@@ -95,7 +96,7 @@ export class WelcomeModal extends Modal {
 
 		const startBtn = footer.createEl("button", {
 			cls: "mod-cta",
-			text: "Get started",
+			text: t("Get started"),
 		});
 		startBtn.addEventListener("click", () => {
 			this.close();

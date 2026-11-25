@@ -3,6 +3,7 @@
  * beside the note instead of as a popup.
  */
 
+import { t } from "./i18n";
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import type { LibraryComponent } from "./componentLibrary";
 import { AiHostBridge, DiagramEditorUI } from "./editorUI";
@@ -35,7 +36,7 @@ export class MermaidEditorView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Mermaid Flow Editor";
+		return t("Mermaid Flow Editor");
 	}
 
 	getIcon(): string {
@@ -94,13 +95,13 @@ export class MermaidEditorView extends ItemView {
 		if (!this.model) {
 			container.createDiv({
 				cls: "mermaid-flow-empty",
-				text: "No diagram open yet. Insert a Mermaid flowchart, then choose Edit — or run “Insert visual Mermaid diagram” from the command palette.",
+				text: t("No diagram open yet. Insert a Mermaid flowchart, then choose Edit — or run “Insert visual Mermaid diagram” from the command palette."),
 			});
 			return;
 		}
 
 		this.ui = new DiagramEditorUI(this.app, container, this.model, {
-			saveLabel: "Save to note",
+			saveLabel: t("Save to note"),
 			persist: (m) => this.onSave?.(m),
 			close: () => this.leaf.detach(),
 			autoSave: this.autoSave,
