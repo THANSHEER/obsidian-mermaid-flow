@@ -1,4 +1,4 @@
-import { setLocale, t } from "./i18n";
+import { getAvailableLocales, setLocale, t } from "./i18n";
 import type { LanguagePreference } from "./i18n";
 import { App, PluginSettingTab, Setting } from "obsidian";
 import {
@@ -83,21 +83,12 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		return [
 			{
 				name: t("Language"),
-				desc: t("Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names."),
+				desc: t("Follow Obsidian uses the app language, or choose a specific UI language. Reload the plugin after changing this to update command names."),
 				render: (setting: Setting) => {
-					setting.addDropdown((dd) => {
-						dd.addOption("auto", t("Follow Obsidian"));
-						dd.addOption("zh-cn", t("中文"));
-						dd.addOption("en", t("English"));
-						dd.setValue(this.plugin.settings.language);
-						dd.onChange(async (value) => {
-							this.plugin.settings.language = value as LanguagePreference;
-							setLocale(this.plugin.settings.language);
-							await this.plugin.saveSettings();
-							// The declarative tab re-renders through update(); display() is bypassed on 1.13+.
-							const tab = this as unknown as { update?: () => void };
-							if (typeof tab.update === "function") tab.update();
-						});
+					this.addLanguageDropdown(setting, () => {
+						// The declarative tab re-renders through update(); display() is bypassed on 1.13+.
+						const tab = this as unknown as { update?: () => void };
+						if (typeof tab.update === "function") tab.update();
 					});
 				},
 			},
@@ -238,26 +229,31 @@ export class MermaidFlowSettingTab extends PluginSettingTab {
 		];
 	}
 
+	private addLanguageDropdown(setting: Setting, onAfterChange: () => void): void {
+		setting.addDropdown((dd) => {
+			dd.addOption("auto", t("Follow Obsidian"));
+			for (const { code, label } of getAvailableLocales()) {
+				dd.addOption(code, label);
+			}
+			dd.setValue(this.plugin.settings.language);
+			dd.onChange(async (value) => {
+				this.plugin.settings.language = value as LanguagePreference;
+				setLocale(this.plugin.settings.language);
+				await this.plugin.saveSettings();
+				onAfterChange();
+			});
+		});
+	}
+
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
 		new Setting(containerEl).setName(t("Interface language")).setHeading();
-		new Setting(containerEl)
+		const langSetting = new Setting(containerEl)
 			.setName(t("Language"))
-			.setDesc(t("Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names."))
-			.addDropdown((dd) => {
-				dd.addOption("auto", t("Follow Obsidian"));
-				dd.addOption("zh-cn", t("中文"));
-				dd.addOption("en", t("English"));
-				dd.setValue(this.plugin.settings.language);
-				dd.onChange(async (value) => {
-					this.plugin.settings.language = value as LanguagePreference;
-					setLocale(this.plugin.settings.language);
-					await this.plugin.saveSettings();
-					this.display();
-				});
-			});
+			.setDesc(t("Follow Obsidian uses the app language, or choose a specific UI language. Reload the plugin after changing this to update command names."));
+		this.addLanguageDropdown(langSetting, () => this.display());
 
 		new Setting(containerEl).setName(t("Editor")).setHeading();
 

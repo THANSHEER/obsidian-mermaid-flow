@@ -2,6 +2,20 @@
 
 All notable changes to Mermaid Flow are documented here.
 
+## [1.11.0] - 2026-11-25
+
+### Features
+- **Localization & Simplified Chinese Support**: Added a full i18n localization layer (`src/i18n/`) with Simplified Chinese (`zh-cn`) translations covering menus, toolbar, properties panel, modals, settings, and alt-diagram editors (#40, #42)
+- **Language Setting**: Added an Interface Language setting (`Follow Obsidian` by default, or force `English` / `中文`), using Obsidian's `getLanguage()` with automatic fallback to English (#42)
+- **Markdown Inline Styling**: Added canvas rendering support for Markdown inline formatting (`**bold**`, `*italic*`, `***bold italic***`, `~~strike~~`, `` `code` ``, and Mermaid `` `...` `` markdown strings) alongside existing HTML rich-text tags without altering Mermaid output (#43)
+
+### Improvements
+- **Single-Registry Locale Architecture**: Consolidated locale metadata, alias matching, TypeScript types, and settings dropdown generation into `src/i18n/locales/index.ts` so new languages only require one dictionary file and one registry entry
+- **Post-Update Popup & Creator Plugins**: Updated `ChangelogModal` to load real SVG icons from `assets/logo/` and showcase NoteFlare and OmniChat with direct release download links
+- **i18n Coverage Tooling & Audit**: Added `npm run i18n:check` (`scripts/i18n-check.mjs`) and JSDOM UI rendering tests (`tests/i18n.test.ts`) to catch untranslated UI strings across all registered locales (#42)
+
+---
+
 ## [1.10.1] - 2026-11-04
 
 ### Fixes

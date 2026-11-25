@@ -1605,6 +1605,96 @@
 	margin-bottom: var(--size-2-2);
 }
 
+.mermaid-flow-other-plugins {
+	margin-top: var(--size-4-3);
+}
+
+.mermaid-flow-other-plugins-title {
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: var(--size-2-2);
+}
+
+.mermaid-flow-other-plugins-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-2);
+}
+
+@media (max-width: 520px) {
+	.mermaid-flow-other-plugins-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.mermaid-flow-other-plugin-card {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	width: 100%;
+	height: auto;
+	padding: var(--size-4-2);
+	text-align: left;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	cursor: pointer;
+	transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.mermaid-flow-other-plugin-card:hover {
+	background: var(--background-secondary-alt);
+	border-color: var(--interactive-accent);
+	transform: translateY(-1px);
+}
+
+.mermaid-flow-other-plugin-icon {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.mermaid-flow-other-plugin-icon svg {
+	display: block;
+	border-radius: 9px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+
+.mermaid-flow-other-plugin-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.mermaid-flow-other-plugin-name {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.mermaid-flow-other-plugin-desc {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.35;
+	white-space: normal;
+}
+
+.mermaid-flow-other-plugin-action {
+	flex-shrink: 0;
+	font-size: var(--font-ui-medium);
+	color: var(--text-muted);
+}
+
+.mermaid-flow-other-plugin-card:hover .mermaid-flow-other-plugin-action {
+	color: var(--interactive-accent);
+}
+
 .mermaid-flow-modal-footer {
 	display: flex;
 	align-items: center;

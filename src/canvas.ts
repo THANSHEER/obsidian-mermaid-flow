@@ -1118,7 +1118,7 @@ export class DiagramCanvas {
 	private appendInlineRuns(parent: SVGTextElement | SVGTSpanElement, line: string): void {
 		const runs = parseInlineMarkup(line);
 		const only = runs.length === 1 ? runs[0] : undefined;
-		if (only && !only.bold && !only.italic && !only.color) {
+		if (only && !only.bold && !only.italic && !only.color && !only.code && !only.strike) {
 			parent.textContent = only.text;
 			return;
 		}
@@ -1127,6 +1127,8 @@ export class DiagramCanvas {
 			if (run.bold) span.setAttribute("font-weight", "bold");
 			if (run.italic) span.setAttribute("font-style", "italic");
 			if (run.color) span.setAttribute("fill", run.color);
+			if (run.code) span.setAttribute("font-family", "var(--font-monospace, monospace)");
+			if (run.strike) span.setAttribute("text-decoration", "line-through");
 			span.textContent = run.text;
 			parent.appendChild(span);
 		}

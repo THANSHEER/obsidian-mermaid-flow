@@ -174,6 +174,16 @@ Contributions, bug reports, and suggestions are always welcome!
 
 ---
 
+## 🌍 Translations & Credits
+
+Thank you to the community contributors helping make Mermaid Flow accessible in more languages:
+
+| Language | Code | Contributor |
+| --- | --- | --- |
+| Simplified Chinese (简体中文) | `zh-cn` | [@mapleleo-hub](https://github.com/mapleleo-hub) ([#42](https://github.com/THANSHEER/obsidian-mermaid-flow/pull/42)) |
+
+---
+
 ## 📄 License
 
 Licensed under the [GNU General Public License v3.0](LICENSE).

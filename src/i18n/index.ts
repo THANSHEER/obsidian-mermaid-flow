@@ -7,26 +7,44 @@
  */
 
 import { getLanguage } from "obsidian";
-import type { Dictionary, LanguagePreference, Locale, Vars } from "./types";
-import { zhCN } from "./locales/zh-cn";
-
-const DICTIONARIES: Partial<Record<Locale, Dictionary>> = {
-	"zh-cn": zhCN,
-};
+import type { BundledLocale, Dictionary, LanguagePreference, Locale, Vars } from "./types";
+import { LOCALE_REGISTRY } from "./locales";
 
 let preference: LanguagePreference = "auto";
 let cachedLocale: Locale | null = null;
 
-export type { Dictionary, LanguagePreference, Locale, Vars } from "./types";
+export type { BundledLocale, Dictionary, LanguagePreference, Locale, Vars } from "./types";
 
-/** Map any Obsidian language code (`zh`, `zh-TW`, `en-GB`, ...) to a bundle. */
+/** Map any Obsidian language code (`zh`, `zh-TW`, `en-GB`, ...) to a registered locale. */
 export function toLocale(code: string | null | undefined): Locale {
 	const value = (code ?? "").toLowerCase();
-	return value === "zh" || value.startsWith("zh-") ? "zh-cn" : "en";
+	if (!value) return "en";
+	for (const [locale, def] of Object.entries(LOCALE_REGISTRY)) {
+		if (def.aliases.some((alias) => value === alias || value.startsWith(`${alias}-`))) {
+			return locale as Locale;
+		}
+	}
+	return "en";
 }
 
-function normalizePreference(value: unknown): LanguagePreference {
-	return value === "en" || value === "zh-cn" || value === "auto" ? value : "auto";
+/** Validate a persisted or user-supplied language preference against registered locales. */
+export function normalizePreference(value: unknown): LanguagePreference {
+	if (value === "en" || value === "auto") return value;
+	if (typeof value === "string" && Object.prototype.hasOwnProperty.call(LOCALE_REGISTRY, value)) {
+		return value as LanguagePreference;
+	}
+	return "auto";
+}
+
+/** List all available UI locales for settings dropdowns and tests. */
+export function getAvailableLocales(): Array<{ code: Locale; label: string }> {
+	return [
+		{ code: "en", label: "English" },
+		...Object.entries(LOCALE_REGISTRY).map(([code, def]) => ({
+			code: code as Locale,
+			label: def.label,
+		})),
+	];
 }
 
 function readObsidianLanguage(): string | null {
@@ -68,7 +86,9 @@ export function getLocalePreference(): LanguagePreference {
  * Placeholders use `{name}` and are filled from `vars`.
  */
 export function t(text: string, vars?: Vars): string {
-	const dictionary = DICTIONARIES[getLocale()];
+	const locale = getLocale();
+	const dictionary: Dictionary | undefined =
+		locale === "en" ? undefined : LOCALE_REGISTRY[locale as BundledLocale]?.dictionary;
 	let out = dictionary?.[text] ?? text;
 	if (vars) {
 		for (const [key, value] of Object.entries(vars)) {

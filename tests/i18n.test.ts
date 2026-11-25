@@ -9,7 +9,7 @@
  *    entry are caught here, not by users.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { getLocale, setLocale, t, toLocale } from "../src/i18n";
+import { getAvailableLocales, getLocale, normalizePreference, setLocale, t, toLocale } from "../src/i18n";
 import { buildToolbar } from "../src/toolbar";
 import type { ToolbarOps } from "../src/toolbar";
 import { PropertiesPanel } from "../src/propertiesPanel";
@@ -51,7 +51,15 @@ describe("t()", () => {
 
 	it("defaults to the app language when the preference is auto", () => {
 		setLocale("auto");
-		expect(["en", "zh-cn"]).toContain(getLocale());
+		expect(getAvailableLocales().map((l) => l.code)).toContain(getLocale());
+	});
+
+	it("validates preferences against registered locales", () => {
+		expect(normalizePreference("en")).toBe("en");
+		expect(normalizePreference("zh-cn")).toBe("zh-cn");
+		expect(normalizePreference("auto")).toBe("auto");
+		expect(normalizePreference("unknown-lang")).toBe("auto");
+		expect(normalizePreference(null)).toBe("auto");
 	});
 });
 
@@ -103,7 +111,7 @@ const ASCII_WORD = /^[A-Za-z][A-Za-z'’./+-]{2,}$/;
 const ALLOW = new Set([
 	"Mermaid", "Flow", "Obsidian", "PNG", "SVG", "PDF", "AI", "API", "URL", "Id", "id",
 	"OpenAI", "Ollama", "LM", "Studio", "OpenRouter", "Anthropic", "Claude", "Google",
-	"Gemini", "Ko-fi", "GitHub", "classDef", "style", "stroke", "fill", "color", "px",
+	"Gemini", "Ko-fi", "GitHub", "NoteFlare", "OmniChat", "zh-cn", "classDef", "style", "stroke", "fill", "color", "px",
 	"Ctrl", "Cmd", "Shift", "Alt", "Space", "Enter", "Esc", "Escape", "Tab", "Del",
 	"Backspace", "F2", "Key", "Step", "A1", "A2", "B1", "B2", "Yes", "No", "Solarized",
 	"Arial", "Georgia", "Courier", "New", "Trebuchet", "MS", "Verdana",

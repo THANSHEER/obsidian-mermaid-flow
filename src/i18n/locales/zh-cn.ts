@@ -230,7 +230,7 @@ export const zhCN: Dictionary = {
 	"Flow — Top to bottom": "流程 · 从上到下",
 	"flowchart": "流程图",
 	"Follow Obsidian": "跟随 Obsidian",
-	"Follow Obsidian uses the app language. Chinese and English force the plugin UI language. Reload the plugin after changing this to update command names.": "跟随 Obsidian 时使用应用语言；选中文或英文会强制使用对应语言。更改后需重载插件，命令面板与功能区的名称才会更新。",
+	"Follow Obsidian uses the app language, or choose a specific UI language. Reload the plugin after changing this to update command names.": "跟随 Obsidian 将使用应用语言，或选择特定的界面语言。更改后需重载插件，命令面板与功能区的名称才会更新。",
 	"Font family": "字体",
 	"Font size (px)": "字号 (px)",
 	"Forest": "森林",
@@ -582,4 +582,13 @@ export const zhCN: Dictionary = {
 		"平板工具栏图标：修复横屏、全屏与竖屏模式下因 Obsidian 平板按钮内边距导致图标丢失的问题 (#39)。",
 	"Touch button protection: prevented shape palette grid buttons, property chips, and panel collapse toggles from ballooning on tablets (#39).":
 		"触控按钮保护：避免形状面板按钮、属性标签和面板折叠按钮在平板上被撑大 (#39)。",
+	"Download {name}": "下载 {name}",
+	"Embedded sidebar browser for ChatGPT, Claude, Gemini, DeepSeek & more.": "在 Obsidian 侧边栏中嵌入浏览器，快速使用 ChatGPT、Claude、Gemini、DeepSeek 等 AI 工具。",
+	"Interface language setting: defaults to Follow Obsidian, with options to switch between English and 中文 in settings (#42).": "界面语言设置：默认跟随 Obsidian，也可在设置中切换为 English 或中文 (#42)。",
+	"Localization layer: added multi-language support with Simplified Chinese (zh-cn) translations across menus, toolbar, properties panel, modals, and settings (#42).": "多语言本地化层：为菜单、工具栏、属性面板、弹窗与设置新增简体中文 (zh-cn) 翻译支持 (#42)。",
+	"Markdown inline styling: added canvas rendering for **bold**, *italic*, ~~strike~~, and `code` alongside HTML rich-text tags (#43).": "Markdown 行内样式：画布现已支持 **粗体**、*斜体*、~~删除线~~ 与 `行内代码`，并兼容现有 HTML 富文本标签 (#43)。",
+	"More plugins by the creator": "作者的更多插件",
+	"Multi-language localization & Simplified Chinese support": "多语言本地化与简体中文支持",
+	"Publish your digital garden to Cloudflare or auto-backup your vault.": "将数字花园发布到 Cloudflare，或自动备份你的 Obsidian 仓库。",
+	"Single-registry i18n architecture and automated translation coverage check for future language additions.": "采用单注册表 i18n 架构与自动化翻译覆盖率检查，方便后续新增更多语言。",
 };

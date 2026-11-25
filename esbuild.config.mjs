@@ -38,6 +38,9 @@ const context = await esbuild.context({
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
+	loader: {
+		".svg": "text",
+	},
 	outfile: "main.js",
 	minify: prod,
 });

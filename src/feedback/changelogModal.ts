@@ -5,7 +5,7 @@ import { t } from "../i18n";
 
 import { App, Modal } from "obsidian";
 import type MermaidFlowPlugin from "../main";
-import { renderAppLogo } from "../logo";
+import { noteflareLogoSvg, omnichatLogoSvg, renderAppLogo, renderSvgLogo } from "../logo";
 import { openKofi } from "../kofi";
 
 export interface ChangelogItem {
@@ -17,7 +17,41 @@ export interface ChangelogItem {
 	security?: string[];
 }
 
+interface CreatorPluginItem {
+	name: string;
+	desc: string;
+	logoSvg: string;
+	downloadUrl: string;
+}
+
+const CREATOR_PLUGINS: CreatorPluginItem[] = [
+	{
+		name: "NoteFlare",
+		desc: "Publish your digital garden to Cloudflare or auto-backup your vault.",
+		logoSvg: noteflareLogoSvg,
+		downloadUrl: "https://github.com/THANSHEER/obsidian-noteflare/releases",
+	},
+	{
+		name: "OmniChat",
+		desc: "Embedded sidebar browser for ChatGPT, Claude, Gemini, DeepSeek & more.",
+		logoSvg: omnichatLogoSvg,
+		downloadUrl: "https://github.com/THANSHEER/obsidian-omnichat/releases",
+	},
+];
+
 export const CHANGELOG_DATA: ChangelogItem[] = [
+	{
+		version: "1.11.0",
+		title: "Multi-language localization & Simplified Chinese support",
+		features: [
+			"Localization layer: added multi-language support with Simplified Chinese (zh-cn) translations across menus, toolbar, properties panel, modals, and settings (#42).",
+			"Interface language setting: defaults to Follow Obsidian, with options to switch between English and 中文 in settings (#42).",
+			"Markdown inline styling: added canvas rendering for **bold**, *italic*, ~~strike~~, and `code` alongside HTML rich-text tags (#43).",
+		],
+		improvements: [
+			"Single-registry i18n architecture and automated translation coverage check for future language additions.",
+		],
+	},
 	{
 		version: "1.10.1",
 		title: "Tablet toolbar icon restoration & responsive tablet UI optimizations",
@@ -190,6 +224,30 @@ export class ChangelogModal extends Modal {
 					ul.createEl("li", { text: t(s) });
 				}
 			}
+		}
+
+		const otherPlugins = content.createDiv({ cls: "mermaid-flow-other-plugins" });
+		otherPlugins.createDiv({
+			cls: "mermaid-flow-other-plugins-title",
+			text: t("More plugins by the creator"),
+		});
+		const pluginsGrid = otherPlugins.createDiv({ cls: "mermaid-flow-other-plugins-grid" });
+		for (const item of CREATOR_PLUGINS) {
+			const card = pluginsGrid.createEl("button", {
+				cls: "mermaid-flow-other-plugin-card",
+				attr: {
+					type: "button",
+					"aria-label": t("Download {name}", { name: item.name }),
+				},
+			});
+			renderSvgLogo(card, item.logoSvg, 38, "mermaid-flow-other-plugin-icon");
+			const info = card.createDiv({ cls: "mermaid-flow-other-plugin-info" });
+			info.createEl("strong", { cls: "mermaid-flow-other-plugin-name", text: item.name });
+			info.createSpan({ cls: "mermaid-flow-other-plugin-desc", text: t(item.desc) });
+			card.createSpan({ cls: "mermaid-flow-other-plugin-action", text: "↗" });
+			card.addEventListener("click", () => {
+				activeWindow.open(item.downloadUrl, "_blank");
+			});
 		}
 
 		const footer = content.createDiv({ cls: "mermaid-flow-modal-footer" });

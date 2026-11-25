@@ -1,4 +1,4 @@
-import { setLocale, t } from "./i18n";
+import { normalizePreference, setLocale, t } from "./i18n";
 import {
 	Editor,
 	MarkdownPostProcessorContext,
@@ -346,8 +346,7 @@ export default class MermaidFlowPlugin extends Plugin {
 			this.settings.componentLibrary = [];
 		}
 		// Tolerate values written by older builds or hand-edited settings files.
-		const storedLanguage = this.settings.language;
-		this.settings.language = storedLanguage === "en" || storedLanguage === "zh-cn" ? storedLanguage : "auto";
+		this.settings.language = normalizePreference(this.settings.language);
 		setLocale(this.settings.language);
 	}
 
